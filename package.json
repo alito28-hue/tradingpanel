@@ -1,11 +1,19 @@
 {
   "name": "tradingpanel",
   "version": "0.1.0",
-  "description": "Intraday momentum backtest and dashboard (standalone)",
+  "description": "Intraday momentum backtest and dashboard (Next.js) + BingX bot scaffolding",
   "scripts": {
-    "preview": "cd app && python3 -m http.server 8001",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "backtest": "node app/scripts/run_backtest.js",
-    "export-results": "node app/scripts/export_results_to_csv.js"
+    "export-results": "node app/scripts/export_results_to_csv.js",
+    "worker": "node worker/index.js"
+  },
+  "dependencies": {
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "engines": {
     "node": ">=18"

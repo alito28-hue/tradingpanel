@@ -1,167 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Intraday Momentum Dashboard</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-  html, body { margin:0; padding:0; background:#11141A; }
-  * { box-sizing: border-box; }
-</style>
-</head>
-<body>
-<div id="root"></div>
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo, useCallback } = React;
+'use client';
 
-/* ---------------------------------------------------------------------- */
-/* Tokens                                                                   */
-/* ---------------------------------------------------------------------- */
-const COLORS = {
-  bg: '#11141A',
-  panel: '#171B23',
-  panelAlt: '#1D2230',
-  border: '#262C39',
-  text: '#ECE9E2',
-  muted: '#8B91A0',
-  accent: '#E8A33D',
-  bull: '#3FCB91',
-  bear: '#E2596B',
-  neutral: '#5B6472',
-};
-
-/* ---------------------------------------------------------------------- */
-/* Math helpers                                                            */
-/* ---------------------------------------------------------------------- */
-function sma(values, length) {
-  const out = new Array(values.length).fill(null);
-  let sum = 0;
-  for (let i = 0; i < values.length; i++) {
-    sum += values[i];
-    if (i >= length) sum -= values[i - length];
-    if (i >= length - 1) out[i] = sum / length;
-  }
-  return out;
-}
-
-function ema(values, length) {
-  const out = new Array(values.length).fill(null);
-  const k = 2 / (length + 1);
-  let prev = null;
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (v == null) { out[i] = prev; continue; }
-    prev = prev == null ? v : v * k + prev * (1 - k);
-    out[i] = prev;
-  }
-  return out;
-}
-
-function macdLineOf(closes, fast = 12, slow = 26) {
-  const f = ema(closes, fast);
-  const s = ema(closes, slow);
-  return closes.map((_, i) => (f[i] != null && s[i] != null) ? f[i] - s[i] : null);
-}
-
-/* ---------------------------------------------------------------------- */
-/* Data fetching                                                           */
-/* ---------------------------------------------------------------------- */
-async function fetchKlines(symbol, interval, limit) {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance fetch failed (${res.status})`);
-  const raw = await res.json();
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error('Empty response');
-  return raw.map(k => ({
-    time: k[0],
-    open: parseFloat(k[1]),
-    high: parseFloat(k[2]),
-    low: parseFloat(k[3]),
-    close: parseFloat(k[4]),
-    closeTime: k[6],
-  }));
-}
-
-function generateMockCandles(count, intervalMs, startPrice) {
-  const now = Date.now();
-  let price = startPrice;
-  const out = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const time = now - i * intervalMs;
-    const drift = Math.sin(i / 18) * 0.0018 + (Math.random() - 0.5) * 0.0045;
-    const open = price;
-    price = Math.max(1, price * (1 + drift));
-    const close = price;
-    const high = Math.max(open, close) * (1 + Math.random() * 0.0015);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.0015);
-    out.push({ time, open, high, low, close, closeTime: time + intervalMs - 1 });
-  }
-  return out;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Strategy logic                                                          */
-/* ---------------------------------------------------------------------- */
-function buildAnalysis(candles, mode, sub, useMacdFilter, cooldownMs) {
-  const closes = candles.map(c => c.close);
-  let seriesA, seriesB, labelA, labelB;
-  if (mode === 'dual') {
-    seriesA = sma(closes, sub.fast);
-    seriesB = sma(closes, sub.slow);
-    labelA = `SMA ${sub.fast}`;
-    labelB = `SMA ${sub.slow}`;
-  } else {
-    seriesA = closes;
-    seriesB = sma(closes, sub.length);
-    labelA = 'Price';
-    labelB = `SMA ${sub.length}`;
-  }
-  const macdLine = macdLineOf(closes);
-  const signals = new Array(candles.length).fill(null);
-  let lastTime = -Infinity;
-  for (let i = 1; i < candles.length; i++) {
-    if ([seriesA[i - 1], seriesB[i - 1], seriesA[i], seriesB[i]].some(v => v == null)) continue;
-    const up = seriesA[i - 1] <= seriesB[i - 1] && seriesA[i] > seriesB[i];
-    const down = seriesA[i - 1] >= seriesB[i - 1] && seriesA[i] < seriesB[i];
-    const filterUp = useMacdFilter ? (macdLine[i] != null && macdLine[i] > 0) : true;
-    const filterDown = useMacdFilter ? (macdLine[i] != null && macdLine[i] < 0) : true;
-    const timeOk = (candles[i].time - lastTime) >= cooldownMs;
-    if (up && filterUp && timeOk) { signals[i] = 'up'; lastTime = candles[i].time; }
-    else if (down && filterDown && timeOk) { signals[i] = 'down'; lastTime = candles[i].time; }
-  }
-  const regime = new Array(candles.length).fill(null);
-  let cur = null;
-  for (let i = 0; i < candles.length; i++) {
-    if (signals[i] === 'up') cur = 'bullish';
-    else if (signals[i] === 'down') cur = 'bearish';
-    regime[i] = cur;
-  }
-  return { seriesA, seriesB, labelA, labelB, macdLine, signals, regime };
-}
-
-function gateEntries(candles1m, signals1m, candles1h, regime1h, gateByRegime = true) {
-  const closesByTime = candles1h.map((c, i) => ({ closeTime: c.closeTime, regime: regime1h[i] }));
-  function regimeAt(time) {
-    let result = null;
-    for (let i = 0; i < closesByTime.length; i++) {
-      if (closesByTime[i].closeTime <= time) result = closesByTime[i].regime;
-      else break;
-    }
-    return result;
-  }
-  const entries = [];
-  for (let i = 0; i < candles1m.length; i++) {
-    const targetRegime = signals1m[i] === 'up' ? 'bullish' : signals1m[i] === 'down' ? 'bearish' : null;
-    if (!targetRegime) continue;
-    const regimeOk = !gateByRegime || regimeAt(candles1m[i].time) === targetRegime;
-    if (regimeOk) entries.push({ index: i, type: signals1m[i] === 'up' ? 'long' : 'short' });
-  }
-  return { entries, regimeAt };
-}
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { buildAnalysis, gateEntries } from '../../lib/strategy';
+import { fetchKlines, generateMockCandles } from '../../lib/binance';
+import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
 
 function simulateMarkers(candles1m, signals1m, entries, regimeAt) {
   const markers = [];
@@ -186,9 +28,6 @@ function simulateMarkers(candles1m, signals1m, entries, regimeAt) {
   return markers;
 }
 
-/* ---------------------------------------------------------------------- */
-/* Chart                                                                    */
-/* ---------------------------------------------------------------------- */
 function CandleChart({ candles, lines, markers, regimeBg, height }) {
   if (!candles || candles.length < 2) return null;
   const width = 1000;
@@ -265,10 +104,11 @@ function CandleChart({ candles, lines, markers, regimeBg, height }) {
   );
 }
 
-/* ---------------------------------------------------------------------- */
-/* Main dashboard                                                           */
-/* ---------------------------------------------------------------------- */
-function MomentumDashboard() {
+function LoadingBlock() {
+  return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.muted, fontSize: 13 }}>Loading candles…</div>;
+}
+
+export default function DashboardPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [symbolInput, setSymbolInput] = useState('BTCUSDT');
   const [candles1h, setCandles1h] = useState([]);
@@ -331,7 +171,7 @@ function MomentumDashboard() {
       .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
       .filter(Boolean);
     return { entries, markers1m, regime1hMarkers };
-  }, [analysis1h, analysis1m, candles1h, candles1m]);
+  }, [analysis1h, analysis1m, candles1h, candles1m, gateByRegime]);
 
   const DISPLAY = 130;
   const slice = (arr) => arr.slice(-DISPLAY);
@@ -357,7 +197,7 @@ function MomentumDashboard() {
   }, [mode, m1, useMacdFilter, gateByRegime]);
 
   return (
-    <div style={{ background: COLORS.bg, color: COLORS.text, fontFamily: "Inter, -apple-system, sans-serif", minHeight: '100vh', padding: '20px' }}>
+    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Intraday Momentum</div>
@@ -374,10 +214,15 @@ function MomentumDashboard() {
             color: currentRegime === 'bullish' ? COLORS.bull : currentRegime === 'bearish' ? COLORS.bear : COLORS.muted,
             fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
           }}>
-            {currentRegime === 'bullish' ? '▲' : currentRegime === 'bearish' ? '▼' : ''} 1H {currentRegime || 'neutral'}
+            {currentRegime === 'bullish' ? '▲' : currentRegime === 'bearish' ? '▼' : null}
+            1H {currentRegime || 'neutral'}
           </span>
-          <button onClick={() => setShowSettings(s => !s)} style={btnStyle()}>⚙ Settings</button>
-          <button onClick={() => load(symbol)} style={btnStyle(true)}>↻ Refresh</button>
+          <button onClick={() => setShowSettings(s => !s)} style={btnStyle()}>
+            ⚙ Settings
+          </button>
+          <button onClick={() => load(symbol)} style={btnStyle(true)}>
+            ↻ Refresh
+          </button>
         </div>
       </div>
 
@@ -387,7 +232,7 @@ function MomentumDashboard() {
             ⚠ SIMULATED DATA — this is not the real {symbol} price.
           </div>
           <div style={{ color: COLORS.muted }}>
-            Live fetch to Binance failed{errorMsg ? `: ${errorMsg}` : ''}.
+            Live fetch to Binance failed{errorMsg ? `: ${errorMsg}` : ''}. Most likely cause: this environment can&apos;t reach external APIs directly.
           </div>
         </div>
       )}
@@ -466,7 +311,7 @@ function MomentumDashboard() {
         )}
       </Panel>
 
-      <Panel title="1M — Entries & Exits" subtitle="▲ green = long · ▼ red = short · amber-tinted = exit">
+      <Panel title="1M — Entries & Exits" subtitle="▲ green = long · ▼ red = short · ✕ amber-tinted = exit">
         {loading ? <LoadingBlock /> : (
           <CandleChart
             candles={view1m}
@@ -487,61 +332,3 @@ function MomentumDashboard() {
     </div>
   );
 }
-
-/* ---------------------------------------------------------------------- */
-/* Small UI helpers                                                        */
-/* ---------------------------------------------------------------------- */
-function Field({ label, children }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
-      <span style={{ fontSize: 11, color: COLORS.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function NumberInput({ label, value, onChange }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ fontSize: 10, color: COLORS.muted }}>{label}</span>
-      <input type="number" value={value} onChange={e => onChange(Number(e.target.value))}
-        style={{ ...inputStyle(), width: 64 }} />
-    </div>
-  );
-}
-
-function Panel({ title, subtitle, children }) {
-  return (
-    <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{title}</span>
-        <span style={{ fontSize: 11, color: COLORS.muted }}>{subtitle}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function LoadingBlock() {
-  return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.muted, fontSize: 13 }}>Loading candles…</div>;
-}
-
-function inputStyle() {
-  return {
-    background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.text,
-    borderRadius: 6, padding: '6px 8px', fontSize: 13, fontFamily: 'inherit',
-  };
-}
-
-function btnStyle(primary) {
-  return {
-    background: primary ? COLORS.accent : COLORS.panelAlt,
-    color: primary ? '#1A1505' : COLORS.text, border: `1px solid ${primary ? COLORS.accent : COLORS.border}`,
-    borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-  };
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<MomentumDashboard />);
-</script>
-</body>
-</html>
