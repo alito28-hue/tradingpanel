@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /Users/alito28/Library/CloudStorage/Dropbox/Mac\\\\ \\\\\\(2\\\\\\)/Desktop/tradingpanel/app/scripts && node run_backtest\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

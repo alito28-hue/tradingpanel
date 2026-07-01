@@ -88,7 +88,7 @@ function buildAnalysis(candles, mode, sub, useMacdFilter, cooldownMs) {
   return { signals, regime };
 }
 
-function gateEntries(candles1m, signals1m, candles1h, regime1h) {
+function gateEntries(candles1m, signals1m, candles1h, regime1h, gateByRegime = true) {
   const closesByTime = candles1h.map((c, i) => ({ closeTime: c.closeTime, regime: regime1h[i] }));
   function regimeAt(time) {
     let result = null;
@@ -99,8 +99,10 @@ function gateEntries(candles1m, signals1m, candles1h, regime1h) {
   }
   const entries = [];
   for (let i = 0; i < candles1m.length; i++) {
-    if (signals1m[i] === 'up' && regimeAt(candles1m[i].time) === 'bullish') entries.push({ index: i, type: 'long' });
-    else if (signals1m[i] === 'down' && regimeAt(candles1m[i].time) === 'bearish') entries.push({ index: i, type: 'short' });
+    const targetRegime = signals1m[i] === 'up' ? 'bullish' : signals1m[i] === 'down' ? 'bearish' : null;
+    if (!targetRegime) continue;
+    const regimeOk = !gateByRegime || regimeAt(candles1m[i].time) === targetRegime;
+    if (regimeOk) entries.push({ index: i, type: signals1m[i] === 'up' ? 'long' : 'short' });
   }
   return entries;
 }
@@ -128,6 +130,7 @@ function findSrZone(candles, uptoIdx, lookback, tolerancePct, minTouches, type) 
 
 function simulateTrades(candles1m, candles1h, entries, exitCfg) {
   const atr1h = atrSeries(candles1h, exitCfg.atrLength);
+  const commissionPct = Number(exitCfg.commissionPct || 0);
   function closedIndexAt(time) {
     let result = -1;
     for (let i = 0; i < candles1h.length; i++) { if (candles1h[i].closeTime <= time) result = i; else break; }
@@ -164,8 +167,21 @@ function simulateTrades(candles1m, candles1h, entries, exitCfg) {
       const hit = isLong ? c.low <= effectiveStop : c.high >= effectiveStop;
       if (hit) {
         const exitPrice = effectiveStop;
-        const pnlPct = isLong ? (exitPrice - pos.entryPrice) / pos.entryPrice * 100 : (pos.entryPrice - exitPrice) / pos.entryPrice * 100;
-        trades.push({ ...pos, exitIndex: i, exitTime: c.time, exitPrice, pnlPct, reason: pos.activated ? 'trailing' : 'stop' });
+        const grossPnlPct = isLong ? (exitPrice - pos.entryPrice) / pos.entryPrice * 100 : (pos.entryPrice - exitPrice) / pos.entryPrice * 100;
+        const feePct = Number(commissionPct || 0);
+        const netPnlPct = grossPnlPct - feePct * 2;
+        const durationMinutes = (c.time - pos.entryTime) / 60000;
+        trades.push({
+          ...pos,
+          exitIndex: i,
+          exitTime: c.time,
+          exitPrice,
+          grossPnlPct,
+          netPnlPct,
+          commissionPct,
+          durationMinutes,
+          reason: pos.activated ? 'trailing' : 'stop'
+        });
         pos = null;
       }
     }
@@ -175,28 +191,38 @@ function simulateTrades(candles1m, candles1h, entries, exitCfg) {
 
 function computeMetrics(trades) {
   if (!trades.length) return null;
-  const wins = trades.filter(t => t.pnlPct > 0);
-  const losses = trades.filter(t => t.pnlPct <= 0);
-  const grossWin = wins.reduce((s, t) => s + t.pnlPct, 0);
-  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnlPct, 0));
+  const netWins = trades.filter(t => t.netPnlPct > 0);
+  const netLosses = trades.filter(t => t.netPnlPct <= 0);
+  const grossWins = trades.filter(t => t.grossPnlPct > 0);
+  const grossLosses = trades.filter(t => t.grossPnlPct <= 0);
+  const netWin = netWins.reduce((s, t) => s + t.netPnlPct, 0);
+  const netLoss = Math.abs(netLosses.reduce((s, t) => s + t.netPnlPct, 0));
+  const grossWin = grossWins.reduce((s, t) => s + t.grossPnlPct, 0);
+  const grossLoss = Math.abs(grossLosses.reduce((s, t) => s + t.grossPnlPct, 0));
   let equity = 0, peak = 0, maxDD = 0;
   const curve = [0];
   trades.forEach(t => {
-    equity += t.pnlPct;
+    equity += t.netPnlPct;
     curve.push(equity);
     if (equity > peak) peak = equity;
     maxDD = Math.max(maxDD, peak - equity);
   });
+  const commissionCostPct = trades.reduce((s, t) => s + (t.grossPnlPct - t.netPnlPct), 0);
   return {
     count: trades.length,
-    winRate: wins.length / trades.length * 100,
-    avgWin: wins.length ? grossWin / wins.length : 0,
-    avgLoss: losses.length ? -grossLoss / losses.length : 0,
-    expectancy: trades.reduce((s, t) => s + t.pnlPct, 0) / trades.length,
-    profitFactor: grossLoss > 0 ? grossWin / grossLoss : Infinity,
+    winRate: netWins.length / trades.length * 100,
+    avgWin: netWins.length ? netWin / netWins.length : 0,
+    avgLoss: netLosses.length ? -netLoss / netLosses.length : 0,
+    expectancy: trades.reduce((s, t) => s + t.netPnlPct, 0) / trades.length,
+    profitFactor: netLoss > 0 ? netWin / netLoss : Infinity,
     totalPnl: equity,
+    grossTotalPnl: grossWins.reduce((s, t) => s + t.grossPnlPct, 0) + grossLosses.reduce((s, t) => s + t.grossPnlPct, 0),
+    commissionCostPct,
     maxDD,
     curve,
+    grossWinRate: grossWins.length / trades.length * 100,
+    grossAvgWin: grossWins.length ? grossWin / grossWins.length : 0,
+    grossAvgLoss: grossLosses.length ? -grossLoss / grossLosses.length : 0,
   };
 }
 
@@ -275,9 +301,10 @@ function Backtest() {
   const [lookbackDays, setLookbackDays] = useState(7);
   const [mode] = useState('single');
   const [useMacdFilter] = useState(true);
+  const [gateByRegime, setGateByRegime] = useState(true);
   const [h1, setH1] = useState({ length: 200, cooldownHours: 6 });
   const [m1, setM1] = useState({ length: 200, cooldownMinutes: 0 });
-  const [exitCfg, setExitCfg] = useState({ activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5 });
+  const [exitCfg, setExitCfg] = useState({ activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05 });
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
@@ -296,11 +323,16 @@ function Backtest() {
       setProgress('Calculando señales y simulando trades…');
       const analysis1h = buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000);
       const analysis1m = buildAnalysis(candles1m, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);
-      const entries = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime);
-      const trades = simulateTrades(candles1m, candles1h, entries, exitCfg);
-      const metrics = computeMetrics(trades);
+      const comparison = [
+        { label: 'Con filtro de régimen 1H', gateByRegime: true },
+        { label: 'Sin filtro de régimen 1H', gateByRegime: false },
+      ].map((scenario) => {
+        const entries = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime, scenario.gateByRegime);
+        const trades = simulateTrades(candles1m, candles1h, entries, exitCfg);
+        return { ...scenario, trades, metrics: computeMetrics(trades) };
+      });
       setResults({
-        trades, metrics,
+        comparison,
         candles1mCount: candles1m.length, candles1hCount: candles1h.length,
         rangeStart: candles1m[0]?.time, rangeEnd: candles1m[candles1m.length - 1]?.time,
       });
@@ -329,6 +361,11 @@ function Backtest() {
         <NumberInput label="SR tolerancia %" value={exitCfg.srTolerancePct} onChange={v => setExitCfg({ ...exitCfg, srTolerancePct: v })} />
         <NumberInput label="Min touches" value={exitCfg.srMinTouches} onChange={v => setExitCfg({ ...exitCfg, srMinTouches: v })} />
         <NumberInput label="ATR ×" value={exitCfg.atrMultiplier} onChange={v => setExitCfg({ ...exitCfg, atrMultiplier: v })} />
+        <NumberInput label="Maker fee % por lado" value={exitCfg.commissionPct} onChange={v => setExitCfg({ ...exitCfg, commissionPct: v })} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: COLORS.muted }}>
+          <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
+          Comparar con/sin gate de régimen
+        </label>
         <NumberInput label="Trail activate %" value={exitCfg.activationPct} onChange={v => setExitCfg({ ...exitCfg, activationPct: v })} />
         <NumberInput label="Trail %" value={exitCfg.trailPct} onChange={v => setExitCfg({ ...exitCfg, trailPct: v })} />
         <button onClick={run} disabled={running}
@@ -352,56 +389,68 @@ function Backtest() {
             Rango cubierto: {fmtDate(results.rangeStart)} → {fmtDate(results.rangeEnd)} · {results.candles1mCount.toLocaleString()} velas de 1m · {results.candles1hCount.toLocaleString()} velas de 1h
           </div>
 
-          {!results.metrics ? (
+          {!results.comparison?.length ? (
             <div style={{ color: COLORS.muted, fontSize: 13 }}>No se generaron entradas en este rango con la configuración actual.</div>
           ) : (
             <>
-              <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-                <Stat label="Trades" value={results.metrics.count} />
-                <Stat label="Win rate" value={`${results.metrics.winRate.toFixed(0)}%`} color={results.metrics.winRate >= 50 ? COLORS.bull : COLORS.bear} />
-                <Stat label="Profit factor" value={results.metrics.profitFactor === Infinity ? '∞' : results.metrics.profitFactor.toFixed(2)} color={results.metrics.profitFactor >= 1.2 ? COLORS.bull : COLORS.bear} />
-                <Stat label="Avg win" value={`+${results.metrics.avgWin.toFixed(2)}%`} color={COLORS.bull} />
-                <Stat label="Avg loss" value={`${results.metrics.avgLoss.toFixed(2)}%`} color={COLORS.bear} />
-                <Stat label="Expectancy/trade" value={`${results.metrics.expectancy >= 0 ? '+' : ''}${results.metrics.expectancy.toFixed(2)}%`} color={results.metrics.expectancy >= 0 ? COLORS.bull : COLORS.bear} />
-                <Stat label="Retorno total (simple)" value={`${results.metrics.totalPnl >= 0 ? '+' : ''}${results.metrics.totalPnl.toFixed(1)}%`} color={results.metrics.totalPnl >= 0 ? COLORS.bull : COLORS.bear} />
-                <Stat label="Max drawdown" value={`-${results.metrics.maxDD.toFixed(1)}%`} color={COLORS.bear} />
-              </div>
+              {results.comparison.map((scenario) => {
+                const metrics = scenario.metrics;
+                if (!metrics) return null;
+                return (
+                  <div key={scenario.label} style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{scenario.label}</div>
+                    <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+                      <Stat label="Trades" value={metrics.count} />
+                      <Stat label="Win rate" value={`${metrics.winRate.toFixed(0)}%`} color={metrics.winRate >= 50 ? COLORS.bull : COLORS.bear} />
+                      <Stat label="Profit factor" value={metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2)} color={metrics.profitFactor >= 1.2 ? COLORS.bull : COLORS.bear} />
+                      <Stat label="Avg win" value={`+${metrics.avgWin.toFixed(2)}%`} color={COLORS.bull} />
+                      <Stat label="Avg loss" value={`${metrics.avgLoss.toFixed(2)}%`} color={COLORS.bear} />
+                      <Stat label="Expectancy/trade" value={`${metrics.expectancy >= 0 ? '+' : ''}${metrics.expectancy.toFixed(2)}%`} color={metrics.expectancy >= 0 ? COLORS.bull : COLORS.bear} />
+                      <Stat label="Retorno neto" value={`${metrics.totalPnl >= 0 ? '+' : ''}${metrics.totalPnl.toFixed(1)}%`} color={metrics.totalPnl >= 0 ? COLORS.bull : COLORS.bear} />
+                      <Stat label="Retorno bruto" value={`${metrics.grossTotalPnl >= 0 ? '+' : ''}${metrics.grossTotalPnl.toFixed(1)}%`} color={metrics.grossTotalPnl >= 0 ? COLORS.bull : COLORS.bear} />
+                      <Stat label="Comisión total" value={`${metrics.commissionCostPct >= 0 ? '-' : ''}${Math.abs(metrics.commissionCostPct).toFixed(1)}%`} color={COLORS.bear} />
+                      <Stat label="Max drawdown" value={`-${metrics.maxDD.toFixed(1)}%`} color={COLORS.bear} />
+                    </div>
+                    <Panel title={`Trades (${Math.min(30, scenario.trades.length)} de ${scenario.trades.length})`}>
+                      <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                              <th style={{ padding: '4px 8px' }}>Entrada</th>
+                              <th style={{ padding: '4px 8px' }}>Salida</th>
+                              <th style={{ padding: '4px 8px' }}>Dur.</th>
+                              <th style={{ padding: '4px 8px' }}>Tipo</th>
+                              <th style={{ padding: '4px 8px' }}>Precio in</th>
+                              <th style={{ padding: '4px 8px' }}>Precio out</th>
+                              <th style={{ padding: '4px 8px' }}>P&L bruto</th>
+                              <th style={{ padding: '4px 8px' }}>P&L neto</th>
+                              <th style={{ padding: '4px 8px' }}>Razón</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scenario.trades.slice(-30).reverse().map((t, i) => (
+                              <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtDate(t.entryTime)}</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtDate(t.exitTime)}</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{Math.round(t.durationMinutes || 0)}m</td>
+                                <td style={{ padding: '4px 8px', color: t.type === 'long' ? COLORS.bull : COLORS.bear }}>{t.type === 'long' ? 'LONG' : 'SHORT'}</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.entryPrice.toFixed(1)}</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.grossPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.grossPnlPct >= 0 ? '+' : ''}{t.grossPnlPct.toFixed(2)}%</td>
+                                <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.netPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.netPnlPct >= 0 ? '+' : ''}{t.netPnlPct.toFixed(2)}%</td>
+                                <td style={{ padding: '4px 8px', color: COLORS.muted }}>{t.reason === 'trailing' ? 'trailing TP' : 'stop'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Panel>
+                  </div>
+                );
+              })}
               <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 8 }}>
                 Nota: "retorno simple" suma el % de cada trade sin reinvertir — no es una curva de capital compuesta. Sirve para comparar configuraciones entre sí, no como proyección de ganancia real.
               </div>
-
-              <Panel title="Curva de equity (acumulado simple)">
-                <EquityCurve curve={results.metrics.curve} />
-              </Panel>
-
-              <Panel title={`Trades (mostrando los últimos ${Math.min(50, results.trades.length)} de ${results.trades.length})`}>
-                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
-                        <th style={{ padding: '4px 8px' }}>Entrada</th>
-                        <th style={{ padding: '4px 8px' }}>Tipo</th>
-                        <th style={{ padding: '4px 8px' }}>Precio entrada</th>
-                        <th style={{ padding: '4px 8px' }}>Precio salida</th>
-                        <th style={{ padding: '4px 8px' }}>P&L</th>
-                        <th style={{ padding: '4px 8px' }}>Razón</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.trades.slice(-50).reverse().map((t, i) => (
-                        <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                          <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtDate(t.entryTime)}</td>
-                          <td style={{ padding: '4px 8px', color: t.type === 'long' ? COLORS.bull : COLORS.bear }}>{t.type === 'long' ? 'LONG' : 'SHORT'}</td>
-                          <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.entryPrice.toFixed(1)}</td>
-                          <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
-                          <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.pnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.pnlPct >= 0 ? '+' : ''}{t.pnlPct.toFixed(2)}%</td>
-                          <td style={{ padding: '4px 8px', color: COLORS.muted }}>{t.reason === 'trailing' ? 'trailing TP' : 'stop'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Panel>
             </>
           )}
         </>

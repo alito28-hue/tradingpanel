@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Settings2, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 
 /* ---------------------------------------------------------------------- */
 /* Tokens                                                                   */
@@ -126,7 +125,7 @@ function buildAnalysis(candles, mode, sub, useMacdFilter, cooldownMs) {
   return { seriesA, seriesB, labelA, labelB, macdLine, signals, regime };
 }
 
-function gateEntries(candles1m, signals1m, candles1h, regime1h) {
+function gateEntries(candles1m, signals1m, candles1h, regime1h, gateByRegime = true) {
   const closesByTime = candles1h.map((c, i) => ({ closeTime: c.closeTime, regime: regime1h[i] }));
   function regimeAt(time) {
     let result = null;
@@ -138,8 +137,10 @@ function gateEntries(candles1m, signals1m, candles1h, regime1h) {
   }
   const entries = [];
   for (let i = 0; i < candles1m.length; i++) {
-    if (signals1m[i] === 'up' && regimeAt(candles1m[i].time) === 'bullish') entries.push({ index: i, type: 'long' });
-    else if (signals1m[i] === 'down' && regimeAt(candles1m[i].time) === 'bearish') entries.push({ index: i, type: 'short' });
+    const targetRegime = signals1m[i] === 'up' ? 'bullish' : signals1m[i] === 'down' ? 'bearish' : null;
+    if (!targetRegime) continue;
+    const regimeOk = !gateByRegime || regimeAt(candles1m[i].time) === targetRegime;
+    if (regimeOk) entries.push({ index: i, type: signals1m[i] === 'up' ? 'long' : 'short' });
   }
   return { entries, regimeAt };
 }
@@ -262,7 +263,8 @@ export default function MomentumDashboard() {
 
   const [mode, setMode] = useState('single');
   const [useMacdFilter, setUseMacdFilter] = useState(true);
-  const [h1, setH1] = useState({ length: 200, fast: 50, slow: 200, cooldownHours: 4 });
+  const [gateByRegime, setGateByRegime] = useState(true);
+  const [h1, setH1] = useState({ length: 200, fast: 50, slow: 200, cooldownHours: 6 });
   const [m1, setM1] = useState({ length: 200, fast: 9, slow: 21, cooldownMinutes: 0 });
 
   const load = useCallback(async (sym) => {
@@ -305,7 +307,7 @@ export default function MomentumDashboard() {
 
   const { entries, markers1m, regime1hMarkers } = useMemo(() => {
     if (!analysis1h || !analysis1m) return { entries: [], markers1m: [], regime1hMarkers: [] };
-    const { entries, regimeAt } = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime);
+    const { entries, regimeAt } = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime, gateByRegime);
     const markers1m = simulateMarkers(candles1m, analysis1m.signals, entries, regimeAt);
     const regime1hMarkers = analysis1h.signals
       .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
@@ -332,8 +334,9 @@ export default function MomentumDashboard() {
   const strategyDesc = useMemo(() => {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
     const f = useMacdFilter ? ' with MACD agreeing on the same side of zero' : '';
-    return `Long when the 1m shows ${trig}${f}, while the 1H regime is bullish. Short mirrors this on the bearish side. Exit on the opposite 1m signal or if the 1H regime flips — this exit rule is a placeholder until your real stop/target is wired in.`;
-  }, [mode, m1, useMacdFilter]);
+    const gateText = gateByRegime ? 'while the 1H regime stays aligned' : 'regardless of the 1H regime';
+    return `Long when the 1m shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit on the opposite 1m signal or if the 1H regime flips — this exit rule is a placeholder until your real stop/target is wired in.`;
+  }, [mode, m1, useMacdFilter, gateByRegime]);
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, fontFamily: "Inter, -apple-system, sans-serif", minHeight: '100%', padding: '20px' }}>
@@ -355,14 +358,14 @@ export default function MomentumDashboard() {
             color: currentRegime === 'bullish' ? COLORS.bull : currentRegime === 'bearish' ? COLORS.bear : COLORS.muted,
             fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
           }}>
-            {currentRegime === 'bullish' ? <TrendingUp size={14} /> : currentRegime === 'bearish' ? <TrendingDown size={14} /> : null}
+            {currentRegime === 'bullish' ? '▲' : currentRegime === 'bearish' ? '▼' : null}
             1H {currentRegime || 'neutral'}
           </span>
           <button onClick={() => setShowSettings(s => !s)} style={btnStyle()}>
-            <Settings2 size={14} /> Settings
+            ⚙ Settings
           </button>
           <button onClick={() => load(symbol)} style={btnStyle(true)}>
-            <RefreshCw size={14} /> Refresh
+            ↻ Refresh
           </button>
         </div>
       </div>
@@ -370,7 +373,7 @@ export default function MomentumDashboard() {
       {usingMock && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(226,89,107,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 12, marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 700 }}>
-            <AlertTriangle size={14} /> SIMULATED DATA — this is not the real {symbol} price.
+            ⚠ SIMULATED DATA — this is not the real {symbol} price.
           </div>
           <div style={{ color: COLORS.muted }}>
             Live fetch to Binance failed{errorMsg ? `: ${errorMsg}` : ''}. Most likely cause: this preview sandbox can't reach external APIs directly.
@@ -400,6 +403,13 @@ export default function MomentumDashboard() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
               <input type="checkbox" checked={useMacdFilter} onChange={e => setUseMacdFilter(e.target.checked)} />
               Require MACD agreement
+            </label>
+          </Field>
+
+          <Field label="Regime gate">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
+              Gate 1M entries by the 1H regime
             </label>
           </Field>
 
