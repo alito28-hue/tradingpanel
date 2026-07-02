@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { buildAnalysis, gateEntries, simulateTrades, simulateTradesFixedPct, computeMetrics } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, simulateTrades, simulateTradesFixedPct, computeMetrics, volumeProfile, applyVolumeFilter } from '../../lib/strategy';
 import { fetchKlinesPaged } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
 
@@ -19,6 +19,8 @@ export default function BacktestPage() {
     activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4,
     atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3,
   });
+  const [useVolumeFilter, setUseVolumeFilter] = useState(false);
+  const [deltaWindow, setDeltaWindow] = useState(5);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
@@ -37,11 +39,14 @@ export default function BacktestPage() {
       setProgress('Calculando señales y simulando trades…');
       const analysis1h = buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000);
       const analysisEntry = buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);
+      const entrySignals = useVolumeFilter
+        ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
+        : analysisEntry.signals;
       const comparison = [
         { label: 'Con filtro de régimen 1H', gateByRegime: true },
         { label: 'Sin filtro de régimen 1H', gateByRegime: false },
       ].map((scenario) => {
-        const { entries } = gateEntries(candlesEntry, analysisEntry.signals, candles1h, analysis1h.regime, scenario.gateByRegime);
+        const { entries } = gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, scenario.gateByRegime);
         const trades = exitMode === 'fixed_pct'
           ? simulateTradesFixedPct(candlesEntry, entries, exitCfg)
           : simulateTrades(candlesEntry, candles1h, entries, exitCfg);
@@ -94,6 +99,15 @@ export default function BacktestPage() {
         </Field>
         <NumberInput label="Cooldown 1H (h)" value={h1.cooldownHours} onChange={v => setH1({ ...h1, cooldownHours: v })} />
         <NumberInput label="Cooldown entrada (min)" value={m1.cooldownMinutes} onChange={v => setM1({ ...m1, cooldownMinutes: v })} />
+        <Field label="Volumen (tape)">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: COLORS.muted }}>
+            <input type="checkbox" checked={useVolumeFilter} onChange={e => setUseVolumeFilter(e.target.checked)} />
+            Confirmar con volumen
+          </label>
+        </Field>
+        {useVolumeFilter && (
+          <NumberInput label="Ventana delta (velas)" value={deltaWindow} onChange={setDeltaWindow} />
+        )}
         <Field label="Modo de salida">
           <select value={exitMode} onChange={e => setExitMode(e.target.value)} style={inputStyle()}>
             <option value="sr_atr">SR + ATR (trailing)</option>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { buildAnalysis, gateEntries } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
 
@@ -125,6 +125,8 @@ export default function DashboardPage() {
   const [gateByRegime, setGateByRegime] = useState(true);
   const [h1, setH1] = useState({ length: 200, fast: 50, slow: 200, cooldownHours: 6 });
   const [m1, setM1] = useState({ length: 200, fast: 9, slow: 21, cooldownMinutes: 0 });
+  const [useVolumeFilter, setUseVolumeFilter] = useState(false);
+  const [deltaWindow, setDeltaWindow] = useState(5);
 
   const load = useCallback(async (sym) => {
     setLoading(true);
@@ -166,13 +168,16 @@ export default function DashboardPage() {
 
   const { entries, markers1m, regime1hMarkers } = useMemo(() => {
     if (!analysis1h || !analysis1m) return { entries: [], markers1m: [], regime1hMarkers: [] };
-    const { entries, regimeAt } = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime, gateByRegime);
-    const markers1m = simulateMarkers(candles1m, analysis1m.signals, entries, regimeAt);
+    const entrySignals = useVolumeFilter
+      ? applyVolumeFilter(analysis1m.signals, volumeProfile(candles1m, deltaWindow).deltaSum)
+      : analysis1m.signals;
+    const { entries, regimeAt } = gateEntries(candles1m, entrySignals, candles1h, analysis1h.regime, gateByRegime);
+    const markers1m = simulateMarkers(candles1m, entrySignals, entries, regimeAt);
     const regime1hMarkers = analysis1h.signals
       .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
       .filter(Boolean);
     return { entries, markers1m, regime1hMarkers };
-  }, [analysis1h, analysis1m, candles1h, candles1m, gateByRegime]);
+  }, [analysis1h, analysis1m, candles1h, candles1m, gateByRegime, useVolumeFilter, deltaWindow]);
 
   const DISPLAY = 130;
   const slice = (arr) => arr.slice(-DISPLAY);
@@ -271,6 +276,18 @@ export default function DashboardPage() {
               <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
               Gate 1M entries by the 1H regime
             </label>
+          </Field>
+
+          <Field label="Volume (tape)">
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={useVolumeFilter} onChange={e => setUseVolumeFilter(e.target.checked)} />
+                Confirm with aggressor volume
+              </label>
+              {useVolumeFilter && (
+                <NumberInput label="Delta window" value={deltaWindow} onChange={setDeltaWindow} />
+              )}
+            </div>
           </Field>
 
           <Field label="1H settings">
