@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { buildAnalysis, gateEntries } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
@@ -223,6 +224,9 @@ export default function DashboardPage() {
           <button onClick={() => load(symbol)} style={btnStyle(true)}>
             ↻ Refresh
           </button>
+          <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Backtest →
+          </Link>
         </div>
       </div>
 

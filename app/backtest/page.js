@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { buildAnalysis, gateEntries, simulateTrades, computeMetrics } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, simulateTrades, simulateTradesFixedPct, computeMetrics } from '../../lib/strategy';
 import { fetchKlinesPaged } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
 
@@ -10,9 +11,14 @@ export default function BacktestPage() {
   const [lookbackDays, setLookbackDays] = useState(7);
   const [mode] = useState('single');
   const [useMacdFilter] = useState(true);
+  const [entryInterval, setEntryInterval] = useState('1m');
+  const [exitMode, setExitMode] = useState('sr_atr');
   const [h1, setH1] = useState({ length: 200, cooldownHours: 6 });
   const [m1, setM1] = useState({ length: 200, cooldownMinutes: 0 });
-  const [exitCfg, setExitCfg] = useState({ activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05 });
+  const [exitCfg, setExitCfg] = useState({
+    activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4,
+    atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3,
+  });
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
@@ -26,23 +32,26 @@ export default function BacktestPage() {
       const startTime = endTime - lookbackDays * 24 * 3600 * 1000;
       setProgress('Descargando velas de 1H…');
       const candles1h = await fetchKlinesPaged(symbol, '1h', startTime, endTime, (n) => setProgress(`Descargando velas de 1H… lote ${n}`));
-      setProgress('Descargando velas de 1M (puede tardar según el rango)…');
-      const candles1m = await fetchKlinesPaged(symbol, '1m', startTime, endTime, (n) => setProgress(`Descargando velas de 1M… lote ${n}`));
+      setProgress(`Descargando velas de ${entryInterval} (puede tardar según el rango)…`);
+      const candlesEntry = await fetchKlinesPaged(symbol, entryInterval, startTime, endTime, (n) => setProgress(`Descargando velas de ${entryInterval}… lote ${n}`));
       setProgress('Calculando señales y simulando trades…');
       const analysis1h = buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000);
-      const analysis1m = buildAnalysis(candles1m, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);
+      const analysisEntry = buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);
       const comparison = [
         { label: 'Con filtro de régimen 1H', gateByRegime: true },
         { label: 'Sin filtro de régimen 1H', gateByRegime: false },
       ].map((scenario) => {
-        const { entries } = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime, scenario.gateByRegime);
-        const trades = simulateTrades(candles1m, candles1h, entries, exitCfg);
+        const { entries } = gateEntries(candlesEntry, analysisEntry.signals, candles1h, analysis1h.regime, scenario.gateByRegime);
+        const trades = exitMode === 'fixed_pct'
+          ? simulateTradesFixedPct(candlesEntry, entries, exitCfg)
+          : simulateTrades(candlesEntry, candles1h, entries, exitCfg);
         return { ...scenario, trades, metrics: computeMetrics(trades) };
       });
       setResults({
         comparison,
-        candles1mCount: candles1m.length, candles1hCount: candles1h.length,
-        rangeStart: candles1m[0]?.time, rangeEnd: candles1m[candles1m.length - 1]?.time,
+        entryInterval,
+        candlesEntryCount: candlesEntry.length, candles1hCount: candles1h.length,
+        rangeStart: candlesEntry[0]?.time, rangeEnd: candlesEntry[candlesEntry.length - 1]?.time,
       });
     } catch (err) {
       setError(err.message || 'Error desconocido');
@@ -52,25 +61,61 @@ export default function BacktestPage() {
   };
 
   const fmtDate = (ms) => ms ? new Date(ms).toLocaleString() : '—';
+  const reasonLabel = (reason) => {
+    if (reason === 'trailing') return 'trailing TP';
+    if (reason === 'take_profit') return 'take profit';
+    if (reason === 'stop_loss') return 'stop loss';
+    return 'stop';
+  };
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh', padding: '20px' }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Backtest</div>
-      <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Intraday Momentum — datos históricos reales</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Backtest</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>Intraday Momentum — datos históricos reales</div>
+        </div>
+        <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
+          ← Dashboard
+        </Link>
+      </div>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
         <Field label="Symbol">
           <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} style={inputStyle()} />
         </Field>
         <NumberInput label="Días hacia atrás" value={lookbackDays} onChange={setLookbackDays} />
+        <Field label="Timeframe de entrada">
+          <select value={entryInterval} onChange={e => setEntryInterval(e.target.value)} style={inputStyle()}>
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m">15m</option>
+          </select>
+        </Field>
         <NumberInput label="Cooldown 1H (h)" value={h1.cooldownHours} onChange={v => setH1({ ...h1, cooldownHours: v })} />
-        <NumberInput label="SR lookback (1H)" value={exitCfg.srLookbackBars} onChange={v => setExitCfg({ ...exitCfg, srLookbackBars: v })} />
-        <NumberInput label="SR tolerancia %" value={exitCfg.srTolerancePct} onChange={v => setExitCfg({ ...exitCfg, srTolerancePct: v })} />
-        <NumberInput label="Min touches" value={exitCfg.srMinTouches} onChange={v => setExitCfg({ ...exitCfg, srMinTouches: v })} />
-        <NumberInput label="ATR ×" value={exitCfg.atrMultiplier} onChange={v => setExitCfg({ ...exitCfg, atrMultiplier: v })} />
+        <NumberInput label="Cooldown entrada (min)" value={m1.cooldownMinutes} onChange={v => setM1({ ...m1, cooldownMinutes: v })} />
+        <Field label="Modo de salida">
+          <select value={exitMode} onChange={e => setExitMode(e.target.value)} style={inputStyle()}>
+            <option value="sr_atr">SR + ATR (trailing)</option>
+            <option value="fixed_pct">SL / TP fijo %</option>
+          </select>
+        </Field>
         <NumberInput label="Maker fee % por lado" value={exitCfg.commissionPct} onChange={v => setExitCfg({ ...exitCfg, commissionPct: v })} />
-        <NumberInput label="Trail activate %" value={exitCfg.activationPct} onChange={v => setExitCfg({ ...exitCfg, activationPct: v })} />
-        <NumberInput label="Trail %" value={exitCfg.trailPct} onChange={v => setExitCfg({ ...exitCfg, trailPct: v })} />
+        {exitMode === 'fixed_pct' ? (
+          <>
+            <NumberInput label="Stop loss %" value={exitCfg.slPct} onChange={v => setExitCfg({ ...exitCfg, slPct: v })} />
+            <NumberInput label="Take profit %" value={exitCfg.tpPct} onChange={v => setExitCfg({ ...exitCfg, tpPct: v })} />
+          </>
+        ) : (
+          <>
+            <NumberInput label="SR lookback (1H)" value={exitCfg.srLookbackBars} onChange={v => setExitCfg({ ...exitCfg, srLookbackBars: v })} />
+            <NumberInput label="SR tolerancia %" value={exitCfg.srTolerancePct} onChange={v => setExitCfg({ ...exitCfg, srTolerancePct: v })} />
+            <NumberInput label="Min touches" value={exitCfg.srMinTouches} onChange={v => setExitCfg({ ...exitCfg, srMinTouches: v })} />
+            <NumberInput label="ATR ×" value={exitCfg.atrMultiplier} onChange={v => setExitCfg({ ...exitCfg, atrMultiplier: v })} />
+            <NumberInput label="Trail activate %" value={exitCfg.activationPct} onChange={v => setExitCfg({ ...exitCfg, activationPct: v })} />
+            <NumberInput label="Trail %" value={exitCfg.trailPct} onChange={v => setExitCfg({ ...exitCfg, trailPct: v })} />
+          </>
+        )}
         <button onClick={run} disabled={running} style={{ ...btnStyle(true), opacity: running ? 0.6 : 1, cursor: running ? 'default' : 'pointer' }}>
           {running ? 'Corriendo…' : 'Ejecutar backtest'}
         </button>
@@ -88,7 +133,7 @@ export default function BacktestPage() {
       {results && (
         <>
           <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 12 }}>
-            Rango cubierto: {fmtDate(results.rangeStart)} → {fmtDate(results.rangeEnd)} · {results.candles1mCount.toLocaleString()} velas de 1m · {results.candles1hCount.toLocaleString()} velas de 1h
+            Rango cubierto: {fmtDate(results.rangeStart)} → {fmtDate(results.rangeEnd)} · {results.candlesEntryCount.toLocaleString()} velas de {results.entryInterval} · {results.candles1hCount.toLocaleString()} velas de 1h
           </div>
 
           {!results.comparison?.length ? (
@@ -140,7 +185,7 @@ export default function BacktestPage() {
                                 <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
                                 <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.grossPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.grossPnlPct >= 0 ? '+' : ''}{t.grossPnlPct.toFixed(2)}%</td>
                                 <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.netPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.netPnlPct >= 0 ? '+' : ''}{t.netPnlPct.toFixed(2)}%</td>
-                                <td style={{ padding: '4px 8px', color: COLORS.muted }}>{t.reason === 'trailing' ? 'trailing TP' : 'stop'}</td>
+                                <td style={{ padding: '4px 8px', color: COLORS.muted }}>{reasonLabel(t.reason)}</td>
                               </tr>
                             ))}
                           </tbody>
