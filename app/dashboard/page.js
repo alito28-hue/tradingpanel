@@ -2,118 +2,38 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
+import VolumeChart from '../components/VolumeChart';
+import TradingViewChart from '../components/TradingViewChart';
 
-function simulateMarkers(candles1m, signals1m, entries, regimeAt) {
-  const markers = [];
-  let open = null;
-  const entryAtIndex = new Map(entries.map(e => [e.index, e]));
-  for (let i = 0; i < candles1m.length; i++) {
-    const e = entryAtIndex.get(i);
-    if (e && !open) {
-      open = { type: e.type };
-      markers.push({ index: i, kind: 'entry', marker: e.type === 'long' ? 'buy' : 'sell' });
-      continue;
-    }
-    if (open) {
-      const oppositeSignal = open.type === 'long' ? 'down' : 'up';
-      const regimeBroke = regimeAt(candles1m[i].time) !== (open.type === 'long' ? 'bullish' : 'bearish');
-      if (signals1m[i] === oppositeSignal || regimeBroke) {
-        markers.push({ index: i, kind: 'exit', marker: open.type === 'long' ? 'exitLong' : 'exitShort' });
-        open = null;
-      }
-    }
-  }
-  return markers;
-}
-
-function CandleChart({ candles, lines, markers, regimeBg, height }) {
-  if (!candles || candles.length < 2) return null;
-  const width = 1000;
-  const pad = { top: 16, right: 56, bottom: 8, left: 8 };
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
-  const n = candles.length;
-  const slot = innerW / n;
-  const bodyW = Math.max(1.4, slot * 0.62);
-
-  let prices = [];
-  candles.forEach(c => prices.push(c.high, c.low));
-  (lines || []).forEach(l => l.values.forEach(v => { if (v != null) prices.push(v); }));
-  const minP = Math.min(...prices), maxP = Math.max(...prices);
-  const padP = (maxP - minP) * 0.06 || maxP * 0.01;
-  const yMin = minP - padP, yMax = maxP + padP;
-
-  const xAt = i => pad.left + i * slot + slot / 2;
-  const yAt = p => pad.top + (1 - (p - yMin) / (yMax - yMin)) * innerH;
-
-  const gridVals = [yMax, yMax - (yMax - yMin) / 3, yMax - 2 * (yMax - yMin) / 3, yMin];
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height, display: 'block' }}>
-      {regimeBg && candles.map((c, i) => {
-        const r = regimeBg[i];
-        if (!r) return null;
-        return (
-          <rect key={`bg-${i}`} x={pad.left + i * slot} y={pad.top} width={slot} height={innerH}
-            fill={r === 'bullish' ? COLORS.bull : COLORS.bear} opacity={0.06} />
-        );
-      })}
-
-      {gridVals.map((v, i) => (
-        <g key={`grid-${i}`}>
-          <line x1={pad.left} x2={width - pad.right} y1={yAt(v)} y2={yAt(v)} stroke={COLORS.border} strokeWidth={1} />
-          <text x={width - pad.right + 6} y={yAt(v) + 3} fontSize="10" fill={COLORS.muted} fontFamily="JetBrains Mono, monospace">
-            {v >= 1000 ? v.toFixed(0) : v.toFixed(2)}
-          </text>
-        </g>
-      ))}
-
-      {candles.map((c, i) => {
-        const up = c.close >= c.open;
-        const color = up ? COLORS.bull : COLORS.bear;
-        const xC = xAt(i);
-        const yO = yAt(c.open), yC = yAt(c.close);
-        return (
-          <g key={i}>
-            <line x1={xC} x2={xC} y1={yAt(c.high)} y2={yAt(c.low)} stroke={color} strokeWidth={1} />
-            <rect x={xC - bodyW / 2} y={Math.min(yO, yC)} width={bodyW} height={Math.max(1, Math.abs(yO - yC))} fill={color} />
-          </g>
-        );
-      })}
-
-      {(lines || []).map((l, li) => (
-        <polyline key={li} fill="none" stroke={l.color} strokeWidth={1.4}
-          points={candles.map((c, i) => l.values[i] != null ? `${xAt(i)},${yAt(l.values[i])}` : null).filter(Boolean).join(' ')} />
-      ))}
-
-      {(markers || []).map((m, mi) => {
-        const xC = xAt(m.index);
-        const upShape = m.marker === 'buy' || m.marker === 'exitShort';
-        const y = upShape ? yAt(candles[m.index].low) + 16 : yAt(candles[m.index].high) - 16;
-        let fill = COLORS.accent;
-        if (m.kind === 'entry') fill = m.marker === 'buy' ? COLORS.bull : COLORS.bear;
-        return (
-          <g key={mi} transform={`translate(${xC}, ${y})`}>
-            <polygon points={upShape ? '-6,6 6,6 0,-6' : '-6,-6 6,-6 0,6'} fill={fill} opacity={m.kind === 'entry' ? 1 : 0.9} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
+const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
+const TV_INTERVAL = { '1m': '1', '5m': '5', '15m': '15' };
+const CLIMAX_WINDOW = 20;
+const CLIMAX_MULTIPLIER = 2.5;
+const DIVERGENCE_LOOKBACK = 10;
 
 function LoadingBlock() {
   return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.muted, fontSize: 13 }}>Loading candles…</div>;
 }
 
+function volumeExtras(candles, deltaWindow) {
+  if (!candles.length) return { delta: [], climax: [], divergence: [] };
+  const { delta, deltaSum } = volumeProfile(candles, deltaWindow);
+  return {
+    delta,
+    climax: detectVolumeClimax(candles, CLIMAX_WINDOW, CLIMAX_MULTIPLIER),
+    divergence: detectVolumeDivergence(candles, deltaSum, DIVERGENCE_LOOKBACK),
+  };
+}
+
 export default function DashboardPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [symbolInput, setSymbolInput] = useState('BTCUSDT');
+  const [entryInterval, setEntryInterval] = useState('1m');
   const [candles1h, setCandles1h] = useState([]);
-  const [candles1m, setCandles1m] = useState([]);
+  const [candlesEntry, setCandlesEntry] = useState([]);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
@@ -127,22 +47,28 @@ export default function DashboardPage() {
   const [m1, setM1] = useState({ length: 200, fast: 9, slow: 21, cooldownMinutes: 0 });
   const [useVolumeFilter, setUseVolumeFilter] = useState(false);
   const [deltaWindow, setDeltaWindow] = useState(5);
+  const [showVolumePanel, setShowVolumePanel] = useState(false);
+  const [showClimax, setShowClimax] = useState(false);
+  const [showDivergence, setShowDivergence] = useState(false);
+  const [chartView, setChartView] = useState('entry');
 
-  const load = useCallback(async (sym) => {
+  const hasData = candlesEntry.length > 0;
+
+  const load = useCallback(async (sym, interval) => {
     setLoading(true);
     try {
-      const [h, m] = await Promise.all([
+      const [h, e] = await Promise.all([
         fetchKlines(sym, '1h', 500),
-        fetchKlines(sym, '1m', 500),
+        fetchKlines(sym, interval, 500),
       ]);
       setCandles1h(h);
-      setCandles1m(m);
+      setCandlesEntry(e);
       setUsingMock(false);
       setErrorMsg(null);
     } catch (err) {
       const lastPrice = 60000 + Math.random() * 20000;
       setCandles1h(generateMockCandles(500, 3600000, lastPrice));
-      setCandles1m(generateMockCandles(500, 60000, lastPrice));
+      setCandlesEntry(generateMockCandles(500, INTERVAL_MS[interval], lastPrice));
       setUsingMock(true);
       setErrorMsg(err && err.message ? err.message : 'Unknown fetch error');
     } finally {
@@ -151,56 +77,49 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => { load(symbol); }, [symbol, load]);
+  useEffect(() => { load(symbol, entryInterval); }, [symbol, entryInterval, load]);
 
   useEffect(() => {
-    const id = setInterval(() => load(symbol), 20000);
+    const id = setInterval(() => load(symbol, entryInterval), 20000);
     return () => clearInterval(id);
-  }, [symbol, load]);
+  }, [symbol, entryInterval, load]);
 
   const analysis1h = useMemo(() => candles1h.length
     ? buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000)
     : null, [candles1h, mode, h1, useMacdFilter]);
 
-  const analysis1m = useMemo(() => candles1m.length
-    ? buildAnalysis(candles1m, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000)
-    : null, [candles1m, mode, m1, useMacdFilter]);
+  const analysisEntry = useMemo(() => candlesEntry.length
+    ? buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000)
+    : null, [candlesEntry, mode, m1, useMacdFilter]);
 
-  const { entries, markers1m, regime1hMarkers } = useMemo(() => {
-    if (!analysis1h || !analysis1m) return { entries: [], markers1m: [], regime1hMarkers: [] };
+  const entries = useMemo(() => {
+    if (!analysis1h || !analysisEntry) return [];
     const entrySignals = useVolumeFilter
-      ? applyVolumeFilter(analysis1m.signals, volumeProfile(candles1m, deltaWindow).deltaSum)
-      : analysis1m.signals;
-    const { entries, regimeAt } = gateEntries(candles1m, entrySignals, candles1h, analysis1h.regime, gateByRegime);
-    const markers1m = simulateMarkers(candles1m, entrySignals, entries, regimeAt);
-    const regime1hMarkers = analysis1h.signals
-      .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
-      .filter(Boolean);
-    return { entries, markers1m, regime1hMarkers };
-  }, [analysis1h, analysis1m, candles1h, candles1m, gateByRegime, useVolumeFilter, deltaWindow]);
+      ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
+      : analysisEntry.signals;
+    return gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, gateByRegime).entries;
+  }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
+
+  const volExtras1h = useMemo(() => volumeExtras(candles1h, deltaWindow), [candles1h, deltaWindow]);
+  const volExtrasEntry = useMemo(() => volumeExtras(candlesEntry, deltaWindow), [candlesEntry, deltaWindow]);
 
   const DISPLAY = 130;
   const slice = (arr) => arr.slice(-DISPLAY);
-  const offset = (arr) => Math.max(0, arr.length - DISPLAY);
-
-  const view1h = slice(candles1h);
-  const view1m = slice(candles1m);
-  const off1h = offset(candles1h);
-  const off1m = offset(candles1m);
-
-  const reindex = (markers, off, len) => markers
-    .map(m => ({ ...m, index: m.index - off }))
-    .filter(m => m.index >= 0 && m.index < len);
 
   const currentRegime = analysis1h ? analysis1h.regime[analysis1h.regime.length - 1] : null;
-  const lastPrice = candles1m.length ? candles1m[candles1m.length - 1].close : null;
+  const lastPrice = candlesEntry.length ? candlesEntry[candlesEntry.length - 1].close : null;
+
+  const recentEntries = useMemo(() => entries.slice(-10).reverse().map(e => ({
+    time: candlesEntry[e.index]?.time,
+    type: e.type,
+  })), [entries, candlesEntry]);
 
   const strategyDesc = useMemo(() => {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
     const f = useMacdFilter ? ' with MACD agreeing on the same side of zero' : '';
     const gateText = gateByRegime ? 'while the 1H regime stays aligned' : 'regardless of the 1H regime';
-    return `Long when the 1m shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit on the opposite 1m signal or if the 1H regime flips — this exit rule is a placeholder until your real stop/target is wired in.`;
-  }, [mode, m1, useMacdFilter, gateByRegime]);
+    return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit on the opposite ${entryInterval} signal or if the 1H regime flips — this exit rule is a placeholder until your real stop/target is wired in.`;
+  }, [mode, m1, useMacdFilter, gateByRegime, entryInterval]);
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
@@ -226,7 +145,7 @@ export default function DashboardPage() {
           <button onClick={() => setShowSettings(s => !s)} style={btnStyle()}>
             ⚙ Settings
           </button>
-          <button onClick={() => load(symbol)} style={btnStyle(true)}>
+          <button onClick={() => load(symbol, entryInterval)} style={btnStyle(true)}>
             ↻ Refresh
           </button>
           <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>
@@ -258,6 +177,13 @@ export default function DashboardPage() {
               <button onClick={() => setSymbol(symbolInput)} style={btnStyle(true)}>Load</button>
             </div>
           </Field>
+          <Field label="Entry timeframe">
+            <select value={entryInterval} onChange={e => setEntryInterval(e.target.value)} style={inputStyle()}>
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+            </select>
+          </Field>
           <Field label="Signal mode">
             <select value={mode} onChange={e => setMode(e.target.value)} style={inputStyle()}>
               <option value="single">Price crosses single MA</option>
@@ -274,7 +200,7 @@ export default function DashboardPage() {
           <Field label="Regime gate">
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
               <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
-              Gate 1M entries by the 1H regime
+              Gate entries by the 1H regime
             </label>
           </Field>
 
@@ -287,6 +213,23 @@ export default function DashboardPage() {
               {useVolumeFilter && (
                 <NumberInput label="Delta window" value={deltaWindow} onChange={setDeltaWindow} />
               )}
+            </div>
+          </Field>
+
+          <Field label="Volumen v2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={showVolumePanel} onChange={e => setShowVolumePanel(e.target.checked)} />
+                Panel de volumen
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={showClimax} onChange={e => setShowClimax(e.target.checked)} />
+                Marcar climax
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={showDivergence} onChange={e => setShowDivergence(e.target.checked)} />
+                Marcar divergencia
+              </label>
             </div>
           </Field>
 
@@ -304,7 +247,7 @@ export default function DashboardPage() {
             </div>
           </Field>
 
-          <Field label="1M settings">
+          <Field label="Entry settings">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {mode === 'single' ? (
                 <NumberInput label="MA len" value={m1.length} onChange={v => setM1({ ...m1, length: v })} />
@@ -320,26 +263,61 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <Panel title="1H — Regime" subtitle={analysis1h ? `${analysis1h.labelA} vs ${analysis1h.labelB}` : ''}>
-        {loading ? <LoadingBlock /> : (
-          <CandleChart
-            candles={view1h}
-            lines={[{ color: COLORS.accent, values: slice(analysis1h.seriesB) }]}
-            markers={reindex(regime1hMarkers, off1h, view1h.length)}
-            regimeBg={slice(analysis1h.regime)}
-            height={260}
-          />
-        )}
-      </Panel>
-
-      <Panel title="1M — Entries & Exits" subtitle="▲ green = long · ▼ red = short · ✕ amber-tinted = exit">
-        {loading ? <LoadingBlock /> : (
-          <CandleChart
-            candles={view1m}
-            lines={[{ color: COLORS.accent, values: slice(analysis1m.seriesB) }]}
-            markers={reindex(markers1m, off1m, view1m.length)}
-            height={300}
-          />
+      <Panel
+        title={chartView === '1h' ? '1H — Regime' : `Entry (${entryInterval})`}
+        subtitle={chartView === '1h'
+          ? (analysis1h ? `${analysis1h.labelA} vs ${analysis1h.labelB}` : '')
+          : 'Últimas señales gateadas debajo del chart'}
+      >
+        <div style={{ marginBottom: 10 }}>
+          <select value={chartView} onChange={e => setChartView(e.target.value)} style={inputStyle()}>
+            <option value="1h">Chart: 1H (regime)</option>
+            <option value="entry">Chart: Entry ({entryInterval})</option>
+          </select>
+        </div>
+        {!hasData ? <LoadingBlock /> : chartView === '1h' ? (
+          <>
+            <TradingViewChart symbol={`BINANCE:${symbol}`} interval="60" height={450} />
+            {showVolumePanel && (
+              <div style={{ marginTop: 8 }}>
+                <VolumeChart
+                  candles={slice(candles1h)}
+                  delta={slice(volExtras1h.delta)}
+                  climax={showClimax ? slice(volExtras1h.climax) : null}
+                  divergence={showDivergence ? slice(volExtras1h.divergence) : null}
+                  height={100}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <TradingViewChart symbol={`BINANCE:${symbol}`} interval={TV_INTERVAL[entryInterval]} height={450} />
+            {showVolumePanel && (
+              <div style={{ marginTop: 8 }}>
+                <VolumeChart
+                  candles={slice(candlesEntry)}
+                  delta={slice(volExtrasEntry.delta)}
+                  climax={showClimax ? slice(volExtrasEntry.climax) : null}
+                  divergence={showDivergence ? slice(volExtrasEntry.divergence) : null}
+                  height={100}
+                />
+              </div>
+            )}
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {recentEntries.length === 0 && (
+                <span style={{ fontSize: 12, color: COLORS.muted }}>No hay señales gateadas en la ventana cargada.</span>
+              )}
+              {recentEntries.map((e, i) => (
+                <span key={i} style={{
+                  fontSize: 11, fontFamily: 'JetBrains Mono, monospace', padding: '4px 8px', borderRadius: 6,
+                  background: COLORS.panelAlt, color: e.type === 'long' ? COLORS.bull : COLORS.bear,
+                }}>
+                  {e.type === 'long' ? '▲' : '▼'} {e.time ? new Date(e.time).toLocaleTimeString() : '—'}
+                </span>
+              ))}
+            </div>
+          </>
         )}
       </Panel>
 
