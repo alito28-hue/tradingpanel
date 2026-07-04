@@ -2,17 +2,115 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence, ema } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
 import VolumeChart from '../components/VolumeChart';
-import TradingViewChart from '../components/TradingViewChart';
+import MacdChart from '../components/MacdChart';
 
 const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
-const TV_INTERVAL = { '1m': '1', '5m': '5', '15m': '15' };
 const CLIMAX_WINDOW = 20;
 const CLIMAX_MULTIPLIER = 2.5;
 const DIVERGENCE_LOOKBACK = 10;
+
+function simulateMarkers(candles, signals, entries, regimeAt) {
+  const markers = [];
+  let open = null;
+  const entryAtIndex = new Map(entries.map(e => [e.index, e]));
+  for (let i = 0; i < candles.length; i++) {
+    const e = entryAtIndex.get(i);
+    if (e && !open) {
+      open = { type: e.type };
+      markers.push({ index: i, kind: 'entry', marker: e.type === 'long' ? 'buy' : 'sell' });
+      continue;
+    }
+    if (open) {
+      const oppositeSignal = open.type === 'long' ? 'down' : 'up';
+      const regimeBroke = regimeAt(candles[i].time) !== (open.type === 'long' ? 'bullish' : 'bearish');
+      if (signals[i] === oppositeSignal || regimeBroke) {
+        markers.push({ index: i, kind: 'exit', marker: open.type === 'long' ? 'exitLong' : 'exitShort' });
+        open = null;
+      }
+    }
+  }
+  return markers;
+}
+
+function CandleChart({ candles, lines, markers, regimeBg, height }) {
+  if (!candles || candles.length < 2) return null;
+  const width = 1000;
+  const pad = { top: 16, right: 56, bottom: 8, left: 8 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const n = candles.length;
+  const slot = innerW / n;
+  const bodyW = Math.max(1.4, slot * 0.62);
+
+  let prices = [];
+  candles.forEach(c => prices.push(c.high, c.low));
+  (lines || []).forEach(l => l.values.forEach(v => { if (v != null) prices.push(v); }));
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const padP = (maxP - minP) * 0.06 || maxP * 0.01;
+  const yMin = minP - padP, yMax = maxP + padP;
+
+  const xAt = i => pad.left + i * slot + slot / 2;
+  const yAt = p => pad.top + (1 - (p - yMin) / (yMax - yMin)) * innerH;
+
+  const gridVals = [yMax, yMax - (yMax - yMin) / 3, yMax - 2 * (yMax - yMin) / 3, yMin];
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height, display: 'block' }}>
+      {regimeBg && candles.map((c, i) => {
+        const r = regimeBg[i];
+        if (!r) return null;
+        return (
+          <rect key={`bg-${i}`} x={pad.left + i * slot} y={pad.top} width={slot} height={innerH}
+            fill={r === 'bullish' ? COLORS.bull : COLORS.bear} opacity={0.06} />
+        );
+      })}
+
+      {gridVals.map((v, i) => (
+        <g key={`grid-${i}`}>
+          <line x1={pad.left} x2={width - pad.right} y1={yAt(v)} y2={yAt(v)} stroke={COLORS.border} strokeWidth={1} />
+          <text x={width - pad.right + 6} y={yAt(v) + 3} fontSize="10" fill={COLORS.muted} fontFamily="JetBrains Mono, monospace">
+            {v >= 1000 ? v.toFixed(0) : v.toFixed(2)}
+          </text>
+        </g>
+      ))}
+
+      {candles.map((c, i) => {
+        const up = c.close >= c.open;
+        const color = up ? COLORS.bull : COLORS.bear;
+        const xC = xAt(i);
+        const yO = yAt(c.open), yC = yAt(c.close);
+        return (
+          <g key={i}>
+            <line x1={xC} x2={xC} y1={yAt(c.high)} y2={yAt(c.low)} stroke={color} strokeWidth={1} />
+            <rect x={xC - bodyW / 2} y={Math.min(yO, yC)} width={bodyW} height={Math.max(1, Math.abs(yO - yC))} fill={color} />
+          </g>
+        );
+      })}
+
+      {(lines || []).map((l, li) => (
+        <polyline key={li} fill="none" stroke={l.color} strokeWidth={1.4}
+          points={candles.map((c, i) => l.values[i] != null ? `${xAt(i)},${yAt(l.values[i])}` : null).filter(Boolean).join(' ')} />
+      ))}
+
+      {(markers || []).map((m, mi) => {
+        const xC = xAt(m.index);
+        const upShape = m.marker === 'buy' || m.marker === 'exitShort';
+        const y = upShape ? yAt(candles[m.index].low) + 16 : yAt(candles[m.index].high) - 16;
+        let fill = COLORS.accent;
+        if (m.kind === 'entry') fill = m.marker === 'buy' ? COLORS.bull : COLORS.bear;
+        return (
+          <g key={mi} transform={`translate(${xC}, ${y})`}>
+            <polygon points={upShape ? '-6,6 6,6 0,-6' : '-6,-6 6,-6 0,6'} fill={fill} opacity={m.kind === 'entry' ? 1 : 0.9} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function LoadingBlock() {
   return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.muted, fontSize: 13 }}>Loading candles…</div>;
@@ -50,9 +148,6 @@ export default function DashboardPage() {
   const [showVolumePanel, setShowVolumePanel] = useState(false);
   const [showClimax, setShowClimax] = useState(false);
   const [showDivergence, setShowDivergence] = useState(false);
-  const [chartView, setChartView] = useState('entry');
-
-  const hasData = candlesEntry.length > 0;
 
   const load = useCallback(async (sym, interval) => {
     setLoading(true);
@@ -92,27 +187,40 @@ export default function DashboardPage() {
     ? buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000)
     : null, [candlesEntry, mode, m1, useMacdFilter]);
 
-  const entries = useMemo(() => {
-    if (!analysis1h || !analysisEntry) return [];
+  const { entries, markersEntry, regime1hMarkers } = useMemo(() => {
+    if (!analysis1h || !analysisEntry) return { entries: [], markersEntry: [], regime1hMarkers: [] };
     const entrySignals = useVolumeFilter
       ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
       : analysisEntry.signals;
-    return gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, gateByRegime).entries;
+    const { entries, regimeAt } = gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, gateByRegime);
+    const markersEntry = simulateMarkers(candlesEntry, entrySignals, entries, regimeAt);
+    const regime1hMarkers = analysis1h.signals
+      .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
+      .filter(Boolean);
+    return { entries, markersEntry, regime1hMarkers };
   }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
+
+  const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
+  const macdSignalEntry = useMemo(() => analysisEntry ? ema(analysisEntry.macdLine, 9) : [], [analysisEntry]);
 
   const volExtras1h = useMemo(() => volumeExtras(candles1h, deltaWindow), [candles1h, deltaWindow]);
   const volExtrasEntry = useMemo(() => volumeExtras(candlesEntry, deltaWindow), [candlesEntry, deltaWindow]);
 
   const DISPLAY = 130;
   const slice = (arr) => arr.slice(-DISPLAY);
+  const offset = (arr) => Math.max(0, arr.length - DISPLAY);
+
+  const view1h = slice(candles1h);
+  const viewEntry = slice(candlesEntry);
+  const off1h = offset(candles1h);
+  const offEntry = offset(candlesEntry);
+
+  const reindex = (markers, off, len) => markers
+    .map(m => ({ ...m, index: m.index - off }))
+    .filter(m => m.index >= 0 && m.index < len);
 
   const currentRegime = analysis1h ? analysis1h.regime[analysis1h.regime.length - 1] : null;
   const lastPrice = candlesEntry.length ? candlesEntry[candlesEntry.length - 1].close : null;
-
-  const recentEntries = useMemo(() => entries.slice(-10).reverse().map(e => ({
-    time: candlesEntry[e.index]?.time,
-    type: e.type,
-  })), [entries, candlesEntry]);
 
   const strategyDesc = useMemo(() => {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
@@ -263,60 +371,57 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <Panel
-        title={chartView === '1h' ? '1H — Regime' : `Entry (${entryInterval})`}
-        subtitle={chartView === '1h'
-          ? (analysis1h ? `${analysis1h.labelA} vs ${analysis1h.labelB}` : '')
-          : 'Últimas señales gateadas debajo del chart'}
-      >
-        <div style={{ marginBottom: 10 }}>
-          <select value={chartView} onChange={e => setChartView(e.target.value)} style={inputStyle()}>
-            <option value="1h">Chart: 1H (regime)</option>
-            <option value="entry">Chart: Entry ({entryInterval})</option>
-          </select>
-        </div>
-        {!hasData ? <LoadingBlock /> : chartView === '1h' ? (
+      <Panel title="1H — Regime" subtitle={analysis1h ? `${analysis1h.labelA} vs ${analysis1h.labelB}` : ''}>
+        {loading ? <LoadingBlock /> : (
           <>
-            <TradingViewChart symbol={`BINANCE:${symbol}`} interval="60" height={450} />
+            <CandleChart
+              candles={view1h}
+              lines={[{ color: COLORS.accent, values: slice(analysis1h.seriesB) }]}
+              markers={reindex(regime1hMarkers, off1h, view1h.length)}
+              regimeBg={slice(analysis1h.regime)}
+              height={260}
+            />
+            <div style={{ marginTop: 6 }}>
+              <MacdChart macdLine={slice(analysis1h.macdLine)} signalLine={slice(macdSignal1h)} height={90} />
+            </div>
             {showVolumePanel && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 6 }}>
                 <VolumeChart
-                  candles={slice(candles1h)}
+                  candles={view1h}
                   delta={slice(volExtras1h.delta)}
                   climax={showClimax ? slice(volExtras1h.climax) : null}
                   divergence={showDivergence ? slice(volExtras1h.divergence) : null}
-                  height={100}
+                  height={90}
                 />
               </div>
             )}
           </>
-        ) : (
+        )}
+      </Panel>
+
+      <Panel title={`Entry (${entryInterval}) — Entries & Exits`} subtitle="▲ green = long · ▼ red = short · ✕ amber-tinted = exit">
+        {loading ? <LoadingBlock /> : (
           <>
-            <TradingViewChart symbol={`BINANCE:${symbol}`} interval={TV_INTERVAL[entryInterval]} height={450} />
+            <CandleChart
+              candles={viewEntry}
+              lines={[{ color: COLORS.accent, values: slice(analysisEntry.seriesB) }]}
+              markers={reindex(markersEntry, offEntry, viewEntry.length)}
+              height={300}
+            />
+            <div style={{ marginTop: 6 }}>
+              <MacdChart macdLine={slice(analysisEntry.macdLine)} signalLine={slice(macdSignalEntry)} height={90} />
+            </div>
             {showVolumePanel && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 6 }}>
                 <VolumeChart
-                  candles={slice(candlesEntry)}
+                  candles={viewEntry}
                   delta={slice(volExtrasEntry.delta)}
                   climax={showClimax ? slice(volExtrasEntry.climax) : null}
                   divergence={showDivergence ? slice(volExtrasEntry.divergence) : null}
-                  height={100}
+                  height={90}
                 />
               </div>
             )}
-            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {recentEntries.length === 0 && (
-                <span style={{ fontSize: 12, color: COLORS.muted }}>No hay señales gateadas en la ventana cargada.</span>
-              )}
-              {recentEntries.map((e, i) => (
-                <span key={i} style={{
-                  fontSize: 11, fontFamily: 'JetBrains Mono, monospace', padding: '4px 8px', borderRadius: 6,
-                  background: COLORS.panelAlt, color: e.type === 'long' ? COLORS.bull : COLORS.bear,
-                }}>
-                  {e.type === 'long' ? '▲' : '▼'} {e.time ? new Date(e.time).toLocaleTimeString() : '—'}
-                </span>
-              ))}
-            </div>
           </>
         )}
       </Panel>
