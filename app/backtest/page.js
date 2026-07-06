@@ -49,7 +49,7 @@ export default function BacktestPage() {
         const { entries } = gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, scenario.gateByRegime);
         const trades = exitMode === 'fixed_pct'
           ? simulateTradesFixedPct(candlesEntry, entries, exitCfg)
-          : simulateTrades(candlesEntry, candles1h, entries, exitCfg);
+          : simulateTrades(candlesEntry, candles1h, entries, exitCfg).trades;
         return { ...scenario, trades, metrics: computeMetrics(trades) };
       });
       setResults({

@@ -31,7 +31,7 @@ const { fetchKlinesPaged } = require('../../lib/binance');
     const comparison = [];
     for (const s of scenarios) {
       const { entries } = gateEntries(candles1m, analysis1m.signals, candles1h, analysis1h.regime, s.gateByRegime);
-      const trades = simulateTrades(candles1m, candles1h, entries, exitCfg);
+      const { trades } = simulateTrades(candles1m, candles1h, entries, exitCfg);
       const metrics = computeMetrics(trades);
       comparison.push({ label: s.label, count: trades.length, metrics, trades, sampleTrades: trades.slice(-30) });
       console.error(`${s.label}: trades=${trades.length}`);

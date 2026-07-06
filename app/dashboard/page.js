@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence, ema } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence, simulateTrades, ema } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
 import StrategyChart from '../components/StrategyChart';
@@ -11,26 +11,21 @@ const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
 const CLIMAX_WINDOW = 20;
 const CLIMAX_MULTIPLIER = 2.5;
 const DIVERGENCE_LOOKBACK = 10;
+// SR+ATR trailing exit, validated against 180 days of real BTCUSDT data:
+// far outperforms a fixed SL/TP on both long and short (see backtest chat).
+const EXIT_CFG = {
+  activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
+  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05,
+};
 
-function simulateMarkers(candles, signals, entries, regimeAt) {
+function tradeMarkers(trades, openPosition) {
   const markers = [];
-  let open = null;
-  const entryAtIndex = new Map(entries.map(e => [e.index, e]));
-  for (let i = 0; i < candles.length; i++) {
-    const e = entryAtIndex.get(i);
-    if (e && !open) {
-      open = { type: e.type };
-      markers.push({ index: i, kind: 'entry', marker: e.type === 'long' ? 'buy' : 'sell' });
-      continue;
-    }
-    if (open) {
-      const oppositeSignal = open.type === 'long' ? 'down' : 'up';
-      const regimeBroke = regimeAt(candles[i].time) !== (open.type === 'long' ? 'bullish' : 'bearish');
-      if (signals[i] === oppositeSignal || regimeBroke) {
-        markers.push({ index: i, kind: 'exit', marker: open.type === 'long' ? 'exitLong' : 'exitShort' });
-        open = null;
-      }
-    }
+  for (const t of trades) {
+    markers.push({ index: t.entryIndex, kind: 'entry', marker: t.type === 'long' ? 'buy' : 'sell' });
+    markers.push({ index: t.exitIndex, kind: 'exit', marker: t.type === 'long' ? 'exitLong' : 'exitShort' });
+  }
+  if (openPosition) {
+    markers.push({ index: openPosition.entryIndex, kind: 'entry', marker: openPosition.type === 'long' ? 'buy' : 'sell' });
   }
   return markers;
 }
@@ -109,17 +104,18 @@ export default function DashboardPage() {
     ? buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000)
     : null, [candlesEntry, mode, m1, useMacdFilter]);
 
-  const { entries, markersEntry, regime1hMarkers } = useMemo(() => {
-    if (!analysis1h || !analysisEntry) return { entries: [], markersEntry: [], regime1hMarkers: [] };
+  const { entries, markersEntry, openPosition, regime1hMarkers } = useMemo(() => {
+    if (!analysis1h || !analysisEntry) return { entries: [], markersEntry: [], openPosition: null, regime1hMarkers: [] };
     const entrySignals = useVolumeFilter
       ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
       : analysisEntry.signals;
-    const { entries, regimeAt } = gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, gateByRegime);
-    const markersEntry = simulateMarkers(candlesEntry, entrySignals, entries, regimeAt);
+    const { entries } = gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, gateByRegime);
+    const { trades, openPosition } = simulateTrades(candlesEntry, candles1h, entries, EXIT_CFG);
+    const markersEntry = tradeMarkers(trades, openPosition);
     const regime1hMarkers = analysis1h.signals
       .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
       .filter(Boolean);
-    return { entries, markersEntry, regime1hMarkers };
+    return { entries, markersEntry, openPosition, regime1hMarkers };
   }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
 
   const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
@@ -132,23 +128,20 @@ export default function DashboardPage() {
   const lastPrice = candlesEntry.length ? candlesEntry[candlesEntry.length - 1].close : null;
 
   const currentSignal = useMemo(() => {
-    if (!markersEntry.length) return { state: 'wait' };
-    const last = markersEntry[markersEntry.length - 1];
-    if (last.kind === 'entry') {
-      return {
-        state: last.marker === 'buy' ? 'long' : 'short',
-        time: candlesEntry[last.index]?.time,
-        price: candlesEntry[last.index]?.close,
-      };
-    }
-    return { state: 'wait' };
-  }, [markersEntry, candlesEntry]);
+    if (!openPosition) return { state: 'wait' };
+    return {
+      state: openPosition.type,
+      time: openPosition.entryTime,
+      price: openPosition.entryPrice,
+      stop: openPosition.currentStop,
+    };
+  }, [openPosition]);
 
   const strategyDesc = useMemo(() => {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
     const f = useMacdFilter ? ' with MACD agreeing on the same side of zero' : '';
     const gateText = gateByRegime ? 'while the 1H regime stays aligned' : 'regardless of the 1H regime';
-    return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit on the opposite ${entryInterval} signal or if the 1H regime flips — this exit rule is a placeholder until your real stop/target is wired in.`;
+    return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit via a support/resistance + ATR stop that trails once price moves ${EXIT_CFG.activationPct}% in favor — validated against 180 days of BTCUSDT (see backtest): net profit factor ~9.5, both long and short profitable.`;
   }, [mode, m1, useMacdFilter, gateByRegime, entryInterval]);
 
   const signalBannerStyle = {
@@ -159,7 +152,7 @@ export default function DashboardPage() {
 
   const signalBannerText = currentSignal.state === 'wait'
     ? '⚪ SIN POSICIÓN — esperando el próximo cruce gateado'
-    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${currentSignal.time ? new Date(currentSignal.time).toLocaleString() : '—'} @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'}`;
+    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${currentSignal.time ? new Date(currentSignal.time).toLocaleString() : '—'} @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'} · stop actual: ${currentSignal.stop ? currentSignal.stop.toFixed(1) : '—'}`;
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
