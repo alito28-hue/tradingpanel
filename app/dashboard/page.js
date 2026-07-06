@@ -11,6 +11,10 @@ const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
 const CLIMAX_WINDOW = 20;
 const CLIMAX_MULTIPLIER = 2.5;
 const DIVERGENCE_LOOKBACK = 10;
+// Argentina is fixed at UTC-3 year-round (no DST since 2009), so a plain
+// IANA timezone is enough — no seasonal offset math needed.
+const ART_TZ = 'America/Argentina/Buenos_Aires';
+const fmtArt = (ms, opts) => ms ? new Date(ms).toLocaleString('es-AR', { timeZone: ART_TZ, ...opts }) : '—';
 // SR+ATR trailing exit, validated against 180 days of real BTCUSDT data:
 // far outperforms a fixed SL/TP on both long and short (see backtest chat).
 const EXIT_CFG = {
@@ -152,7 +156,7 @@ export default function DashboardPage() {
 
   const signalBannerText = currentSignal.state === 'wait'
     ? '⚪ SIN POSICIÓN — esperando el próximo cruce gateado'
-    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${currentSignal.time ? new Date(currentSignal.time).toLocaleString() : '—'} @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'} · stop actual: ${currentSignal.stop ? currentSignal.stop.toFixed(1) : '—'}`;
+    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${fmtArt(currentSignal.time)} ART @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'} · stop actual: ${currentSignal.stop ? currentSignal.stop.toFixed(1) : '—'}`;
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
@@ -202,7 +206,7 @@ export default function DashboardPage() {
         </div>
       )}
       <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 14 }}>
-        Auto-refreshing every 20s{lastUpdated ? ` · last updated ${new Date(lastUpdated).toLocaleTimeString()}` : ''}
+        Auto-refreshing every 20s{lastUpdated ? ` · last updated ${fmtArt(lastUpdated, { hour: '2-digit', minute: '2-digit', second: '2-digit' })} ART` : ''}
       </div>
 
       {showSettings && (
@@ -313,6 +317,15 @@ export default function DashboardPage() {
       </Panel>
 
       <Panel title={`Entry (${entryInterval}) — Entries & Exits`} subtitle="▲ green = long · ▼ red = short · ✕ amber = exit">
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Timeframe de este chart">
+            <select value={entryInterval} onChange={e => setEntryInterval(e.target.value)} style={inputStyle()}>
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+            </select>
+          </Field>
+        </div>
         {loading ? <LoadingBlock /> : (
           <StrategyChart
             candles={candlesEntry}

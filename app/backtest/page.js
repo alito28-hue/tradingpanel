@@ -65,7 +65,7 @@ export default function BacktestPage() {
     }
   };
 
-  const fmtDate = (ms) => ms ? new Date(ms).toLocaleString() : '—';
+  const fmtDate = (ms) => ms ? new Date(ms).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
   const reasonLabel = (reason) => {
     if (reason === 'trailing') return 'trailing TP';
     if (reason === 'take_profit') return 'take profit';

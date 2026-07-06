@@ -4,8 +4,12 @@ import { useEffect, useRef } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { COLORS } from './ui';
 
+// Lightweight Charts renders timestamps as if they were UTC. Argentina is a
+// fixed UTC-3 with no DST, so shifting the epoch by -3h before feeding it in
+// makes the axis/crosshair show ART wall-clock time without extra libraries.
+const ART_OFFSET_SECONDS = 3 * 3600;
 function toTime(ms) {
-  return Math.floor(ms / 1000);
+  return Math.floor(ms / 1000) - ART_OFFSET_SECONDS;
 }
 
 // Interactive replacement for the old static SVG charts (CandleChart + MacdChart +
