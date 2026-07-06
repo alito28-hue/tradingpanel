@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
   const signalBannerText = currentSignal.state === 'wait'
     ? '⚪ SIN POSICIÓN — esperando el próximo cruce gateado'
-    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${currentSignal.time ? new Date(currentSignal.time).toLocaleTimeString() : '—'} @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'}`;
+    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${currentSignal.time ? new Date(currentSignal.time).toLocaleString() : '—'} @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'}`;
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
