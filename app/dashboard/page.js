@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence, simulateTrades, ema } from '../../lib/strategy';
+import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVolumeClimax, detectVolumeDivergence, simulateTrades, computeMetrics, ema } from '../../lib/strategy';
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
-import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
+import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
 import StrategyChart from '../components/StrategyChart';
 
 const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
@@ -32,6 +32,12 @@ function tradeMarkers(trades, openPosition) {
     markers.push({ index: openPosition.entryIndex, kind: 'entry', marker: openPosition.type === 'long' ? 'buy' : 'sell' });
   }
   return markers;
+}
+
+function reasonLabel(reason) {
+  if (reason === 'trailing') return 'trailing TP';
+  if (reason === 'stop') return 'stop';
+  return reason;
 }
 
 function LoadingBlock() {
@@ -108,8 +114,8 @@ export default function DashboardPage() {
     ? buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000)
     : null, [candlesEntry, mode, m1, useMacdFilter]);
 
-  const { entries, markersEntry, openPosition, regime1hMarkers } = useMemo(() => {
-    if (!analysis1h || !analysisEntry) return { entries: [], markersEntry: [], openPosition: null, regime1hMarkers: [] };
+  const { entries, trades, markersEntry, openPosition, regime1hMarkers } = useMemo(() => {
+    if (!analysis1h || !analysisEntry) return { entries: [], trades: [], markersEntry: [], openPosition: null, regime1hMarkers: [] };
     const entrySignals = useVolumeFilter
       ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
       : analysisEntry.signals;
@@ -119,7 +125,7 @@ export default function DashboardPage() {
     const regime1hMarkers = analysis1h.signals
       .map((s, i) => s ? { index: i, kind: 'entry', marker: s === 'up' ? 'buy' : 'sell' } : null)
       .filter(Boolean);
-    return { entries, markersEntry, openPosition, regime1hMarkers };
+    return { entries, trades, markersEntry, openPosition, regime1hMarkers };
   }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
 
   const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
@@ -338,6 +344,52 @@ export default function DashboardPage() {
             divergence={showDivergence ? volExtrasEntry.divergence : null}
             height={520}
           />
+        )}
+      </Panel>
+
+      <Panel title="Trade history" subtitle={`${trades.length} trade${trades.length === 1 ? '' : 's'} cerrados en la ventana cargada`}>
+        {(() => {
+          const metrics = computeMetrics(trades);
+          return metrics ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 14 }}>
+              <Stat label="Win rate" value={`${metrics.winRate.toFixed(0)}%`} color={metrics.winRate >= 50 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Profit factor" value={metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2)} color={metrics.profitFactor >= 1.2 ? COLORS.bull : COLORS.bear} />
+              <Stat label="PnL neto" value={`${metrics.totalPnl >= 0 ? '+' : ''}${metrics.totalPnl.toFixed(1)}%`} color={metrics.totalPnl >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Max drawdown" value={`-${metrics.maxDD.toFixed(1)}%`} color={COLORS.bear} />
+            </div>
+          ) : null;
+        })()}
+        {trades.length === 0 ? (
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía en la ventana cargada.</div>
+        ) : (
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                  <th style={{ padding: '4px 8px' }}>Entrada</th>
+                  <th style={{ padding: '4px 8px' }}>Salida</th>
+                  <th style={{ padding: '4px 8px' }}>Tipo</th>
+                  <th style={{ padding: '4px 8px' }}>Precio in</th>
+                  <th style={{ padding: '4px 8px' }}>Precio out</th>
+                  <th style={{ padding: '4px 8px' }}>P&amp;L neto</th>
+                  <th style={{ padding: '4px 8px' }}>Razón</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.slice().reverse().map((t, i) => (
+                  <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.entryTime)}</td>
+                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.exitTime)}</td>
+                    <td style={{ padding: '4px 8px', color: t.type === 'long' ? COLORS.bull : COLORS.bear }}>{t.type === 'long' ? 'LONG' : 'SHORT'}</td>
+                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.entryPrice.toFixed(1)}</td>
+                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
+                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.netPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.netPnlPct >= 0 ? '+' : ''}{t.netPnlPct.toFixed(2)}%</td>
+                    <td style={{ padding: '4px 8px', color: COLORS.muted }}>{reasonLabel(t.reason)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Panel>
 
