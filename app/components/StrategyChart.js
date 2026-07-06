@@ -111,7 +111,12 @@ export default function StrategyChart({
       s.volumeMarkers.setMarkers(divMarkerData);
     }
 
-    chartRef.current.timeScale().fitContent();
+    const VISIBLE_BARS = 150;
+    if (candles.length > VISIBLE_BARS) {
+      chartRef.current.timeScale().setVisibleLogicalRange({ from: candles.length - VISIBLE_BARS, to: candles.length });
+    } else {
+      chartRef.current.timeScale().fitContent();
+    }
   }, [candles, maLine, markers, macdLine, macdSignal, volumeDelta, climax, divergence]);
 
   return <div ref={containerRef} style={{ width: '100%', height }} />;
