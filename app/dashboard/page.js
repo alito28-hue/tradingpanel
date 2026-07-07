@@ -194,6 +194,9 @@ export default function DashboardPage() {
           <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>
             Backtest →
           </Link>
+          <Link href="/bot" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Bot →
+          </Link>
         </div>
       </div>
 

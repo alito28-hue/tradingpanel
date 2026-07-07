@@ -21,6 +21,10 @@ export default function Home() {
             <div style={{ fontWeight: 600 }}>Backtest</div>
             <div style={{ fontSize: 13, color: COLORS.muted }}>Backtest interactivo sobre histórico real</div>
           </Link>
+          <Link href="/bot" style={cardStyle()}>
+            <div style={{ fontWeight: 600 }}>Bot</div>
+            <div style={{ fontSize: 13, color: COLORS.muted }}>Configuración del bot de BingX Perpetual Futures</div>
+          </Link>
         </div>
       </div>
     </div>

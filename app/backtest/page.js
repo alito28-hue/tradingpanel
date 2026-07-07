@@ -80,9 +80,14 @@ export default function BacktestPage() {
           <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Backtest</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>Intraday Momentum — datos históricos reales</div>
         </div>
-        <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
-          ← Dashboard
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            ← Dashboard
+          </Link>
+          <Link href="/bot" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Bot →
+          </Link>
+        </div>
       </div>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
