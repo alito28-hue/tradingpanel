@@ -255,7 +255,7 @@ export default function DashboardPage() {
           </Field>
 
           <Field label="Volume (tape)">
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 190 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                 <input type="checkbox" checked={useVolumeFilter} onChange={e => setUseVolumeFilter(e.target.checked)} />
                 Confirm with aggressor volume
