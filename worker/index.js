@@ -8,6 +8,7 @@
 // instead of sending it — flipping to real money is a manual env var change
 // on whatever host runs this, never something this code does on its own.
 const path = require('path');
+const http = require('http');
 const { buildAnalysis, gateEntries, simulateTrades } = require('../lib/strategy');
 const { fetchKlines } = require('../lib/binance');
 const bingx = require('../lib/bingx');
@@ -47,6 +48,32 @@ let lastHeartbeat = 0;
 
 function roundQty(qty) {
   return Math.round(qty * 1000) / 1000; // 3 decimals — refine per-symbol precision before scaling up
+}
+
+// Read-only status endpoint for the dashboard's /api/bot-history route to
+// fetch — never called directly from the browser, so the shared secret
+// never reaches client-side code. Only starts listening if PORT is set
+// (Railway injects it once the service has public networking enabled); a
+// worker without a public domain just skips this entirely.
+function startServer() {
+  const port = process.env.PORT;
+  if (!port) {
+    console.log('[server] PORT not set — skipping HTTP server (no public networking enabled).');
+    return;
+  }
+  const secret = process.env.WORKER_API_SECRET;
+  const server = http.createServer((req, res) => {
+    if (req.url !== '/history') {
+      res.writeHead(404).end();
+      return;
+    }
+    if (!secret || req.headers['x-worker-secret'] !== secret) {
+      res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(dailyLoss.getHistory()));
+  });
+  server.listen(port, () => console.log(`[server] listening on ${port} (/history, requires X-Worker-Secret)`));
 }
 
 // Runs once at startup (real trading only — DRY_RUN has no real BingX state
@@ -201,6 +228,13 @@ async function checkExitFill() {
 }
 
 async function tick() {
+  const finishedDay = dailyLoss.checkRollover();
+  if (finishedDay) {
+    const msg = `📅 Resumen ${finishedDay.day}: ${finishedDay.trades} trade${finishedDay.trades === 1 ? '' : 's'}, ${finishedDay.winRate}% win rate, PnL ${finishedDay.realizedPnlUsd >= 0 ? '+' : ''}${finishedDay.realizedPnlUsd.toFixed(2)} USD.`;
+    console.log(msg);
+    await sendMessage(msg);
+  }
+
   if (dailyLoss.isKilled() && position.phase === 'idle') return;
 
   const [candles1h, candlesEntry] = await Promise.all([
@@ -233,6 +267,7 @@ async function main() {
   await bingx.setLeverage(SYMBOL, 'LONG', LEVERAGE);
   await bingx.setLeverage(SYMBOL, 'SHORT', LEVERAGE);
   await recoverState();
+  startServer();
   for (;;) {
     try {
       await tick();

@@ -4,7 +4,13 @@ import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
 import { fetchKlines } from '../../lib/binance';
 import { checkStopDistance } from '../../lib/botSafety';
-import { COLORS, Field, NumberInput, Panel, inputStyle, btnStyle } from '../components/ui';
+import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
+
+const fmtDay = (dayKey) => {
+  if (!dayKey) return '—';
+  const [y, m, d] = dayKey.split('-');
+  return `${d}/${m}`;
+};
 
 export default function BotConfigPage() {
   const [symbol, setSymbol] = useState('BTC-USDT');
@@ -14,6 +20,21 @@ export default function BotConfigPage() {
   const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(30);
   const [pollSeconds, setPollSeconds] = useState(20);
   const [lastPrice, setLastPrice] = useState(null);
+  const [botHistory, setBotHistory] = useState(null);
+  const [botHistoryError, setBotHistoryError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/bot-history')
+      .then(async res => {
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || data.error) { setBotHistoryError(data.error || `Error ${res.status}`); return; }
+        setBotHistory(data);
+      })
+      .catch(err => { if (!cancelled) setBotHistoryError(err.message); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +144,52 @@ export default function BotConfigPage() {
           background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 14,
           fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 1.6, overflowX: 'auto', color: COLORS.text,
         }}>{envBlock}</pre>
+      </Panel>
+
+      <Panel title="Historial diario" subtitle="PnL real/DRY_RUN del worker, día por día">
+        {botHistoryError ? (
+          <div style={{ color: COLORS.muted, fontSize: 13, lineHeight: 1.6 }}>
+            No se pudo cargar el historial ({botHistoryError}). Revisar que <code>WORKER_URL</code> y{' '}
+            <code>WORKER_API_SECRET</code> estén configurados en Vercel y que el worker tenga un dominio público en Railway.
+          </div>
+        ) : !botHistory ? (
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 14 }}>
+              <Stat label="Hoy — trades" value={botHistory.today.trades} />
+              <Stat label="Hoy — win rate" value={`${botHistory.today.winRate}%`} color={botHistory.today.winRate >= 50 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Hoy — PnL" value={`${botHistory.today.realizedPnlUsd >= 0 ? '+' : ''}${botHistory.today.realizedPnlUsd.toFixed(2)} USD`}
+                color={botHistory.today.realizedPnlUsd >= 0 ? COLORS.bull : COLORS.bear} />
+            </div>
+            {botHistory.history.length === 0 ? (
+              <div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no se cerró ningún día completo.</div>
+            ) : (
+              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                    <th style={{ padding: '4px 8px' }}>Día</th>
+                    <th style={{ padding: '4px 8px' }}>Trades</th>
+                    <th style={{ padding: '4px 8px' }}>Win rate</th>
+                    <th style={{ padding: '4px 8px' }}>PnL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {botHistory.history.map((d, i) => (
+                    <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtDay(d.day)}</td>
+                      <td style={{ padding: '4px 8px' }}>{d.trades}</td>
+                      <td style={{ padding: '4px 8px', color: d.winRate >= 50 ? COLORS.bull : COLORS.bear }}>{d.winRate}%</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: d.realizedPnlUsd >= 0 ? COLORS.bull : COLORS.bear }}>
+                        {d.realizedPnlUsd >= 0 ? '+' : ''}{d.realizedPnlUsd.toFixed(2)} USD
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
       </Panel>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, fontSize: 13, color: COLORS.muted, lineHeight: 1.6 }}>
