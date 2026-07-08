@@ -33,7 +33,11 @@ const EXIT_CFG = {
   srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05,
 };
 
-const dailyLoss = new DailyLossTracker(path.join(__dirname, 'daily_loss_state.json'), DAILY_LOSS_LIMIT_USD);
+// Railway injects RAILWAY_VOLUME_MOUNT_PATH automatically once a Volume is
+// attached to this service — without one (e.g. running locally), falls back
+// to a file next to the script like before.
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+const dailyLoss = new DailyLossTracker(path.join(DATA_DIR, 'daily_loss_state.json'), DAILY_LOSS_LIMIT_USD);
 
 const HEARTBEAT_MS = 5 * 60 * 1000; // 5 min — enough to confirm the loop is alive without spamming logs
 
@@ -43,6 +47,64 @@ let lastHeartbeat = 0;
 
 function roundQty(qty) {
   return Math.round(qty * 1000) / 1000; // 3 decimals — refine per-symbol precision before scaling up
+}
+
+// Runs once at startup (real trading only — DRY_RUN has no real BingX state
+// to recover, and querying it there could pick up unrelated manual activity
+// on the account). BingX is the source of truth for what's actually open,
+// not any local cache: a restart mid-position must never lead to opening a
+// second one, and a position found with a missing stop/trailing order must
+// never be left unprotected.
+async function recoverState() {
+  if (bingx.isDryRun()) return;
+
+  const positions = await bingx.getPositions(SYMBOL);
+  const openPos = (positions || []).find(p => Math.abs(Number(p.positionAmt || 0)) > 0);
+  if (!openPos) {
+    console.log('[recover] no open position on BingX — starting idle.');
+    return;
+  }
+
+  const type = String(openPos.positionSide).toUpperCase() === 'SHORT' ? 'short' : 'long';
+  const entryPrice = Number(openPos.avgPrice);
+  const quantity = Math.abs(Number(openPos.positionAmt));
+  const exitSide = type === 'long' ? 'SELL' : 'BUY';
+
+  const openOrdersData = await bingx.getOpenOrders(SYMBOL);
+  const openOrders = openOrdersData?.orders || [];
+  let stopOrder = openOrders.find(o => o.type === 'STOP_MARKET' && (o.reduceOnly === true || o.reduceOnly === 'true'));
+  let trailingOrder = openOrders.find(o => o.type === 'TRAILING_STOP_MARKET' && (o.reduceOnly === true || o.reduceOnly === 'true'));
+  const reprotected = !stopOrder || !trailingOrder;
+
+  position = { phase: 'in_position', type, entryPrice, quantity };
+
+  // Missing protection is only expected if a restart landed mid-placeExits.
+  // Re-derive a safe stop distance from the current leverage rather than
+  // trying to recover the original SR+ATR level, which no longer exists.
+  if (!stopOrder) {
+    const safeStopPrice = type === 'long'
+      ? entryPrice * (1 - checkStopDistance(entryPrice, entryPrice, LEVERAGE).safeThresholdPct / 100)
+      : entryPrice * (1 + checkStopDistance(entryPrice, entryPrice, LEVERAGE).safeThresholdPct / 100);
+    stopOrder = await bingx.placeStopLoss({ symbol: SYMBOL, side: exitSide, quantity, stopPrice: safeStopPrice });
+    position.stopPrice = safeStopPrice;
+  } else {
+    position.stopPrice = Number(stopOrder.stopPrice);
+  }
+  position.stopOrderId = stopOrder.orderId;
+
+  if (!trailingOrder) {
+    const activationPrice = type === 'long'
+      ? entryPrice * (1 + EXIT_CFG.activationPct / 100)
+      : entryPrice * (1 - EXIT_CFG.activationPct / 100);
+    trailingOrder = await bingx.placeTrailingStop({ symbol: SYMBOL, side: exitSide, quantity, activationPrice, trailPct: EXIT_CFG.trailPct });
+  }
+  position.trailingOrderId = trailingOrder.orderId;
+
+  const msg = reprotected
+    ? `🔄⚠️ Reinicio: encontré ${type.toUpperCase()} ${SYMBOL} abierta SIN protección completa — repuse la(s) orden(es) faltante(s). Revisar en BingX.`
+    : `🔄 Reinicio: recuperé posición ${type.toUpperCase()} ${SYMBOL} @ ${entryPrice.toFixed(1)}, ya protegida (stop ${position.stopPrice.toFixed(1)}).`;
+  console.log(msg);
+  await sendMessage(msg);
 }
 
 async function tryOpenPosition(candlesEntry, candles1h, entries) {
@@ -170,6 +232,7 @@ async function main() {
   console.log(`Bot worker starting for ${SYMBOL} (poll ${POLL_MS}ms, leverage ${LEVERAGE}x, size $${POSITION_SIZE_USD}, daily loss limit $${DAILY_LOSS_LIMIT_USD}, DRY_RUN=${bingx.isDryRun()})`);
   await bingx.setLeverage(SYMBOL, 'LONG', LEVERAGE);
   await bingx.setLeverage(SYMBOL, 'SHORT', LEVERAGE);
+  await recoverState();
   for (;;) {
     try {
       await tick();
