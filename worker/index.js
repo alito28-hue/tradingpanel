@@ -35,8 +35,11 @@ const EXIT_CFG = {
 
 const dailyLoss = new DailyLossTracker(path.join(__dirname, 'daily_loss_state.json'), DAILY_LOSS_LIMIT_USD);
 
+const HEARTBEAT_MS = 5 * 60 * 1000; // 5 min — enough to confirm the loop is alive without spamming logs
+
 let lastConsideredEntryIndex = -1;
 let position = { phase: 'idle' }; // idle | awaiting_entry_fill | in_position
+let lastHeartbeat = 0;
 
 function roundQty(qty) {
   return Math.round(qty * 1000) / 1000; // 3 decimals — refine per-symbol precision before scaling up
@@ -155,6 +158,11 @@ async function tick() {
     const analysisEntry = buildAnalysis(candlesEntry, 'single', ENTRY_CFG, true, ENTRY_CFG.cooldownMinutes * 60000);
     const { entries } = gateEntries(candlesEntry, analysisEntry.signals, candles1h, analysis1h.regime, true);
     await tryOpenPosition(candlesEntry, candles1h, entries);
+  }
+
+  if (Date.now() - lastHeartbeat >= HEARTBEAT_MS) {
+    lastHeartbeat = Date.now();
+    console.log(`[heartbeat] alive · phase=${position.phase} · daily PnL ${dailyLoss.state.realizedPnlUsd.toFixed(2)} USD`);
   }
 }
 

@@ -128,6 +128,22 @@ export default function DashboardPage() {
     return { entries, trades, markersEntry, openPosition, regime1hMarkers };
   }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
 
+  // The chart only ever sees the last ~500 candles (a rolling window), so a
+  // trade that closed hours ago eventually scrolls out of `trades` even
+  // though it really happened. Accumulate closed trades for as long as this
+  // tab stays open instead of only showing whatever's in the current window
+  // — resets on page reload, this isn't a persisted database.
+  const [tradeLog, setTradeLog] = useState([]);
+  useEffect(() => {
+    if (!trades.length) return;
+    setTradeLog(prev => {
+      const known = new Set(prev.map(t => `${t.entryTime}-${t.type}`));
+      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`));
+      if (!fresh.length) return prev;
+      return [...prev, ...fresh].sort((a, b) => a.entryTime - b.entryTime);
+    });
+  }, [trades]);
+
   const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
   const macdSignalEntry = useMemo(() => analysisEntry ? ema(analysisEntry.macdLine, 9) : [], [analysisEntry]);
 
@@ -350,9 +366,9 @@ export default function DashboardPage() {
         )}
       </Panel>
 
-      <Panel title="Trade history" subtitle={`${trades.length} trade${trades.length === 1 ? '' : 's'} cerrados en la ventana cargada`}>
+      <Panel title="Trade history" subtitle={`${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados desde que abriste esta pestaña`}>
         {(() => {
-          const metrics = computeMetrics(trades);
+          const metrics = computeMetrics(tradeLog);
           return metrics ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 14 }}>
               <Stat label="Win rate" value={`${metrics.winRate.toFixed(0)}%`} color={metrics.winRate >= 50 ? COLORS.bull : COLORS.bear} />
@@ -362,8 +378,8 @@ export default function DashboardPage() {
             </div>
           ) : null;
         })()}
-        {trades.length === 0 ? (
-          <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía en la ventana cargada.</div>
+        {tradeLog.length === 0 ? (
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía desde que abriste esta pestaña.</div>
         ) : (
           <div style={{ maxHeight: 320, overflowY: 'auto' }}>
             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
@@ -379,7 +395,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {trades.slice().reverse().map((t, i) => (
+                {tradeLog.slice().reverse().map((t, i) => (
                   <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
                     <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.entryTime)}</td>
                     <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.exitTime)}</td>
