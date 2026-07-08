@@ -130,19 +130,35 @@ export default function DashboardPage() {
 
   // The chart only ever sees the last ~500 candles (a rolling window), so a
   // trade that closed hours ago eventually scrolls out of `trades` even
-  // though it really happened. Accumulate closed trades for as long as this
-  // tab stays open instead of only showing whatever's in the current window
-  // — resets on page reload, this isn't a persisted database.
+  // though it really happened. Accumulate closed trades into localStorage
+  // instead of only showing whatever's in the current window — this makes
+  // the history survive page reloads, but it's still just this browser on
+  // this device, not a real synced database.
   const [tradeLog, setTradeLog] = useState([]);
+  const [tradeLogPage, setTradeLogPage] = useState(0);
+  const TRADE_LOG_KEY = 'tradingpanel_tradeLog';
+  const TRADES_PER_PAGE = 5;
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(TRADE_LOG_KEY) || '[]');
+      setTradeLog(stored);
+    } catch {
+      setTradeLog([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!trades.length) return;
     setTradeLog(prev => {
       const known = new Set(prev.map(t => `${t.entryTime}-${t.type}`));
-      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`));
+      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`)).map(t => ({ ...t, symbol }));
       if (!fresh.length) return prev;
-      return [...prev, ...fresh].sort((a, b) => a.entryTime - b.entryTime);
+      const merged = [...prev, ...fresh].sort((a, b) => a.entryTime - b.entryTime);
+      window.localStorage.setItem(TRADE_LOG_KEY, JSON.stringify(merged));
+      return merged;
     });
-  }, [trades]);
+  }, [trades, symbol]);
 
   const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
   const macdSignalEntry = useMemo(() => analysisEntry ? ema(analysisEntry.macdLine, 9) : [], [analysisEntry]);
@@ -366,7 +382,7 @@ export default function DashboardPage() {
         )}
       </Panel>
 
-      <Panel title="Trade history" subtitle={`${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados desde que abriste esta pestaña`}>
+      <Panel title="Trade history" subtitle={`${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados en total · guardado en este navegador`}>
         {(() => {
           const metrics = computeMetrics(tradeLog);
           return metrics ? (
@@ -379,37 +395,52 @@ export default function DashboardPage() {
           ) : null;
         })()}
         {tradeLog.length === 0 ? (
-          <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía desde que abriste esta pestaña.</div>
-        ) : (
-          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
-                  <th style={{ padding: '4px 8px' }}>Entrada</th>
-                  <th style={{ padding: '4px 8px' }}>Salida</th>
-                  <th style={{ padding: '4px 8px' }}>Tipo</th>
-                  <th style={{ padding: '4px 8px' }}>Precio in</th>
-                  <th style={{ padding: '4px 8px' }}>Precio out</th>
-                  <th style={{ padding: '4px 8px' }}>P&amp;L neto</th>
-                  <th style={{ padding: '4px 8px' }}>Razón</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradeLog.slice().reverse().map((t, i) => (
-                  <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.entryTime)}</td>
-                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.exitTime)}</td>
-                    <td style={{ padding: '4px 8px', color: t.type === 'long' ? COLORS.bull : COLORS.bear }}>{t.type === 'long' ? 'LONG' : 'SHORT'}</td>
-                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.entryPrice.toFixed(1)}</td>
-                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
-                    <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.netPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.netPnlPct >= 0 ? '+' : ''}{t.netPnlPct.toFixed(2)}%</td>
-                    <td style={{ padding: '4px 8px', color: COLORS.muted }}>{reasonLabel(t.reason)}</td>
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía.</div>
+        ) : (() => {
+          const reversed = tradeLog.slice().reverse();
+          const totalPages = Math.max(1, Math.ceil(reversed.length / TRADES_PER_PAGE));
+          const page = Math.min(tradeLogPage, totalPages - 1);
+          const pageItems = reversed.slice(page * TRADES_PER_PAGE, page * TRADES_PER_PAGE + TRADES_PER_PAGE);
+          return (
+            <>
+              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                    <th style={{ padding: '4px 8px' }}>Symbol</th>
+                    <th style={{ padding: '4px 8px' }}>Entrada</th>
+                    <th style={{ padding: '4px 8px' }}>Salida</th>
+                    <th style={{ padding: '4px 8px' }}>Tipo</th>
+                    <th style={{ padding: '4px 8px' }}>Precio in</th>
+                    <th style={{ padding: '4px 8px' }}>Precio out</th>
+                    <th style={{ padding: '4px 8px' }}>P&amp;L neto</th>
+                    <th style={{ padding: '4px 8px' }}>Razón</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {pageItems.map((t, i) => (
+                    <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '4px 8px', color: COLORS.muted }}>{t.symbol || symbol}</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.entryTime)}</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{fmtArt(t.exitTime)}</td>
+                      <td style={{ padding: '4px 8px', color: t.type === 'long' ? COLORS.bull : COLORS.bear }}>{t.type === 'long' ? 'LONG' : 'SHORT'}</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.entryPrice.toFixed(1)}</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{t.exitPrice.toFixed(1)}</td>
+                      <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: t.netPnlPct >= 0 ? COLORS.bull : COLORS.bear }}>{t.netPnlPct >= 0 ? '+' : ''}{t.netPnlPct.toFixed(2)}%</td>
+                      <td style={{ padding: '4px 8px', color: COLORS.muted }}>{reasonLabel(t.reason)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button onClick={() => setTradeLogPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                  style={{ ...btnStyle(), opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'default' : 'pointer' }}>← Anterior</button>
+                <span style={{ fontSize: 12, color: COLORS.muted }}>Página {page + 1} de {totalPages}</span>
+                <button onClick={() => setTradeLogPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+                  style={{ ...btnStyle(), opacity: page >= totalPages - 1 ? 0.4 : 1, cursor: page >= totalPages - 1 ? 'default' : 'pointer' }}>Siguiente →</button>
+              </div>
+            </>
+          );
+        })()}
       </Panel>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, fontSize: 13, color: COLORS.muted, lineHeight: 1.6 }}>
