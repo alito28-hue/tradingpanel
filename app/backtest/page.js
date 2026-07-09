@@ -18,7 +18,7 @@ export default function BacktestPage() {
   const [m1, setM1] = useState({ length: 200, cooldownMinutes: 0 });
   const [exitCfg, setExitCfg] = useState({
     activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4,
-    atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3, minStopAtrMultiple: 1.5,
+    atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3, minStopAtrMultiple: 2.5,
   });
   const [useVolumeFilter, setUseVolumeFilter] = useState(false);
   const [deltaWindow, setDeltaWindow] = useState(5);

@@ -40,7 +40,7 @@ const ENTRY_CFG = { length: 200, cooldownMinutes: 0 };
 // Same exit parameters validated in the dashboard/backtest (SR+ATR trailing).
 const EXIT_CFG = {
   activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
-  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 1.5,
+  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 2.5,
 };
 
 // Railway injects RAILWAY_VOLUME_MOUNT_PATH automatically once a Volume is
