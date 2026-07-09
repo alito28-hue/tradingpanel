@@ -295,81 +295,31 @@ export default function DashboardPage() {
       </div>
 
       {showSettings && (
-        <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-          <Field label="Symbol">
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input value={symbolInput} onChange={e => setSymbolInput(e.target.value.toUpperCase())}
-                style={inputStyle()} placeholder="BTCUSDT" />
-              <button onClick={() => setSymbol(symbolInput)} style={btnStyle(true)}>Load</button>
-            </div>
-          </Field>
-          <Field label="Entry timeframe">
-            <select value={entryInterval} onChange={e => setEntryInterval(e.target.value)} style={inputStyle()}>
-              <option value="1m">1m</option>
-              <option value="5m">5m</option>
-              <option value="15m">15m</option>
-            </select>
-          </Field>
-          <Field label="Signal mode">
-            <select value={mode} onChange={e => setMode(e.target.value)} style={inputStyle()}>
-              <option value="single">Price crosses single MA</option>
-              <option value="dual">Fast MA crosses slow MA</option>
-            </select>
-          </Field>
-          <Field label="MACD zero filter">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={useMacdFilter} onChange={e => setUseMacdFilter(e.target.checked)} />
-              Require MACD agreement
-            </label>
-          </Field>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+          <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 180 }}>
+            <Field label="Symbol">
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={symbolInput} onChange={e => setSymbolInput(e.target.value.toUpperCase())}
+                  style={inputStyle()} placeholder="BTCUSDT" />
+                <button onClick={() => setSymbol(symbolInput)} style={btnStyle(true)}>Load</button>
+              </div>
+            </Field>
+            <Field label="Entry timeframe">
+              <select value={entryInterval} onChange={e => setEntryInterval(e.target.value)} style={inputStyle()}>
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+              </select>
+            </Field>
+          </div>
 
-          <Field label="Regime gate">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
-              Gate entries by the 1H regime
-            </label>
-          </Field>
-
-          <Field label="Volume (tape)">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 190 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <input type="checkbox" checked={useVolumeFilter} onChange={e => setUseVolumeFilter(e.target.checked)} />
-                Confirm with aggressor volume
-              </label>
-              {useVolumeFilter && (
-                <NumberInput label="Delta window" value={deltaWindow} onChange={setDeltaWindow} />
-              )}
-            </div>
-          </Field>
-
-          <Field label="Volumen v2">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <input type="checkbox" checked={showClimax} onChange={e => setShowClimax(e.target.checked)} />
-                Marcar climax
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <input type="checkbox" checked={showDivergence} onChange={e => setShowDivergence(e.target.checked)} />
-                Marcar divergencia
-              </label>
-            </div>
-          </Field>
-
-          <Field label="1H settings">
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {mode === 'single' ? (
-                <NumberInput label="MA len" value={h1.length} onChange={v => setH1({ ...h1, length: v })} />
-              ) : (
-                <>
-                  <NumberInput label="Fast" value={h1.fast} onChange={v => setH1({ ...h1, fast: v })} />
-                  <NumberInput label="Slow" value={h1.slow} onChange={v => setH1({ ...h1, slow: v })} />
-                </>
-              )}
-              <NumberInput label="Cooldown (h)" value={h1.cooldownHours} onChange={v => setH1({ ...h1, cooldownHours: v })} />
-            </div>
-          </Field>
-
-          <Field label="Entry settings">
+          <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 180 }}>
+            <Field label="Signal mode">
+              <select value={mode} onChange={e => setMode(e.target.value)} style={inputStyle()}>
+                <option value="single">Price crosses single MA</option>
+                <option value="dual">Fast MA crosses slow MA</option>
+              </select>
+            </Field>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {mode === 'single' ? (
                 <NumberInput label="MA len" value={m1.length} onChange={v => setM1({ ...m1, length: v })} />
@@ -381,7 +331,64 @@ export default function DashboardPage() {
               )}
               <NumberInput label="Cooldown (min)" value={m1.cooldownMinutes} onChange={v => setM1({ ...m1, cooldownMinutes: v })} />
             </div>
-          </Field>
+          </div>
+
+          <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 180 }}>
+            <Field label="MACD zero filter">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={useMacdFilter} onChange={e => setUseMacdFilter(e.target.checked)} />
+                Require MACD agreement
+              </label>
+            </Field>
+            <Field label="Regime gate">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={gateByRegime} onChange={e => setGateByRegime(e.target.checked)} />
+                Gate entries by the 1H regime
+              </label>
+            </Field>
+          </div>
+
+          <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 190 }}>
+            <Field label="Volume (tape)">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <input type="checkbox" checked={useVolumeFilter} onChange={e => setUseVolumeFilter(e.target.checked)} />
+                  Confirm with aggressor volume
+                </label>
+                {useVolumeFilter && (
+                  <NumberInput label="Delta window" value={deltaWindow} onChange={setDeltaWindow} />
+                )}
+              </div>
+            </Field>
+            <Field label="Volumen v2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <input type="checkbox" checked={showClimax} onChange={e => setShowClimax(e.target.checked)} />
+                  Marcar climax
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <input type="checkbox" checked={showDivergence} onChange={e => setShowDivergence(e.target.checked)} />
+                  Marcar divergencia
+                </label>
+              </div>
+            </Field>
+          </div>
+
+          <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 180 }}>
+            <Field label="1H settings">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {mode === 'single' ? (
+                  <NumberInput label="MA len" value={h1.length} onChange={v => setH1({ ...h1, length: v })} />
+                ) : (
+                  <>
+                    <NumberInput label="Fast" value={h1.fast} onChange={v => setH1({ ...h1, fast: v })} />
+                    <NumberInput label="Slow" value={h1.slow} onChange={v => setH1({ ...h1, slow: v })} />
+                  </>
+                )}
+                <NumberInput label="Cooldown (h)" value={h1.cooldownHours} onChange={v => setH1({ ...h1, cooldownHours: v })} />
+              </div>
+            </Field>
+          </div>
         </div>
       )}
 
