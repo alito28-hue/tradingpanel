@@ -1,5 +1,4 @@
 import './globals.css';
-import LogoutLink from './components/LogoutLink';
 
 export const metadata = {
   title: 'TradingPanel — Intraday Momentum',
@@ -12,7 +11,6 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         {children}
-        <LogoutLink />
       </body>
     </html>
   );

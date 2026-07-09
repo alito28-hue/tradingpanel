@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { fetchKlines } from '../../lib/binance';
 import { checkStopDistance } from '../../lib/botSafety';
 import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
+import LogoutLink from '../components/LogoutLink';
 
 const fmtDay = (dayKey) => {
   if (!dayKey) return '—';
@@ -107,8 +108,11 @@ export default function BotConfigPage() {
   ].join('\n');
 
   return (
-    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh', padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh' }}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20, background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+        padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
           <div>
@@ -116,11 +120,16 @@ export default function BotConfigPage() {
             <div style={{ fontSize: 22, fontWeight: 700 }}>Configuración — BingX Perpetual Futures</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>← Dashboard</Link>
-          <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>Backtest →</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>← Dashboard</Link>
+            <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>Backtest →</Link>
+          </div>
+          <LogoutLink />
         </div>
       </div>
+
+      <div style={{ padding: '20px' }}>
 
       <div style={{ background: 'rgba(255,77,77,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
         Esta pantalla solo genera la configuración — no envía órdenes ni corre el bot. El bot corre como proceso aparte
@@ -292,6 +301,7 @@ export default function BotConfigPage() {
         Máximo 1 posición abierta a la vez · Entradas con orden LIMIT · Salidas con STOP_MARKET (inicial) + TRAILING_STOP_MARKET
         (una vez que el precio se mueve {`${1.33}%`} a favor, trailing {`${0.25}%`}) · Corte automático al superar el límite de
         pérdida diaria configurado arriba.
+      </div>
       </div>
     </div>
   );

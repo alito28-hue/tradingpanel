@@ -40,7 +40,7 @@ const ENTRY_CFG = { length: 200, cooldownMinutes: 0 };
 // Same exit parameters validated in the dashboard/backtest (SR+ATR trailing).
 const EXIT_CFG = {
   activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
-  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05,
+  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 1.5,
 };
 
 // Railway injects RAILWAY_VOLUME_MOUNT_PATH automatically once a Volume is
@@ -104,8 +104,15 @@ function startServer() {
       // preference — otherwise the dashboard could show "LIVE" while the
       // Railway floor is silently keeping the worker in dry-run.
       const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
+      // Same `position` object that drives the Telegram messages — the
+      // dashboard reads this instead of re-simulating locally, so there's
+      // one source of truth for "what is the bot actually doing" instead of
+      // two independent guesses that can disagree.
+      const publicPosition = position.phase === 'idle'
+        ? { phase: 'idle' }
+        : { phase: position.phase, type: position.type, entryPrice: position.entryPrice, stopPrice: position.stopPrice, entryTime: position.entryTime, quantity: position.quantity };
       res.writeHead(200, { 'Content-Type': 'application/json' })
-        .end(JSON.stringify({ ...dailyLoss.getHistory(), mode: effectiveMode }));
+        .end(JSON.stringify({ ...dailyLoss.getHistory(), mode: effectiveMode, position: publicPosition }));
       return;
     }
 
@@ -220,6 +227,7 @@ async function tryOpenPosition(candlesEntry, candles1h, entries) {
     entryPrice: openPosition.entryPrice,
     stopPrice: openPosition.stopPrice,
     quantity,
+    entryTime: Date.now(),
   };
   const msg = `🟢 Nueva entrada ${openPosition.type.toUpperCase()} ${SYMBOL} @ ${openPosition.entryPrice.toFixed(1)} (orden LIMIT, qty ${quantity})`;
   console.log(msg);

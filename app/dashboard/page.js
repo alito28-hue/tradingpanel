@@ -6,6 +6,7 @@ import { buildAnalysis, gateEntries, volumeProfile, applyVolumeFilter, detectVol
 import { fetchKlines, generateMockCandles } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
 import StrategyChart from '../components/StrategyChart';
+import LogoutLink from '../components/LogoutLink';
 
 const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000 };
 const CLIMAX_WINDOW = 20;
@@ -19,7 +20,7 @@ const fmtArt = (ms, opts) => ms ? new Date(ms).toLocaleString('es-AR', { timeZon
 // far outperforms a fixed SL/TP on both long and short (see backtest chat).
 const EXIT_CFG = {
   activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
-  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05,
+  srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 1.5,
 };
 
 function tradeMarkers(trades, openPosition) {
@@ -106,6 +107,32 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [symbol, entryInterval, load]);
 
+  // The worker is the only process that actually decides/places orders — the
+  // banner below reads its real position instead of re-simulating locally,
+  // so it can never show a different "current signal" than what shows up in
+  // Telegram or on Railway. See app/api/bot-history/route.js (server-side,
+  // never exposes the worker's shared secret to the browser).
+  const [botStatus, setBotStatus] = useState(null);
+  const [botStatusError, setBotStatusError] = useState(null);
+
+  const loadBotStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bot-history');
+      const data = await res.json();
+      if (!res.ok || data.error) { setBotStatusError(data.error || `Error ${res.status}`); return; }
+      setBotStatusError(null);
+      setBotStatus(data);
+    } catch (err) {
+      setBotStatusError(err.message);
+    }
+  }, []);
+
+  useEffect(() => { loadBotStatus(); }, [loadBotStatus]);
+  useEffect(() => {
+    const id = setInterval(loadBotStatus, 20000);
+    return () => clearInterval(id);
+  }, [loadBotStatus]);
+
   const analysis1h = useMemo(() => candles1h.length
     ? buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000)
     : null, [candles1h, mode, h1, useMacdFilter]);
@@ -169,16 +196,6 @@ export default function DashboardPage() {
   const currentRegime = analysis1h ? analysis1h.regime[analysis1h.regime.length - 1] : null;
   const lastPrice = candlesEntry.length ? candlesEntry[candlesEntry.length - 1].close : null;
 
-  const currentSignal = useMemo(() => {
-    if (!openPosition) return { state: 'wait' };
-    return {
-      state: openPosition.type,
-      time: openPosition.entryTime,
-      price: openPosition.entryPrice,
-      stop: openPosition.currentStop,
-    };
-  }, [openPosition]);
-
   const strategyDesc = useMemo(() => {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
     const f = useMacdFilter ? ' with MACD agreeing on the same side of zero' : '';
@@ -186,19 +203,33 @@ export default function DashboardPage() {
     return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit via a support/resistance + ATR stop that trails once price moves ${EXIT_CFG.activationPct}% in favor — validated against 180 days of BTCUSDT (see backtest): net profit factor ~9.5, both long and short profitable.`;
   }, [mode, m1, useMacdFilter, gateByRegime, entryInterval]);
 
-  const signalBannerStyle = {
+  // Condensed, worker-sourced signal for the sticky header — the *real*
+  // state of the bot (same object the Telegram messages come from), not the
+  // locally-simulated one used by the exploration charts below.
+  const workerPosition = botStatus?.position;
+  const workerSignalStyle = {
     long: { background: 'rgba(204,255,0,0.15)', border: `1px solid ${COLORS.bull}`, color: COLORS.bull },
     short: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
-    wait: { background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.muted },
-  }[currentSignal.state];
+    pending: { background: COLORS.panelAlt, border: `1px solid ${COLORS.accent}`, color: COLORS.accent },
+    idle: { background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.muted },
+  }[workerPosition?.phase === 'in_position' ? workerPosition.type : workerPosition?.phase === 'awaiting_entry_fill' ? 'pending' : 'idle'];
 
-  const signalBannerText = currentSignal.state === 'wait'
-    ? '⚪ SIN POSICIÓN — esperando el próximo cruce gateado'
-    : `${currentSignal.state === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo desde ${fmtArt(currentSignal.time)} ART @ ${currentSignal.price ? currentSignal.price.toFixed(1) : '—'} · stop actual: ${currentSignal.stop ? currentSignal.stop.toFixed(1) : '—'}`;
+  const workerSignalText = botStatusError
+    ? '⚠ No se pudo conectar con el worker'
+    : !botStatus
+    ? 'Cargando estado del bot…'
+    : !workerPosition || workerPosition.phase === 'idle'
+    ? '⚪ Sin posición'
+    : workerPosition.phase === 'awaiting_entry_fill'
+    ? `🟡 Orden LIMIT pendiente ${workerPosition.type === 'long' ? 'LONG' : 'SHORT'} @ ${workerPosition.entryPrice.toFixed(1)}`
+    : `${workerPosition.type === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo @ ${workerPosition.entryPrice.toFixed(1)} · stop inicial ${workerPosition.stopPrice.toFixed(1)}`;
 
   return (
-    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%' }}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20, background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+        padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
           <div>
@@ -206,6 +237,16 @@ export default function DashboardPage() {
             <div style={{ fontSize: 22, fontWeight: 700 }}>{symbol.replace('USDT', ' / USDT')}</div>
           </div>
         </div>
+
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 200 }}>
+          <span style={{
+            ...workerSignalStyle, borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700,
+            whiteSpace: 'nowrap',
+          }}>
+            {workerSignalText}
+          </span>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18 }}>
             {lastPrice ? `$${lastPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
@@ -232,12 +273,11 @@ export default function DashboardPage() {
           <Link href="/bot" style={{ ...btnStyle(), textDecoration: 'none' }}>
             Bot →
           </Link>
+          <LogoutLink />
         </div>
       </div>
 
-      <div style={{ ...signalBannerStyle, borderRadius: 12, padding: '14px 18px', marginBottom: 14, fontSize: 16, fontWeight: 700 }}>
-        {signalBannerText}
-      </div>
+      <div style={{ padding: '20px' }}>
 
       {usingMock && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(255,77,77,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 12, marginBottom: 10 }}>
@@ -447,11 +487,13 @@ export default function DashboardPage() {
       </Panel>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, fontSize: 13, color: COLORS.muted, lineHeight: 1.6 }}>
-        <div style={{ color: COLORS.text, fontWeight: 600, marginBottom: 6 }}>Active rule</div>
+        <div style={{ color: COLORS.text, fontWeight: 600, marginBottom: 6 }}>Active rule (exploración)</div>
         {strategyDesc}
         <div style={{ marginTop: 10, fontSize: 12 }}>
-          {entries.length} gated entr{entries.length === 1 ? 'y' : 'ies'} found in the loaded window. This is a research/visualization aid, not financial advice — validate against your own backtest before trading it live.
+          {entries.length} gated entr{entries.length === 1 ? 'y' : 'ies'} found in the loaded window. Esto simula con los parámetros elegidos acá arriba — puede no coincidir con la configuración real del worker.
+          El estado real del bot es el que se muestra arriba, en el header. This is a research/visualization aid, not financial advice — validate against your own backtest before trading it live.
         </div>
+      </div>
       </div>
     </div>
   );

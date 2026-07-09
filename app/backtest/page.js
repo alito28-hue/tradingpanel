@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { buildAnalysis, gateEntries, simulateTrades, simulateTradesFixedPct, computeMetrics, volumeProfile, applyVolumeFilter } from '../../lib/strategy';
 import { fetchKlinesPaged } from '../../lib/binance';
 import { COLORS, Field, NumberInput, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
+import LogoutLink from '../components/LogoutLink';
 
 export default function BacktestPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
@@ -17,7 +18,7 @@ export default function BacktestPage() {
   const [m1, setM1] = useState({ length: 200, cooldownMinutes: 0 });
   const [exitCfg, setExitCfg] = useState({
     activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4,
-    atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3,
+    atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3, minStopAtrMultiple: 1.5,
   });
   const [useVolumeFilter, setUseVolumeFilter] = useState(false);
   const [deltaWindow, setDeltaWindow] = useState(5);
@@ -74,8 +75,11 @@ export default function BacktestPage() {
   };
 
   return (
-    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh', padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+    <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh' }}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20, background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+        padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
           <div>
@@ -83,15 +87,20 @@ export default function BacktestPage() {
             <div style={{ fontSize: 22, fontWeight: 700 }}>Intraday Momentum — datos históricos reales</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
-            ← Dashboard
-          </Link>
-          <Link href="/bot" style={{ ...btnStyle(), textDecoration: 'none' }}>
-            Bot →
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
+              ← Dashboard
+            </Link>
+            <Link href="/bot" style={{ ...btnStyle(), textDecoration: 'none' }}>
+              Bot →
+            </Link>
+          </div>
+          <LogoutLink />
         </div>
       </div>
+
+      <div style={{ padding: '20px' }}>
 
       <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
         <Field label="Symbol">
@@ -134,6 +143,7 @@ export default function BacktestPage() {
             <NumberInput label="SR tolerancia %" value={exitCfg.srTolerancePct} onChange={v => setExitCfg({ ...exitCfg, srTolerancePct: v })} />
             <NumberInput label="Min touches" value={exitCfg.srMinTouches} onChange={v => setExitCfg({ ...exitCfg, srMinTouches: v })} />
             <NumberInput label="ATR ×" value={exitCfg.atrMultiplier} onChange={v => setExitCfg({ ...exitCfg, atrMultiplier: v })} />
+            <NumberInput label="Stop mín. (x ATR)" value={exitCfg.minStopAtrMultiple} onChange={v => setExitCfg({ ...exitCfg, minStopAtrMultiple: v })} />
             <NumberInput label="Trail activate %" value={exitCfg.activationPct} onChange={v => setExitCfg({ ...exitCfg, activationPct: v })} />
             <NumberInput label="Trail %" value={exitCfg.trailPct} onChange={v => setExitCfg({ ...exitCfg, trailPct: v })} />
           </>
@@ -224,6 +234,7 @@ export default function BacktestPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

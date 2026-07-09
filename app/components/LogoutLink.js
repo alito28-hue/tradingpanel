@@ -1,13 +1,9 @@
-'use client';
-
-import { usePathname } from 'next/navigation';
-
+// Meant to be placed inline inside each page's own header button cluster
+// (not a global fixed overlay) — that was colliding with the real nav
+// buttons ("Bot →", etc.) on wide headers.
 export default function LogoutLink() {
-  const pathname = usePathname();
-  if (pathname === '/login') return null;
-
   return (
-    <form action="/api/logout" method="POST" style={{ position: 'fixed', top: 10, right: 12, zIndex: 1000 }}>
+    <form action="/api/logout" method="POST" style={{ display: 'flex', alignItems: 'center' }}>
       <button type="submit" style={{
         background: 'transparent', border: 'none', color: '#8B91A0', fontSize: 11,
         cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit',
