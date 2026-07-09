@@ -19,6 +19,7 @@ export default function BacktestPage() {
   const [exitCfg, setExitCfg] = useState({
     activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4,
     atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, slPct: 1.5, tpPct: 3, minStopAtrMultiple: 2.5,
+    leverage: 10,
   });
   const [useVolumeFilter, setUseVolumeFilter] = useState(false);
   const [deltaWindow, setDeltaWindow] = useState(5);
@@ -27,6 +28,11 @@ export default function BacktestPage() {
   const [progress, setProgress] = useState('');
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+
+  const [comparing, setComparing] = useState(false);
+  const [comparisonProgress, setComparisonProgress] = useState('');
+  const [comparisonError, setComparisonError] = useState(null);
+  const [comparisonRows, setComparisonRows] = useState(null);
 
   const run = async () => {
     setRunning(true); setError(null); setResults(null);
@@ -63,6 +69,49 @@ export default function BacktestPage() {
       setError(err.message || 'Error desconocido');
     } finally {
       setRunning(false);
+    }
+  };
+
+  // Fetches 180 days once (the largest window) and reuses that same dataset
+  // for 60/90/180 by filtering entries by time — a fresh fetch per window
+  // would be 3x the Binance calls for data we already have.
+  const compareWindows = async () => {
+    setComparing(true); setComparisonError(null); setComparisonRows(null);
+    try {
+      const endTime = Date.now();
+      const startTime = endTime - 180 * 24 * 3600 * 1000;
+      setComparisonProgress('Descargando velas de 1H (180 días)…');
+      const candles1h = await fetchKlinesPaged(symbol, '1h', startTime, endTime, (n) => setComparisonProgress(`Descargando velas de 1H… lote ${n}`));
+      setComparisonProgress(`Descargando velas de ${entryInterval} (180 días, puede tardar varios minutos)…`);
+      const candlesEntry = await fetchKlinesPaged(symbol, entryInterval, startTime, endTime, (n) => setComparisonProgress(`Descargando velas de ${entryInterval}… lote ${n}`));
+      setComparisonProgress('Calculando señales y simulando trades…');
+      const analysis1h = buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000);
+      const analysisEntry = buildAnalysis(candlesEntry, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);
+      const entrySignals = useVolumeFilter
+        ? applyVolumeFilter(analysisEntry.signals, volumeProfile(candlesEntry, deltaWindow).deltaSum)
+        : analysisEntry.signals;
+
+      const scenarios = [
+        { label: 'Con filtro de régimen 1H', gateByRegime: true },
+        { label: 'Sin filtro de régimen 1H', gateByRegime: false },
+      ].map((s) => ({ ...s, allEntries: gateEntries(candlesEntry, entrySignals, candles1h, analysis1h.regime, s.gateByRegime).entries }));
+
+      const rows = [];
+      for (const days of [60, 90, 180]) {
+        const windowStart = endTime - days * 24 * 3600 * 1000;
+        for (const s of scenarios) {
+          const entries = s.allEntries.filter(e => candlesEntry[e.index].time >= windowStart);
+          const trades = exitMode === 'fixed_pct'
+            ? simulateTradesFixedPct(candlesEntry, entries, exitCfg)
+            : simulateTrades(candlesEntry, candles1h, entries, exitCfg).trades;
+          rows.push({ days, label: s.label, metrics: computeMetrics(trades) });
+        }
+      }
+      setComparisonRows(rows);
+    } catch (err) {
+      setComparisonError(err.message || 'Error desconocido');
+    } finally {
+      setComparing(false);
     }
   };
 
@@ -144,6 +193,7 @@ export default function BacktestPage() {
             <NumberInput label="Min touches" value={exitCfg.srMinTouches} onChange={v => setExitCfg({ ...exitCfg, srMinTouches: v })} />
             <NumberInput label="ATR ×" value={exitCfg.atrMultiplier} onChange={v => setExitCfg({ ...exitCfg, atrMultiplier: v })} />
             <NumberInput label="Stop mín. (x ATR)" value={exitCfg.minStopAtrMultiple} onChange={v => setExitCfg({ ...exitCfg, minStopAtrMultiple: v })} />
+            <NumberInput label="Leverage (x)" value={exitCfg.leverage} onChange={v => setExitCfg({ ...exitCfg, leverage: v })} />
             <NumberInput label="Trail activate %" value={exitCfg.activationPct} onChange={v => setExitCfg({ ...exitCfg, activationPct: v })} />
             <NumberInput label="Trail %" value={exitCfg.trailPct} onChange={v => setExitCfg({ ...exitCfg, trailPct: v })} />
           </>
@@ -151,7 +201,55 @@ export default function BacktestPage() {
         <button onClick={run} disabled={running} style={{ ...btnStyle(true), opacity: running ? 0.6 : 1, cursor: running ? 'default' : 'pointer' }}>
           {running ? 'Corriendo…' : 'Ejecutar backtest'}
         </button>
+        <button onClick={compareWindows} disabled={comparing} style={{ ...btnStyle(), opacity: comparing ? 0.6 : 1, cursor: comparing ? 'default' : 'pointer' }}>
+          {comparing ? 'Comparando…' : 'Comparar 60/90/180 días'}
+        </button>
       </div>
+
+      {comparisonProgress && comparing && (
+        <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 14 }}>{comparisonProgress}</div>
+      )}
+      {comparisonError && (
+        <div style={{ background: 'rgba(255,77,77,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 14 }}>
+          {comparisonError}
+        </div>
+      )}
+      {comparisonRows && (
+        <Panel title="Comparativa de ventanas (60/90/180 días)" subtitle="Mismo dataset de 180 días, recortado — no vuelve a pedir nada a Binance por ventana">
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                <th style={{ padding: '4px 8px' }}>Ventana</th>
+                <th style={{ padding: '4px 8px' }}>Escenario</th>
+                <th style={{ padding: '4px 8px' }}>Trades</th>
+                <th style={{ padding: '4px 8px' }}>Win rate</th>
+                <th style={{ padding: '4px 8px' }}>Profit factor</th>
+                <th style={{ padding: '4px 8px' }}>Expectancy/trade</th>
+                <th style={{ padding: '4px 8px' }}>Max drawdown</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.map((r, i) => (
+                <tr key={i} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                  <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{r.days}d</td>
+                  <td style={{ padding: '4px 8px', color: COLORS.muted }}>{r.label}</td>
+                  {r.metrics ? (
+                    <>
+                      <td style={{ padding: '4px 8px' }}>{r.metrics.count}</td>
+                      <td style={{ padding: '4px 8px', color: r.metrics.winRate >= 50 ? COLORS.bull : COLORS.bear }}>{r.metrics.winRate.toFixed(1)}%</td>
+                      <td style={{ padding: '4px 8px', color: r.metrics.profitFactor >= 1.2 ? COLORS.bull : COLORS.bear }}>{r.metrics.profitFactor === Infinity ? '∞' : r.metrics.profitFactor.toFixed(2)}</td>
+                      <td style={{ padding: '4px 8px', color: r.metrics.expectancy >= 0 ? COLORS.bull : COLORS.bear }}>{r.metrics.expectancy >= 0 ? '+' : ''}{r.metrics.expectancy.toFixed(2)}%</td>
+                      <td style={{ padding: '4px 8px', color: COLORS.bear }}>-{r.metrics.maxDD.toFixed(1)}%</td>
+                    </>
+                  ) : (
+                    <td colSpan={5} style={{ padding: '4px 8px', color: COLORS.muted }}>Sin trades en esta ventana</td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      )}
 
       {progress && running && (
         <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 14 }}>{progress}</div>

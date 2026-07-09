@@ -22,7 +22,7 @@ const { fetchKlinesPaged } = require('../../lib/binance');
     const useMacdFilter = true;
     const h1 = { length: 200, cooldownHours: 6 };
     const m1 = { length: 200, cooldownMinutes: 0 };
-    const exitCfg = { activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 2.5 };
+    const exitCfg = { activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15, srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 2.5, leverage: 10 };
 
     const analysis1h = buildAnalysis(candles1h, mode, h1, useMacdFilter, h1.cooldownHours * 3600000);
     const analysis1m = buildAnalysis(candles1m, mode, m1, useMacdFilter, m1.cooldownMinutes * 60000);

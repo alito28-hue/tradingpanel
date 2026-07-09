@@ -41,6 +41,7 @@ const ENTRY_CFG = { length: 200, cooldownMinutes: 0 };
 const EXIT_CFG = {
   activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
   srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 2.5,
+  leverage: LEVERAGE,
 };
 
 // Railway injects RAILWAY_VOLUME_MOUNT_PATH automatically once a Volume is
@@ -204,17 +205,13 @@ async function recoverState() {
 }
 
 async function tryOpenPosition(candlesEntry, candles1h, entries) {
+  // EXIT_CFG.leverage is threaded into simulateTrades itself now (see
+  // lib/strategy.js), so any candidate it returns has already passed the
+  // same checkStopDistance() safety check — no separate post-hoc rejection
+  // needed here anymore.
   const { openPosition } = simulateTrades(candlesEntry, candles1h, entries, EXIT_CFG);
   if (!openPosition || openPosition.entryIndex === lastConsideredEntryIndex) return;
   lastConsideredEntryIndex = openPosition.entryIndex;
-
-  const check = checkStopDistance(openPosition.entryPrice, openPosition.stopPrice, LEVERAGE);
-  if (!check.ok) {
-    const msg = `⚠️ Señal ${openPosition.type.toUpperCase()} ${SYMBOL} rechazada: stop a ${check.stopDistPct.toFixed(2)}% supera el ${check.safeThresholdPct.toFixed(2)}% seguro para ${LEVERAGE}x.`;
-    console.log(msg);
-    await sendMessage(msg);
-    return;
-  }
 
   const side = openPosition.type === 'long' ? 'BUY' : 'SELL';
   const quantity = roundQty((POSITION_SIZE_USD * LEVERAGE) / openPosition.entryPrice);

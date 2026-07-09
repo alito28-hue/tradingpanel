@@ -21,6 +21,7 @@ const fmtArt = (ms, opts) => ms ? new Date(ms).toLocaleString('es-AR', { timeZon
 const EXIT_CFG = {
   activationPct: 1.33, trailPct: 0.25, srLookbackBars: 50, srTolerancePct: 0.15,
   srMinTouches: 4, atrLength: 14, atrMultiplier: 0.5, commissionPct: 0.05, minStopAtrMultiple: 2.5,
+  leverage: 10,
 };
 
 function tradeMarkers(trades, openPosition) {
