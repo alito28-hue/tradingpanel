@@ -19,10 +19,20 @@ export function inputStyle() {
   };
 }
 
-export function btnStyle(primary) {
+// variant: true = filled accent (primary action), 'outline' = accent border/text
+// on transparent background (secondary but worth calling out — e.g. "Bot →"),
+// falsy = plain secondary (default gray border).
+export function btnStyle(variant) {
+  if (variant === 'outline') {
+    return {
+      display: 'flex', alignItems: 'center', gap: 6, background: 'transparent',
+      color: COLORS.accent, border: `1px solid ${COLORS.accent}`,
+      borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    };
+  }
   return {
-    display: 'flex', alignItems: 'center', gap: 6, background: primary ? COLORS.accent : COLORS.panelAlt,
-    color: primary ? '#0F1400' : COLORS.text, border: `1px solid ${primary ? COLORS.accent : COLORS.border}`,
+    display: 'flex', alignItems: 'center', gap: 6, background: variant ? COLORS.accent : COLORS.panelAlt,
+    color: variant ? '#0F1400' : COLORS.text, border: `1px solid ${variant ? COLORS.accent : COLORS.border}`,
     borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
   };
 }
