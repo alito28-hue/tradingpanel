@@ -15,6 +15,15 @@ const bingx = require('../lib/bingx');
 const { sendMessage } = require('../lib/telegram');
 const { checkStopDistance } = require('../lib/botSafety');
 const { DailyLossTracker } = require('../lib/dailyLossTracker');
+const { ModeStore } = require('../lib/modeStore');
+
+// Captured once, before anything mutates process.env.DRY_RUN (see
+// applyEffectiveDryRun below) — this is the actual manual value Railway was
+// started with, i.e. the hard safety floor. process.env.DRY_RUN itself gets
+// overwritten at runtime as the *effective* (post-floor) value for
+// lib/bingx.js to read, so it can no longer be trusted as "what Railway
+// says" after the first tick — this constant is what floor checks must use.
+const RAILWAY_DRY_RUN_FLOOR = process.env.DRY_RUN;
 
 // BingX's swap API wants the hyphenated form ("BTC-USDT"); Binance's klines
 // API (used only for market data/signals, never for orders) wants it
@@ -39,6 +48,7 @@ const EXIT_CFG = {
 // to a file next to the script like before.
 const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
 const dailyLoss = new DailyLossTracker(path.join(DATA_DIR, 'daily_loss_state.json'), DAILY_LOSS_LIMIT_USD);
+const modeStore = new ModeStore(path.join(DATA_DIR, 'mode_state.json'));
 
 const HEARTBEAT_MS = 5 * 60 * 1000; // 5 min — enough to confirm the loop is alive without spamming logs
 
@@ -50,11 +60,32 @@ function roundQty(qty) {
   return Math.round(qty * 1000) / 1000; // 3 decimals — refine per-symbol precision before scaling up
 }
 
-// Read-only status endpoint for the dashboard's /api/bot-history route to
-// fetch — never called directly from the browser, so the shared secret
-// never reaches client-side code. Only starts listening if PORT is set
-// (Railway injects it once the service has public networking enabled); a
-// worker without a public domain just skips this entirely.
+// Two-layer safety gate for real money, written as an explicit early return
+// (not a compact boolean expression) so it can be audited at a glance:
+//   1. Railway's own DRY_RUN env var is a hard floor. It must be manually
+//      set to 'false' on the host — a deliberate, out-of-band step — before
+//      live trading is even possible. This is the original safety guarantee
+//      from before the dashboard had a login, and it still holds regardless
+//      of anything the web UI does.
+//   2. Only once that floor allows it does the web-toggled mode (persisted
+//      in modeStore, itself defaulting to 'dry_run') get to decide.
+// Sets process.env.DRY_RUN so the existing bingx.isDryRun() (which reads it
+// fresh on every call) picks this up everywhere with no other code changes.
+function applyEffectiveDryRun() {
+  if (RAILWAY_DRY_RUN_FLOOR !== 'false') {
+    process.env.DRY_RUN = 'true';
+    return true;
+  }
+  const isDryRun = modeStore.getMode() !== 'live';
+  process.env.DRY_RUN = isDryRun ? 'true' : 'false';
+  return isDryRun;
+}
+
+// Status + control endpoint for the dashboard's /api/bot-history and
+// /api/bot-mode routes to call — never called directly from the browser, so
+// the shared secret never reaches client-side code. Only starts listening if
+// PORT is set (Railway injects it once the service has public networking
+// enabled); a worker without a public domain just skips this entirely.
 function startServer() {
   const port = process.env.PORT;
   if (!port) {
@@ -63,17 +94,48 @@ function startServer() {
   }
   const secret = process.env.WORKER_API_SECRET;
   const server = http.createServer((req, res) => {
-    if (req.url !== '/history') {
-      res.writeHead(404).end();
-      return;
-    }
     if (!secret || req.headers['x-worker-secret'] !== secret) {
       res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unauthorized' }));
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(dailyLoss.getHistory()));
+
+    if (req.method === 'GET' && req.url === '/history') {
+      // Reports the *effective* mode (post-floor), not just the stored
+      // preference — otherwise the dashboard could show "LIVE" while the
+      // Railway floor is silently keeping the worker in dry-run.
+      const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify({ ...dailyLoss.getHistory(), mode: effectiveMode }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/mode') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        let requestedMode;
+        try { requestedMode = JSON.parse(body).mode; } catch { /* falls through to validation below */ }
+        if (requestedMode !== 'live' && requestedMode !== 'dry_run') {
+          res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'mode debe ser "live" o "dry_run"' }));
+          return;
+        }
+        modeStore.setMode(requestedMode);
+        const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
+        const floorBlocked = requestedMode === 'live' && effectiveMode === 'dry_run';
+
+        const msg = floorBlocked
+          ? '⚠️ Se pidió pasar a LIVE desde el dashboard, pero Railway todavía tiene DRY_RUN=true — sigue en TEST. Cambiá esa variable a mano si realmente querés operar en real.'
+          : (effectiveMode === 'live' ? '🔓 Modo cambiado a LIVE (dinero real) desde el dashboard.' : '🔒 Modo cambiado a TEST (DRY_RUN) desde el dashboard.');
+        console.log(msg);
+        await sendMessage(msg);
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, mode: effectiveMode, floorBlocked }));
+      });
+      return;
+    }
+
+    res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[server] listening on ${port} (/history, requires X-Worker-Secret)`));
+  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /mode — requires X-Worker-Secret)`));
 }
 
 // Runs once at startup (real trading only — DRY_RUN has no real BingX state
@@ -228,6 +290,8 @@ async function checkExitFill() {
 }
 
 async function tick() {
+  applyEffectiveDryRun(); // picks up a mode change made via POST /mode since the last tick
+
   const finishedDay = dailyLoss.checkRollover();
   if (finishedDay) {
     const msg = `📅 Resumen ${finishedDay.day}: ${finishedDay.trades} trade${finishedDay.trades === 1 ? '' : 's'}, ${finishedDay.winRate}% win rate, PnL ${finishedDay.realizedPnlUsd >= 0 ? '+' : ''}${finishedDay.realizedPnlUsd.toFixed(2)} USD.`;
@@ -263,7 +327,12 @@ async function tick() {
 }
 
 async function main() {
+  const startedDryRun = applyEffectiveDryRun(); // resolved before anything below reads bingx.isDryRun()
   console.log(`Bot worker starting for ${SYMBOL} (poll ${POLL_MS}ms, leverage ${LEVERAGE}x, size $${POSITION_SIZE_USD}, daily loss limit $${DAILY_LOSS_LIMIT_USD}, DRY_RUN=${bingx.isDryRun()})`);
+  // A restart that resumes straight into live trading (Railway floor=false,
+  // stored mode=live) must never be silent — that's exactly the scenario
+  // recoverState() below exists to handle safely.
+  await sendMessage(startedDryRun ? '🔒 Worker arrancó en modo TEST (DRY_RUN).' : '🔓 Worker arrancó en modo LIVE (dinero real).');
   await bingx.setLeverage(SYMBOL, 'LONG', LEVERAGE);
   await bingx.setLeverage(SYMBOL, 'SHORT', LEVERAGE);
   await recoverState();
