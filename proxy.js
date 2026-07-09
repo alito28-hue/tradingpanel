@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { COOKIE_NAME, verifyToken } from './lib/session';
 
 // Denylist matcher (not an allowlist): every route is protected by default,
-// only /login and /api/login (plus Next internals) are carved out. New
-// routes added later — like the bot-mode toggle — stay protected without
-// needing to remember to add them anywhere.
+// only /login, /api/login, and static public assets (plus Next internals)
+// are carved out. New routes added later — like the bot-mode toggle — stay
+// protected without needing to remember to add them anywhere.
 export const config = {
-  matcher: '/((?!_next|favicon.ico|login|api/login).*)',
+  matcher: '/((?!_next|favicon.ico|logo.png|login|api/login).*)',
 };
 
 export function proxy(request) {

@@ -78,7 +78,7 @@ export default function StrategyChart({
       return {
         time: toTime(candles[m.index].time),
         position: upShape ? 'belowBar' : 'aboveBar',
-        color: m.kind === 'entry' ? (m.marker === 'buy' ? COLORS.bull : COLORS.bear) : COLORS.accent,
+        color: m.kind === 'entry' ? (m.marker === 'buy' ? COLORS.bull : COLORS.bear) : COLORS.warning,
         shape: upShape ? 'arrowUp' : 'arrowDown',
         text: m.kind === 'entry' ? (m.marker === 'buy' ? 'LONG' : 'SHORT') : 'EXIT',
       };
@@ -99,7 +99,7 @@ export default function StrategyChart({
       s.volumeSeries.setData(candles.map((c, i) => ({
         time: toTime(c.time),
         value: c.volume || 0,
-        color: (climax && climax[i]) ? COLORS.accent : (volumeDelta[i] >= 0 ? COLORS.bull : COLORS.bear),
+        color: (climax && climax[i]) ? COLORS.warning : (volumeDelta[i] >= 0 ? COLORS.bull : COLORS.bear),
       })));
       const divMarkerData = (divergence || []).map((d, i) => {
         if (!d) return null;

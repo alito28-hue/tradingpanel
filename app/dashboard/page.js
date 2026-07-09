@@ -187,8 +187,8 @@ export default function DashboardPage() {
   }, [mode, m1, useMacdFilter, gateByRegime, entryInterval]);
 
   const signalBannerStyle = {
-    long: { background: 'rgba(63,203,145,0.15)', border: `1px solid ${COLORS.bull}`, color: COLORS.bull },
-    short: { background: 'rgba(226,89,107,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
+    long: { background: 'rgba(204,255,0,0.15)', border: `1px solid ${COLORS.bull}`, color: COLORS.bull },
+    short: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
     wait: { background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.muted },
   }[currentSignal.state];
 
@@ -199,9 +199,12 @@ export default function DashboardPage() {
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%', padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Intraday Momentum</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{symbol.replace('USDT', ' / USDT')}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Intraday Momentum</div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{symbol.replace('USDT', ' / USDT')}</div>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18 }}>
@@ -210,7 +213,7 @@ export default function DashboardPage() {
           </span>
           <span style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
-            background: currentRegime === 'bullish' ? 'rgba(63,203,145,0.15)' : currentRegime === 'bearish' ? 'rgba(226,89,107,0.15)' : COLORS.panelAlt,
+            background: currentRegime === 'bullish' ? 'rgba(204,255,0,0.15)' : currentRegime === 'bearish' ? 'rgba(255,77,77,0.15)' : COLORS.panelAlt,
             color: currentRegime === 'bullish' ? COLORS.bull : currentRegime === 'bearish' ? COLORS.bear : COLORS.muted,
             fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
           }}>
@@ -237,7 +240,7 @@ export default function DashboardPage() {
       </div>
 
       {usingMock && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(226,89,107,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 12, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(255,77,77,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 12, marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 700 }}>
             ⚠ SIMULATED DATA — this is not the real {symbol} price.
           </div>

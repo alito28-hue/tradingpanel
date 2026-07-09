@@ -76,9 +76,12 @@ export default function BacktestPage() {
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100vh', padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Backtest</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>Intraday Momentum — datos históricos reales</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.muted, textTransform: 'uppercase' }}>Backtest</div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>Intraday Momentum — datos históricos reales</div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>
@@ -144,7 +147,7 @@ export default function BacktestPage() {
         <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 14 }}>{progress}</div>
       )}
       {error && (
-        <div style={{ background: 'rgba(226,89,107,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: 'rgba(255,77,77,0.14)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 14 }}>
           {error}
         </div>
       )}

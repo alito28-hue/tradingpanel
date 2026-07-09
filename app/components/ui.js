@@ -1,13 +1,14 @@
 export const COLORS = {
-  bg: '#11141A',
-  panel: '#171B23',
-  panelAlt: '#1D2230',
-  border: '#262C39',
-  text: '#ECE9E2',
-  muted: '#8B91A0',
-  accent: '#E8A33D',
-  bull: '#3FCB91',
-  bear: '#E2596B',
+  bg: '#111316',
+  panel: '#1a1c1f',
+  panelAlt: '#242830',
+  border: '#37393d',
+  text: '#e2e8f0',
+  muted: '#64748b',
+  accent: '#ccff00',
+  bull: '#ccff00',
+  bear: '#ff4d4d',
+  warning: '#fb923c',
   neutral: '#5B6472',
 };
 
@@ -21,7 +22,7 @@ export function inputStyle() {
 export function btnStyle(primary) {
   return {
     display: 'flex', alignItems: 'center', gap: 6, background: primary ? COLORS.accent : COLORS.panelAlt,
-    color: primary ? '#1A1505' : COLORS.text, border: `1px solid ${primary ? COLORS.accent : COLORS.border}`,
+    color: primary ? '#0F1400' : COLORS.text, border: `1px solid ${primary ? COLORS.accent : COLORS.border}`,
     borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
   };
 }

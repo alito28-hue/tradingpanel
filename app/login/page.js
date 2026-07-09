@@ -40,9 +40,12 @@ function LoginForm() {
         width: '100%', maxWidth: 340, padding: 24, background: COLORS.panel,
         border: `1px solid ${COLORS.border}`, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 14,
       }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.accent, textTransform: 'uppercase' }}>TradingPanel</div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>Iniciar sesión</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo.png" width={32} height={32} alt="TradingPanel" />
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', color: COLORS.accent, textTransform: 'uppercase' }}>TradingPanel</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>Iniciar sesión</div>
+          </div>
         </div>
         <input
           type="password"
