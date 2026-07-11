@@ -36,6 +36,16 @@ function tradeMarkers(trades, openPosition) {
   return markers;
 }
 
+// A 'stop' exit is, by definition, the original protective stop being hit —
+// which can only ever happen on an adverse move. A 'stop'-reason trade with
+// a favorable (>0) P&L is impossible under correct logic; it's the exact
+// signature of the wrong-side-stop bug fixed in lib/strategy.js. Trades
+// already sitting in localStorage from before that fix won't fix themselves
+// on their own, so this filters them out wherever the log is read/written.
+function isValidClosedTrade(t) {
+  return !(t.reason === 'stop' && t.netPnlPct > 0);
+}
+
 function reasonLabel(reason) {
   if (reason === 'trailing') return 'trailing TP';
   if (reason === 'stop') return 'stop';
@@ -169,18 +179,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(window.localStorage.getItem(TRADE_LOG_KEY) || '[]');
+      const stored = JSON.parse(window.localStorage.getItem(TRADE_LOG_KEY) || '[]').filter(isValidClosedTrade);
       setTradeLog(stored);
+      window.localStorage.setItem(TRADE_LOG_KEY, JSON.stringify(stored));
     } catch {
       setTradeLog([]);
     }
   }, []);
 
+  const clearTradeLog = () => {
+    window.localStorage.removeItem(TRADE_LOG_KEY);
+    setTradeLog([]);
+    setTradeLogPage(0);
+  };
+
   useEffect(() => {
     if (!trades.length) return;
     setTradeLog(prev => {
       const known = new Set(prev.map(t => `${t.entryTime}-${t.type}`));
-      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`)).map(t => ({ ...t, symbol }));
+      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`) && isValidClosedTrade(t)).map(t => ({ ...t, symbol }));
       if (!fresh.length) return prev;
       const merged = [...prev, ...fresh].sort((a, b) => a.entryTime - b.entryTime);
       window.localStorage.setItem(TRADE_LOG_KEY, JSON.stringify(merged));
@@ -434,6 +451,13 @@ export default function DashboardPage() {
       </Panel>
 
       <Panel title="Trade history" subtitle={`${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados en total · guardado en este navegador`}>
+        {tradeLog.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+            <button onClick={clearTradeLog} style={{ background: 'transparent', border: 'none', color: COLORS.muted, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
+              Limpiar historial
+            </button>
+          </div>
+        )}
         {(() => {
           const metrics = computeMetrics(tradeLog);
           return metrics ? (
