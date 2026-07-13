@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Playbook BTC</title>
+<style>
+  :root { color-scheme: light; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background:#f4f6f9; color:#1a2332; padding:18px; }
+  .wrap { max-width: 1340px; margin:0 auto; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
+  h1 { font-size:19px; font-weight:800; letter-spacing:-0.3px; }
+  .date { font-size:13px; color:#5b6b82; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:99px; font-size:12px; font-weight:700; background:#fef3c7; color:#92400e; }
+  .pricebox { margin-left:auto; text-align:right; }
+  .price { font-size:26px; font-weight:800; font-variant-numeric: tabular-nums; }
+  .chg { font-size:13px; font-weight:700; }
+  .up { color:#0d9488; } .down { color:#dc2626; }
+  .muted { color:#8a97a8; font-size:11px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:700px){ .grid { grid-template-columns:1fr; } }
+  .card { background:#fff; border:1px solid #e3e8ef; border-radius:14px; padding:16px; box-shadow:0 1px 3px rgba(16,24,40,.06); }
+  .card h2 { font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .dir { font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; letter-spacing:.5px; }
+  .dir.short { background:#fee2e2; color:#b91c1c; }
+  .dir.long { background:#ccfbf1; color:#0f766e; }
+  .zonebadge { margin-left:auto; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; background:#eef2f7; color:#5b6b82; }
+  .zonebadge.inzone { background:#fef3c7; color:#92400e; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.55; } }
+  table.lv { width:100%; border-collapse:collapse; font-size:13px; }
+  table.lv td { padding:4px 0; border-bottom:1px dashed #edf1f6; }
+  table.lv td:last-child { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+  .sl { color:#dc2626; } .tp { color:#0d9488; }
+  .small { font-size:12px; color:#435063; line-height:1.5; margin-top:10px; }
+  .small b { color:#1a2332; }
+  .risk { margin-top:10px; padding:9px 11px; background:#f0f4f9; border-radius:9px; font-size:12px; color:#33415c; line-height:1.55; }
+  .notes { margin-top:14px; }
+  .notes .card { padding:14px 16px; }
+  .notes li { margin-left:18px; font-size:13px; color:#435063; padding:3px 0; line-height:1.45; }
+  .actions { margin-top:14px; display:none; gap:10px; flex-wrap:wrap; }
+  .actions button { flex:1; min-width:180px; padding:11px 14px; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; background:#1a2332; color:#fff; }
+  .actions button:hover { background:#33415c; }
+  .actions button.sec { background:#e8edf4; color:#1a2332; }
+  #actionmsg { width:100%; font-size:12px; color:#0f766e; font-weight:600; min-height:16px; }
+  footer { margin-top:16px; font-size:11px; color:#8a97a8; text-align:center; line-height:1.5; }
+  /* Tipografía ampliada */
+  h1 { font-size:24px; }
+  .date { font-size:16px; }
+  .badge { font-size:15px; }
+  .price { font-size:34px; }
+  .chg { font-size:16px; }
+  .muted { font-size:13px; }
+  .card h2 { font-size:18px; }
+  .dir { font-size:13px; }
+  .zonebadge { font-size:13px; }
+  table.lv { font-size:17px; }
+  table.lv td { padding:6px 0; }
+  .small { font-size:15px; line-height:1.6; }
+  .risk { font-size:15px; }
+  .notes li { font-size:16px; padding:4px 0; }
+  .actions button { font-size:15px; padding:13px 16px; }
+  #actionmsg { font-size:14px; }
+  footer { font-size:13px; }
+  .card h2 { white-space:nowrap; }
+  .zonebadge { white-space:nowrap; }
+  @media (max-width:1100px){ .card h2 { white-space:normal; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>⚡ Panel Playbook BTC</h1>
+      <div class="date" id="fecha"></div>
+    </div>
+    <span class="badge" id="regimen"></span>
+    <div class="pricebox">
+      <div class="price" id="price">—</div>
+      <div class="chg" id="chg"></div>
+      <div class="muted" id="pricenote">precio en vivo: solo en navegador</div>
+    </div>
+  </header>
+
+  <div class="grid" id="setups"></div>
+
+  <div class="notes">
+    <div class="card">
+      <h2>📌 Notas del día</h2>
+      <ul id="notas"></ul>
+    </div>
+  </div>
+
+  <div class="actions" id="actions">
+    <div id="actionmsg"></div>
+    <button onclick="runTask('analisis-premercado-btc','Informe pre-mercado')">▶ Informe pre-mercado</button>
+    <button class="sec" onclick="runTask('centinela-sesion-btc','Centinela')">▶ Centinela ahora</button>
+    <button class="sec" onclick="runTask('revision-semanal-trading','Revisión semanal')">▶ Revisión semanal</button>
+  </div>
+
+  <footer>Playbook Breitstein · riesgo fijo $50/trade (1% de $5,000) · ningún setup se ejecuta sin gatillo de confirmación en 15m<br>Material educativo — no es asesoría financiera.</footer>
+</div>
+
+<script src="panel_data.js"></script>
+<script>
+const DAY_DATA = window.DAY_DATA || /*DAY_DATA_START*/{
+  "fecha": "Sábado 11 de julio de 2026",
+  "regimen": "Rallie de alivio — sábado: liquidez fina, solo setups A+",
+  "capital": 5000, "riesgo": 50,
+  "setups": [
+    { "tipo": "Setup Principal", "nombre": "S2 — Short de Rallie de Alivio", "direccion": "SHORT",
+      "zona_techo": 65000, "zona_piso": 64400, "stop": 65650, "tp1": 62900, "tp2": 61800,
+      "gatillo": "Pérdida de momentum en 64.4k–65k en 15m (mechas superiores) + quiebre del primer soporte menor de 5m. Entrada escalonada ½ + ½.",
+      "contexto": "OI plano o cayendo en la subida; funding sin dispararse; volumen decreciente. Si acepta sobre 65,600 con OI creciendo → tesis inválida." },
+    { "tipo": "Setup Alternativo", "nombre": "L1 — Long de Capitulación (condicional)", "direccion": "LONG",
+      "zona_techo": 62400, "zona_piso": 61800, "stop": 61250, "tp1": 63200, "tp2": 64300,
+      "gatillo": "Caída vertical a la zona + mecha climática con volumen, o SFP del mínimo, o primer higher low en 5m. NO comprar el cuchillo.",
+      "contexto": "Spike de liquidaciones de longs + OI colapsando + funding a negativo. Sin cascada visible, este setup NO existe." }
+  ],
+  "notas": [
+    "Sábado: sin datos macro de EE.UU. Liquidez fina — exigir calidad A+, considerar riesgo reducido ($25).",
+    "Martes 14/7: CPI de EE.UU. + testificación del nuevo presidente de la Fed (Warsh). Reducir exposición swing antes del martes.",
+    "Niveles macro: soporte mayor 58,115; rango clave 63,000–66,000; resistencia 64,500–65,600."
+  ]
+}/*DAY_DATA_END*/;
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+$("fecha").textContent = DAY_DATA.fecha;
+$("regimen").textContent = DAY_DATA.regimen;
+DAY_DATA.notas.forEach(n => { const li = document.createElement("li"); li.textContent = n; $("notas").appendChild(li); });
+
+let lastPrice = null;
+function renderSetups() {
+  $("setups").innerHTML = "";
+  DAY_DATA.setups.forEach(s => {
+    const mid = (s.zona_techo + s.zona_piso) / 2;
+    const dist = Math.abs(mid - s.stop) / mid;
+    const pos = DAY_DATA.riesgo / dist;
+    const lev = pos / DAY_DATA.capital;
+    const rr2 = Math.abs(s.tp2 - mid) / Math.abs(mid - s.stop);
+    let zb = "", zbClass = "zonebadge";
+    if (lastPrice) {
+      if (lastPrice >= s.zona_piso && lastPrice <= s.zona_techo) { zb = "⚡ EN ZONA"; zbClass += " inzone"; }
+      else {
+        const edge = lastPrice < s.zona_piso ? s.zona_piso : s.zona_techo;
+        zb = "a " + (Math.abs(edge - lastPrice) / lastPrice * 100).toFixed(2) + "%";
+      }
+    }
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML =
+      '<h2><span class="dir ' + (s.direccion === "SHORT" ? "short" : "long") + '">' + s.direccion + "</span> " + s.nombre +
+      (zb ? '<span class="' + zbClass + '">' + zb + "</span>" : "") + "</h2>" +
+      '<table class="lv">' +
+      "<tr><td>Zona de entrada</td><td>" + fmt(s.zona_piso) + " – " + fmt(s.zona_techo) + "</td></tr>" +
+      '<tr><td>Stop (invalidez)</td><td class="sl">' + fmt(s.stop) + "</td></tr>" +
+      '<tr><td>TP1 / TP2</td><td class="tp">' + fmt(s.tp1) + " / " + fmt(s.tp2) + "</td></tr>" +
+      "</table>" +
+      '<div class="small"><b>Gatillo:</b> ' + s.gatillo + "</div>" +
+      '<div class="small"><b>Contexto requerido:</b> ' + s.contexto + "</div>" +
+      '<div class="risk">💰 Posición ≈ <b>$' + fmt(Math.round(pos)) + "</b> · Palanca efectiva <b>" + lev.toFixed(2) + "x</b> · R:R a TP2 <b>" + rr2.toFixed(1) + ":1</b> (riesgo $" + DAY_DATA.riesgo + ")</div>";
+    $("setups").appendChild(el);
+  });
+}
+renderSetups();
+
+async function loadPrice() {
+  try {
+    const r = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
+    const d = await r.json();
+    lastPrice = parseFloat(d.lastPrice);
+    const chg = parseFloat(d.priceChangePercent);
+    $("price").textContent = "$" + lastPrice.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    $("chg").textContent = (chg >= 0 ? "▲ +" : "▼ ") + chg.toFixed(2) + "% (24h)";
+    $("chg").className = "chg " + (chg >= 0 ? "up" : "down");
+    $("pricenote").textContent = "actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+    renderSetups();
+  } catch (e) { /* red bloqueada (artifact) — se mantiene el guion */ }
+}
+loadPrice();
+setInterval(loadPrice, 60000);
+
+// Botones solo dentro de Cowork
+if (window.cowork && window.cowork.runScheduledTask) {
+  $("actions").style.display = "flex";
+  $("pricenote").textContent = "precio en vivo: abrí panel.html en el navegador";
+}
+async function runTask(id, name) {
+  $("actionmsg").textContent = "⏳ Lanzando " + name + "…";
+  try { await window.cowork.runScheduledTask(id); $("actionmsg").textContent = "✅ " + name + " lanzado — mirá el resultado en la sección Programadas."; }
+  catch (e) { $("actionmsg").textContent = "⚠️ No se pudo lanzar " + name + ": " + (e.message || e); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+//@version=6
+strategy("Long 1M (Trailing SL) V2", overlay=true, initial_capital=180000, default_qty_value=100, default_qty_type=strategy.percent_of_equity) // Capital ajustado
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// RSI y SMA ya no se usan como condición de entrada, pero se mantienen para futuros usos si se desea.
+rsiLength = input.int(14, "RSI Length")
+rsiValue = ta.rsi(close, rsiLength)
+rsiThreshold = input.int(50, "RSI Threshold")
+
+smaLength = input.int(200, "SMA Length")
+sma = ta.sma(close, smaLength)
+
+volumeLength = input.int(20, "Volume Average Length")
+volumeAvg = ta.sma(volume, volumeLength)
+
+// --- LÓGICA DE ENTRADA (LONG) ---
+// Condición: El histograma del MACD cambia de decreciente negativo a creciente (la barra actual es más grande que la anterior)
+hist_cambia_a_creciente = histLine > histLine[1] 
+
+// Condición: El histograma del MACD está en territorio negativo (no ha cruzado la línea cero aún)
+hist_en_territorio_negativo = histLine < 0 
+
+// Condición: MACD debe ser MENOR a -90 (por ejemplo, -91, -100, -190), indicando una zona profunda
+macd_menor_a_menos_90 = macdLine < -90 
+
+// Se ajusta la condición de entrada para ANTICIPAR el movimiento
+// El histograma crece, está en negativo y el MACD es profundo
+var bool longCondition = false // Se declara una sola vez
+longCondition := hist_cambia_a_creciente and hist_en_territorio_negativo and macd_menor_a_menos_90 // Se asigna usando :=
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO ---
+// Variables de Take-Profit (fijo) y Stop-Loss (fijo inicial)
+takeProfitInUSDInput = input.float(296.0, "Take-Profit Fijo en USD")
+stopLossPercent = input.float(0.42, "Stop-Loss Inicial en %")
+
+// NUEVOS PARÁMETROS PARA EL TRAILING STOP LOSS (descripciones actualizadas)
+trailActivationUSD = input.float(200.0, "Trailing SL Activar cuando Precio sube (USD)") // Activación del Trailing SL cuando el precio sube X USD
+fixedProfitSL_AfterTrail_USD = input.float(70.0, "SL se mueve a (USD sobre Entrada)") // Nivel del SL después de activar Trailing (X USD sobre el precio de entrada)
+
+// Variables de estado para el Trailing SL
+var bool trailingActive = false
+var float activatedSLPrice = na // Precio absoluto donde se establecerá el SL después de la activación
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+if (longCondition)
+    // Mensaje de alerta para la entrada LONG (actualizado)
+    alertMessageEntryLong = "🔔 ENTRADA LONG 🔔\n" +
+                             "Símbolo: " + syminfo.tickerid + "\n" +
+                             "Acción: COMPRA\n" +
+                             "Precio de Entrada: " + str.tostring(close) + "\n" +
+                             "TP Fijo: " + str.tostring(takeProfitInUSDInput) + " USD\n" +
+                             "SL Inicial: " + str.tostring(stopLossPercent) + " %\n" +
+                             "Trailing SL Activa cuando Precio sube: " + str.tostring(trailActivationUSD) + " USD\n" +
+                             "Trailing SL se mueve a: " + str.tostring(fixedProfitSL_AfterTrail_USD) + " USD sobre Entrada"
+
+    strategy.entry("Long", strategy.long, alert_message=alertMessageEntryLong)
+    // Reiniciar variables de Trailing SL en cada nueva entrada
+    trailingActive := false
+    activatedSLPrice := na
+
+// --- LÓGICA DE SALIDA ---
+if (strategy.position_size > 0) // Si tenemos una posición Long abierta
+    entryPrice = strategy.opentrades.entry_price(0) // Precio de entrada de la posición actual
+    currentPriceMovementFromEntry = close - entryPrice // Movimiento actual del precio desde la entrada
+
+    // Calcular el precio del Stop Loss inicial (0.42% por debajo de la entrada)
+    initialStopLossPrice = entryPrice * (1 - stopLossPercent / 100)
+
+    // Lógica para activar y establecer el Trailing Stop Loss
+    // Si el movimiento del precio alcanza el umbral, activar el trailing
+    if not trailingActive and currentPriceMovementFromEntry >= trailActivationUSD
+        // El precio del SL se fija a 'fixedProfitSL_AfterTrail_USD' USD por encima del precio de entrada
+        activatedSLPrice := entryPrice + (fixedProfitSL_AfterTrail_USD / strategy.position_size) // Precio absoluto del SL
+        trailingActive := true
+
+    // Determinar el precio final del Stop Loss a usar en strategy.exit
+    // Si el trailing está activo, usa el precio calculado para el trailing.
+    // Si no está activo, usa el precio del Stop Loss inicial.
+    finalStopPrice = trailingActive ? activatedSLPrice : initialStopLossPrice
+
+    // Cálculo de Take-Profit fijo en ticks
+    takeProfitInTicks = (takeProfitInUSDInput / syminfo.mintick)
+    
+    // Ejecutar la salida con Take-Profit fijo y el Stop Loss dinámico (inicial o trailing)
+    strategy.exit("Long Exit", from_entry="Long", 
+                   profit=takeProfitInTicks, 
+                   stop=finalStopPrice, // Usamos el precio absoluto para el Stop Loss
+                   alert_message="⚠️ CIERRE LONG (TP/SL ACTIVADO) ⚠️")
+
+// --- PLOTS PARA DEBUGGING Y VISUALIZACIÓN ---
+// Flecha para la condición de entrada
+plotshape(longCondition, "LONG ENTRY Condition", location=location.belowbar, color=color.blue, style=shape.arrowup, size=size.normal)
+
+// Plot de la línea de cierre para asegurar que el gráfico principal se dibuje
+plot(close, title="Precio de Cierre", color=color.black, linewidth=1, style=plot.style_line)

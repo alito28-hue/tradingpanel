@@ -1,0 +1,107 @@
+//@version=5
+strategy("Estrategia MACD + RSI + MA (Restaurada al 19.27% Profit)", 
+ overlay=true, 
+ initial_capital=120000, // Capital inicial de $120,000
+ default_qty_type=strategy.percent_of_equity, 
+ default_qty_value=3000, // 3000% de la equidad para simular apalancamiento. Con $120,000 de capital, esto significa $3,600,000 por operación.
+ commission_type=strategy.commission.cash_per_contract, 
+ commission_value=0.00049) // Comisión añadida: 0.049%
+
+// --- ENTRADAS DE USUARIO ---
+// Estos parámetros se pueden ajustar desde la configuración del script en TradingView.
+
+// Parámetros del MACD
+fast_length = input(12, title="MACD - Longitud Rápida") 
+slow_length = input(26, title="MACD - Longitud Lenta") 
+signal_length = input(9, title="MACD - Longitud de Señal")
+
+// Parámetros del RSI
+rsi_length = input(9, title="RSI - Longitud") 
+rsi_overbought = input(80, title="RSI - Nivel de Sobrecompra") 
+rsi_oversold = input(20, title="RSI - Nivel de Sobreventa")   
+
+// Parámetros de la Media Móvil (MA) para el filtro de tendencia
+ma_length = input(50, title="MA de Filtro (Longitud)") 
+ma = ta.sma(close, ma_length) // Calcula la Media Móvil Simple
+
+// Gestión de Riesgo (en porcentaje sobre el precio de entrada)
+stop_loss_percent = input.float(4.0, title="Stop Loss Fijo (%)", step=0.5) / 100 
+take_profit_percent = input.float(12.0, title="Take Profit Fijo (%)", step=0.5) / 100 
+
+// --- Configuración del Trailing Profit ---
+use_trailing_profit = input.bool(false, title="Usar Trailing Profit") // TRAILING PROFIT DESACTIVADO
+trailing_activation_percent = input.float(4.0, title="Trailing Profit - Activación (%)", step=0.5) / 100 
+trailing_stop_percent = input.float(2.0, title="Trailing Profit - Porcentaje (%)", step=0.25) / 100 
+
+// --- CÁLCULO DE INDICADORES ---
+[macd_line, signal_line, _] = ta.macd(close, fast_length, slow_length, signal_length)
+rsi_val = ta.rsi(close, rsi_length)
+
+// --- CONDICIONES DE ENTRADA (Lógica de la Estrategia) ---
+// Condición para Compra (Long) con filtro MA. Se elimina el filtro macd_line > 0 para restaurar el rendimiento original.
+long_condition = ta.crossover(macd_line, signal_line) and rsi_val < rsi_overbought and close > ma
+
+// Condición para Venta (Short) con filtro MA. Se elimina el filtro macd_line < 0 para restaurar el rendimiento original.
+short_condition = ta.crossunder(macd_line, signal_line) and rsi_val > rsi_oversold and close < ma
+
+// --- EJECUCIÓN DE ÓRDENES ---
+// Entra en una posición Long si se cumplen las condiciones de compra
+if (long_condition)
+    strategy.entry("Long", strategy.long)
+    // Disparar alerta con el mensaje JSON directamente
+    alert(message="{ \"command\": \"buy {{ticker}} {{strategy.order.contracts}}\", \"takeProfit\": \"12%\", \"stopLoss\": \"4%\", \"leverage\": \"30x\", \"remark\": \"MiEstrategia_BingX\" }", freq=alert.freq_once_per_bar_close)
+
+// Entra en una posición Short si se cumplen las condiciones de venta
+if (short_condition)
+    strategy.entry("Short", strategy.short)
+    // Disparar alerta con el mensaje JSON directamente
+    alert(message="{ \"command\": \"sell {{ticker}} {{strategy.order.contracts}}\", \"takeProfit\": \"12%\", \"stopLoss\": \"4%\", \"leverage\": \"30x\", \"remark\": \"MiEstrategia_BingX\" }", freq=alert.freq_once_per_bar_close)
+
+// --- GESTIÓN DE SALIDA (STOP LOSS FIJO Y TRAILING PROFIT) ---
+// Se calculan los niveles de Stop Loss y Take Profit fijos
+long_stop_level_fixed = strategy.position_avg_price * (1 - stop_loss_percent)
+long_take_level_fixed = strategy.position_avg_price * (1 + take_profit_percent)
+
+short_stop_level_fixed = strategy.position_avg_price * (1 + stop_loss_percent)
+short_take_level_fixed = strategy.position_avg_price * (1 - take_profit_percent)
+
+// Lógica para Trailing Profit (Este bloque no se ejecutará si use_trailing_profit es false)
+var float long_trailing_stop_price = 0.0 
+var float short_trailing_stop_price = 0.0 
+
+if (use_trailing_profit) 
+    if (strategy.position_size > 0) 
+        if (high >= strategy.position_avg_price * (1 + trailing_activation_percent) or long_trailing_stop_price[1] > long_stop_level_fixed)
+            long_trailing_stop_price := math.max(long_trailing_stop_price[1], high * (1 - trailing_stop_percent))
+        else
+            long_trailing_stop_price := long_stop_level_fixed 
+        
+    if (strategy.position_size < 0) 
+        if (low <= strategy.position_avg_price * (1 - trailing_activation_percent) or short_trailing_stop_price[1] < short_stop_level_fixed)
+            short_trailing_stop_price := math.min(short_trailing_stop_price[1], low * (1 + trailing_stop_percent))
+        else
+            short_trailing_stop_price := short_stop_level_fixed 
+
+// Ejecución de salidas
+// Si use_trailing_profit es false, solo se usarán los niveles fijos.
+if (strategy.position_size > 0)
+    strategy.exit("Exit Long", from_entry="Long", 
+                 stop=use_trailing_profit ? long_trailing_stop_price : long_stop_level_fixed, 
+                 limit=long_take_level_fixed,
+                 trail_points=na, 
+                 trail_offset=na) 
+
+if (strategy.position_size < 0)
+    strategy.exit("Exit Short", from_entry="Short", 
+                 stop=use_trailing_profit ? short_trailing_stop_price : short_stop_level_fixed, 
+                 limit=short_take_level_fixed,
+                 trail_points=na, 
+                 trail_offset=na)
+
+// --- VISUALIZACIÓN EN EL GRÁFICO ---
+// Dibuja la Media Móvil en el gráfico
+plot(ma, color=color.blue, title="Filtro MA 50")
+
+// Dibuja flechas en los puntos de entrada
+plotshape(long_condition, style=shape.triangleup, location=location.belowbar, color=color.green, title="Señal de Compra")
+plotshape(short_condition, style=shape.triangledown, location=location.abovebar, color=color.red, title="Señal de Venta")

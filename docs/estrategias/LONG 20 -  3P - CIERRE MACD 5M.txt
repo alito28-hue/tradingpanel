@@ -1,0 +1,99 @@
+//@version=6
+strategy("Estrategia 3TP - 0.9SL - Lean - TRIPLE SALIDA (v. FINAL PURO)", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10, process_orders_on_close=true)
+
+// --- INPUTS DE USUARIO ---
+sendExitAlerts = input.bool(false, "Enviar Alertas de Salida", tooltip="Activa esta opción si quieres que TradingView envíe las alertas de salida al bot.")
+
+// Toggle para seleccionar el tipo de salida
+exitType = input.string(title="Tipo de Salida", defval="Trailing TP", options=["TP Fijo", "Trailing TP", "Salida MACD 5m"])
+
+// Códigos de Alerta para el bot
+alertEntryCode = "ENTER-LONG_BINGX_BTC-USDT_2MR_1M_c5914cb2888d28970fd66dd8"
+alertExitCode = "EXIT-LONG_BINGX_BTC-USDT_2MR_1M"
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO EN PORCENTAJES ---
+stopLossPercent = input.float(0.6, "Stop Loss (%)", minval=0.01)
+fixedTakeProfitPercent = input.float(0.5, "Take Profit Fijo (%)", minval=0.01)
+trailingActivatePercent = input.float(0.55, "Trailing TP Activate (%)", minval=0.01)
+trailingStopPercent = input.float(0.01, "Trailing TP Distance (%)", minval=0.01)
+
+// --- CONFIGURACIÓN DE INDICADORES (1M) ---
+macdFastLength = input.int(12, "MACD Fast Length")
+macdSlowLength = input.int(26, "MACD Slow Length")
+macdSignalLength = input.int(9, "MACD Signal Length")
+[macdLine, signalLine, histLine] = ta.macd(close, macdFastLength, macdSlowLength, macdSignalLength)
+
+// RSI (1M)
+rsiLength = input.int(14, "RSI Length")
+rsiValue = ta.rsi(close, rsiLength)
+
+// --- LÓGICA DE MACD 5m para SALIDA ---
+
+// 1. Solicitamos la tupla COMPLETA del MACD en 5m
+[macdLine5m, signalLine5m, histLine5m] = request.security(syminfo.tickerid, "5", 
+     ta.macd(close, macdFastLength, macdSlowLength, macdSignalLength), 
+     lookahead=barmerge.lookahead_off)
+
+// 2. Condición de Salida MACD 5m: El histograma actual es menor que el anterior (cambio de pendiente: raising to falling)
+// ESTA ES LA LÓGICA MÁS SENSIBLE SOLICITADA
+bool macd5mExitCondition = histLine5m < histLine5m[1] and histLine5m[1] > 0 
+
+
+// --- LÓGICA DE ENTRADA (Mantenida) ---
+bool rsiCondition = rsiValue > 30
+bool macdRangeCondition = macdLine > -500 and macdLine < -60
+bool macdCrossoverCondition = ta.crossover(macdLine, signalLine)
+bool allConditionsMet = rsiCondition and macdRangeCondition and macdCrossoverCondition
+
+// Contador de señales válidas (mantenido para la lógica de "segunda señal")
+var int signalCount = 0
+if (allConditionsMet and strategy.position_size == 0)
+    signalCount += 1
+if (strategy.position_size > 0)
+    signalCount := 0
+bool longEntryCondition = allConditionsMet and signalCount >= 2
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Lógica de entrada.
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long)
+    alert(alertEntryCode)
+
+// Lógica de gestión de salida (APLICACIÓN CONDICIONAL)
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    float stopLossPrice = entryPrice * (1 - (stopLossPercent / 100))
+    
+    // 1. DEFINICIÓN CONDICIONAL DE PARÁMETROS DE SALIDA AUTOMÁTICA
+    float fixedTakeProfitPrice_calc = entryPrice * (1 + (fixedTakeProfitPercent / 100))
+    float trailActivatePrice_calc = entryPrice * (1 + (trailingActivatePercent / 100))
+    float trailStopPoints = (entryPrice * (trailingStopPercent / 100)) / syminfo.mintick
+
+    // Usamos 'na' para deshabilitar las salidas no deseadas.
+    float limitPrice = exitType == "TP Fijo" ? fixedTakeProfitPrice_calc : na
+    float trailPrice = exitType == "Trailing TP" ? trailActivatePrice_calc : na
+    float trailOffset = exitType == "Trailing TP" ? trailStopPoints : na
+
+    // 2. SALIDA 3: POR CAMBIO DE PENDIENTE MACD 5m (Cierre Inmediato)
+    if (exitType == "Salida MACD 5m" and macd5mExitCondition)
+        strategy.close("Long", comment="Exit-MACD-5m-Puro")
+        alert(alertExitCode)
+        
+    // 3. CONSOLIDACIÓN DE strategy.exit (SL + TP/Trailing TP)
+    // El SL siempre está activo. TP y Trailing TP se activan si no son 'na'.
+    strategy.exit("ExitLong_SL_TP", from_entry="Long", 
+         stop=stopLossPrice, 
+         limit=limitPrice, 
+         trail_price=trailPrice, 
+         trail_offset=trailOffset)
+
+
+// Lógica de alertas de salida separadas
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    if (sendExitAlerts)
+        alert(alertExitCode)
+
+// --- PLOTS PARA VISUALIZACIÓN ---
+plotshape(series=allConditionsMet and signalCount == 1, title="Primera Señal", style=shape.circle, location=location.belowbar, color=color.new(color.yellow, 0), size=size.small)
+plotshape(series=longEntryCondition, title="Long Entry (Segunda Señal)", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
+plotshape(series=macd5mExitCondition, title="Exit MACD 5m Signal (Puro)", style=shape.xcross, location=location.abovebar, color=color.new(color.red, 0), size=size.small)

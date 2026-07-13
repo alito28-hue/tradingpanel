@@ -1,0 +1,33 @@
+//@version=6
+indicator("Cambio de Tendencia MACD 1h en 1m con Filtro", overlay=true)
+
+// --- INPUTS DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// --- CÁLCULOS DE INDICADORES ---
+// Obtener las líneas y el histograma del MACD de la temporalidad de 1 hora
+[macdLine_1h, signalLine_1h, histLine_1h] = request.security(syminfo.tickerid, "60", ta.macd(close, fastLength, slowLength, signalLength))
+
+// Determinar el cruce de las líneas MACD en la temporalidad de 1h
+bool macdUpTrend = ta.crossover(macdLine_1h, signalLine_1h)
+bool macdDownTrend = ta.crossunder(macdLine_1h, signalLine_1h)
+
+// --- LÓGICA DE FILTROS ---
+// Solo marcar LONG si el cruce ocurre desde territorio negativo del histograma Y el valor del MACD es menor a -50
+bool longEntryFilter = macdUpTrend and histLine_1h[1] < 0 and macdLine_1h < -50
+
+// Solo marcar SHORT si el cruce ocurre desde territorio positivo del histograma Y el valor del MACD es mayor a 50
+bool shortEntryFilter = macdDownTrend and histLine_1h[1] > 0 and macdLine_1h > 50
+
+// --- ALERTS ---
+if longEntryFilter
+    alert("LONG", alert.freq_once_per_bar)
+
+if shortEntryFilter
+    alert("SHORT", alert.freq_once_per_bar)
+
+// --- PLOTS ---
+plotshape(series=longEntryFilter, title="Cambio a Alcista", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.small)
+plotshape(series=shortEntryFilter, title="Cambio a Bajista", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.small)

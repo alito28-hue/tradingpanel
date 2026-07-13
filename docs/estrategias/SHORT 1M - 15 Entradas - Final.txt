@@ -1,0 +1,95 @@
+//@version=6
+strategy("SHORT 1M - 15 Entradas", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_short=0.10) // CAMBIO: Nombre y margin_short
+
+// --- INPUTS DE INDICADORES ---
+// Configuración de MACD del marco de tiempo actual
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Configuración de RSI del marco de tiempo actual (1 minuto)
+rsiLength = input.int(14, "RSI Length (1m)")
+rsiThreshold = input.float(60.0, "RSI Sell Threshold (1m)", minval=0, maxval=100)
+rsiOverboughtThreshold = input.float(70.0, "RSI Overbought Threshold (1m)", minval=0, maxval=100)
+rsiOversoldThreshold = input.float(4.0, "RSI Oversold Threshold (1m)", minval=0, maxval=100) // Restaurado al valor original o un valor bajo si no se usa
+
+// Configuración de RSI del marco de tiempo superior (5 minutos)
+rsiLengthMTF = input.int(14, "RSI Length (5m)")
+rsiThresholdMTF = input.float(40.0, "RSI Threshold (5m)", minval=0, maxval=100) // Umbral MTF
+
+// Configuración de Stop Loss en USD (PARA SHORT, es por encima del precio de entrada)
+stopLossUSD = input.float(155, "Stop Loss en USD")
+
+// Configuración de Trailing Take Profit (PARA SHORT, es por debajo del precio de entrada)
+// trailingActivateUSD: Cantidad que el precio debe caer desde la entrada para activar el trailing.
+trailingActivateUSD = input.float(250, "Trailing TP Activate (USD)", minval=0)
+// trailingStopUSD: Distancia que el precio puede retroceder (subir para un SHORT) desde el mínimo alcanzado para cerrar.
+trailingStopUSD = input.float(50, "Trailing TP Distance (USD)", minval=0)
+
+// --- CÁLCULOS DE INDICADORES ---
+// Cálculo de MACD del marco de tiempo actual
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// Cálculo de RSI del marco de tiempo actual (1 minuto)
+rsiValue = ta.rsi(close, rsiLength)
+
+// Cálculo de RSI de un marco de tiempo superior (5 minutos)
+rsiValueMTF = request.security(syminfo.tickerid, "5", ta.rsi(close, rsiLengthMTF))
+
+// Cálculo de MACD del marco de tiempo de 5 minutos para el filtro
+[macdLine_5m, signalLine_5m, histLine_5m] = request.security(syminfo.tickerid, "5", ta.macd(close, fastLength, slowLength, signalLength))
+
+// --- LÓGICA DE ENTRADA FINAL (INVERTIDA PARA SHORT) ---
+// Regla 1: La línea del MACD del marco de tiempo actual cruza por debajo de la línea de señal.
+bool macdCrossunderCondition = ta.crossunder(macdLine, signalLine)
+
+// FILTRO AJUSTADO: El MACD de 1 minuto debe ser MAYOR O IGUAL a 30.
+// Esto asegura que la señal de cruce bajista venga de un territorio alcista fuerte.
+bool macd1mPositiveFilter = macdLine >= 30
+
+// NUEVO FILTRO: El histograma del MACD de 5 minutos debe ser MENOR O IGUAL a 0.
+// Esto filtra las entradas cuando hay un impulso alcista en el marco de tiempo superior.
+bool hist5mBelowZeroFilter = histLine_5m <= 0 // CAMBIO: Nuevo filtro de histograma de 5m
+
+// Condición combinada: Todas las reglas DEBEN ser verdaderas para entrar.
+// Ahora incluye el filtro de MACD 1m en territorio positivo (>30) y el filtro del histograma de 5m.
+bool shortEntryCondition = macdCrossunderCondition and macd1mPositiveFilter and hist5mBelowZeroFilter
+
+// --- VARIABLES PARA LA GESTIÓN DE SALIDAS DINÁMICAS ---
+var float dynamicSL = na
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+string entryAlertMessage = "SELL " + syminfo.tickerid + " entry_price=" + str.tostring(close) + " percent=100%"
+
+if (shortEntryCondition)
+    strategy.entry("Short", strategy.short)
+    alert(entryAlertMessage, alert.freq_once_per_bar_close)
+
+// Lógica de gestión de la posición SHORT
+if (strategy.position_size < 0) // Para posición SHORT
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    // SL inicial por encima de la entrada para SHORT
+    float initialStopLossPrice = entryPrice + stopLossUSD
+    if (na(dynamicSL)) 
+        dynamicSL := initialStopLossPrice
+        
+    // La lógica para mover el SL por "Objetivo de Ganancia" ha sido eliminada.
+    
+    // Cálculo de trailActivatePoints y trailStopPoints basados en USD directamente.
+    // Para SHORT: trailingActivateUSD es la caída necesaria para activar el trailing.
+    // trailingStopUSD es el retroceso (subida para un SHORT) desde el mínimo alcanzado para cerrar.
+    // La conversión a ticks se mantiene, pero la intención es que los inputs controlen el valor en USD.
+    float trailActivatePoints = trailingActivateUSD / syminfo.mintick // Cantidad de ticks para activar
+    float trailStopPoints = trailingStopUSD / syminfo.mintick       // Cantidad de ticks para el stop
+
+    string exitAlertMessage = "BUY " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+
+    strategy.exit("Exit", from_entry="Short", stop=dynamicSL, trail_offset=trailStopPoints, trail_points=trailActivatePoints, alert_message=exitAlertMessage)
+
+// --- PLOTS PARA VISUALIZACIÓN ---
+// Trazar una flecha roja para las señales de entrada SHORT
+plotshape(series=shortEntryCondition, title="Short Entry", style=shape.arrowdown, location=location.abovebar, color=color.new(color.red, 0), size=size.normal)
+
+// NUEVO PLOT: Trazar una flecha azul para indicar cuándo el filtro del histograma de 5m se cumple
+plotshape(series=hist5mBelowZeroFilter, title="Hist 5m Filter", style=shape.triangleup, location=location.belowbar, color=color.new(color.blue, 70), size=size.tiny)

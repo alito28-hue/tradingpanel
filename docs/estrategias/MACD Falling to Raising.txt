@@ -1,0 +1,32 @@
+//@version=5
+strategy("MACD Falling to Rising Strategy with SL/TP", overlay=true)
+
+// MACD Inputs
+fast_len = input.int(12, "Fast Length")
+slow_len = input.int(26, "Slow Length")
+signal_len = input.int(9, "Signal Length")
+
+// Stop Loss and Take Profit Inputs
+sl_percent = input.float(2, "Stop Loss (%)") * 0.01 // Convert percentage to a decimal
+tp_percent = input.float(0.32, "Take Profit (%)") * 0.01 // Convert percentage to a decimal
+
+// Define Alert IDs
+entry_alert_id = "e70204a7-c967-403d-b1be-a1c6259cad48"
+exit_alert_id = "0cb33d44-0b90-4996-a463-07661f58a8d4"
+
+// Calculate MACD components
+[macdLine, signalLine, hist] = ta.macd(close, fast_len, slow_len, signal_len)
+
+// Long Entry Condition (Falling to Rising MACD Histogram)
+longCondition = hist[1] <= 0 and hist > 0
+
+if (longCondition)
+    strategy.entry("Long", strategy.long, alert_message=entry_alert_id)
+
+// Calculate Stop Loss and Take Profit Prices
+long_sl_price = strategy.position_avg_price * (1 - sl_percent)
+long_tp_price = strategy.position_avg_price * (1 + tp_percent)
+
+// Exit Strategy with Stop Loss and Take Profit
+if (strategy.position_size > 0)
+    strategy.exit("Long Exit", from_entry="Long", stop=long_sl_price, limit=long_tp_price, alert_message=exit_alert_id)

@@ -1,0 +1,74 @@
+// © 2024, Creado para el usuario por Gemini (v5 - Corrección del Step)
+//@version=5
+strategy("Estrategia Scalping BTC MACD+EMA - ALI", 
+         overlay=true, 
+         initial_capital=30000, 
+         commission_type=strategy.commission.percent, 
+         commission_value=0.04,
+         default_qty_type=strategy.cash,
+         default_qty_value=300000)
+
+// --- CONFIGURACIÓN DE PARÁMETROS ---
+var string ALERT_MESSAGE = "ENTER-LONG_BINANCE_BTCUSDT_ALI_1M_c5e14cb2ab8d28970f376d68"
+
+// Gestión de Riesgo y Salida
+sl_percent = input.float(0.5, "Stop Loss (%)", step = 0.01) / 100
+tp_fixed_percent = input.float(0.8, "Take Profit Fijo (%)", step = 0.01) / 100
+trailing_tp_activation_percent = input.float(0.8, "Trailing TP - Activación (%)", step = 0.01) / 100
+trailing_tp_distance_percent = input.float(0.15, "Trailing TP - Distancia (%)", step = 0.01) / 100
+
+// Inputs para el rango del MACD
+macd_max_level = input.float(-50, "MACD Nivel Máximo", step=10) // CORREGIDO: step era -10
+macd_min_level = input.float(-500, "MACD Nivel Mínimo", step=10) // CORREGIDO: step era -10
+
+// --- TOGGLES (Interruptores) ---
+use_trailing_tp = input.bool(true, "Usar Trailing TP (Si no, usa TP Fijo)")
+use_ema_filter = input.bool(true, "Activar Filtro EMA 120 (5M)")
+
+// --- INDICADORES ---
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+ema120_5m = request.security(syminfo.tickerid, "5", ta.ema(close, 120), lookahead=barmerge.lookahead_off)
+
+// --- LÓGICA DE ENTRADA ---
+ema_condition = not use_ema_filter or (close > ema120_5m)
+hist_weakening_condition = histLine[1] < 0 and histLine[2] < 0 and histLine[1] > histLine[2]
+macd_range_condition = macdLine < macd_max_level and macdLine > macd_min_level
+
+long_entry_condition = ema_condition and hist_weakening_condition and macd_range_condition
+
+// --- LÓGICA DE SALIDA ---
+var float dynamic_stop_price = na
+
+if strategy.position_size > 0
+    if use_trailing_tp
+        // 1. Establece el Stop Loss inicial
+        initial_sl_price = strategy.position_avg_price * (1 - sl_percent)
+        if na(dynamic_stop_price)
+            dynamic_stop_price := initial_sl_price
+
+        // 2. Comprueba si se activa el trailing
+        activation_price = strategy.position_avg_price * (1 + trailing_tp_activation_percent)
+        if high > activation_price
+            // 3. Calcula el nuevo precio de trailing stop
+            new_trail_price = high * (1 - trailing_tp_distance_percent)
+            // 4. Actualiza el stop solo si es más alto que el anterior
+            dynamic_stop_price := math.max(dynamic_stop_price, new_trail_price)
+        
+        // 5. Envía la orden de salida con el precio de stop actualizado
+        strategy.exit("Exit Trail", stop=dynamic_stop_price)
+    else
+        // Lógica para TP Fijo
+        strategy.exit("Exit Fixed", stop=strategy.position_avg_price * (1 - sl_percent), limit=strategy.position_avg_price * (1 + tp_fixed_percent))
+
+// Resetea la variable cuando se cierra la operación
+if strategy.position_size == 0
+    dynamic_stop_price := na
+
+// --- EJECUCIÓN DE ENTRADA ---
+if (long_entry_condition and strategy.opentrades == 0)
+    strategy.entry("Long", strategy.long)
+    alert(ALERT_MESSAGE, alert.freq_once_per_bar_close)
+
+// --- VISUALIZACIÓN ---
+plot(ema120_5m, "EMA 120 (5M)", color=color.new(color.orange, 0), linewidth=2)
+plot(strategy.position_size > 0 ? dynamic_stop_price : na, "Dynamic Stop", color=color.red, style=plot.style_linebr, linewidth=2)

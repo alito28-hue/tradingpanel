@@ -1,0 +1,133 @@
+//@version=6
+strategy("Estrategia MACD 1h Short V19 - Trailing Max Ganancia", overlay=true, initial_capital=5000, default_qty_value=400000, default_qty_type=strategy.cash, margin_long=0.01, margin_short=0.01) // Capital inicial a 5000, Operación a 360,000 (apalancado x100)
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Obtener los valores del MACD en el marco de tiempo de 1 hora (60 minutos)
+[macdLine, signalLine, histLine] = request.security(syminfo.tickerid, "60", ta.macd(close, fastLength, slowLength, signalLength))
+
+// --- LÓGICA DE ENTRADA (SHORT) ---
+// Condición de entrada: MACD de 1 hora cruza hacia abajo (línea azul por debajo de la naranja)
+bool macdCrossunderCondition = ta.crossunder(macdLine, signalLine)
+
+// NUEVO FILTRO: El MACD en 1h debe ser mayor de 100 para entrar en SHORT
+bool macd1hGreaterThan100 = macdLine > 100
+
+// Condición de entrada combinada
+shortEntryCondition = macdCrossunderCondition and macd1hGreaterThan100
+
+// --- LÓGICA DE SALIDA (CIERRE DE SHORT POR CAMBIO DE DIRECCIÓN) ---
+// Condición de salida: MACD de 1 hora cruza hacia arriba (línea azul por encima de la naranja)
+shortExitCondition = ta.crossover(macdLine, signalLine)
+
+// Variables de Take-Profit (TP) y Stop-Loss (SL)
+// Parámetros para el Trailing Stop de Take-Profit (principal) - AHORA EN PORCENTAJE DEL PRECIO
+trailingProfitActivationPercent = input.float(1.05, "TP Trailing Activar en % del Precio") // Activación en porcentaje
+trailingProfitOffsetPercent = input.float(0.65, "TP Trailing Margen en % del Precio")   // Ajustado a 0.65%
+
+stopLossPercent = input.float(0.50, "Stop-Loss en %") // SL inicial: 0.42%
+
+// Variables para gestionar el estado del Stop Loss garantizado y el precio de salida
+var float priceForGuaranteedProfitExit = na 
+var bool guaranteedProfitActivated = false 
+
+// Declarar currentFloatingProfit y canExitByMacd en un alcance superior
+var float currentFloatingProfit = 0.0 
+var bool canExitByMacd = false 
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+
+// Ejecución de la estrategia de entrada
+if (shortEntryCondition)
+    // Reiniciar las variables al entrar en una nueva operación
+    priceForGuaranteedProfitExit := na
+    guaranteedProfitActivated := false
+    currentFloatingProfit := 0.0 
+    canExitByMacd := false 
+    
+    // Mensaje de alerta para la entrada SHORT que Cornix puede interpretar
+    string entryAlertMessage = "SELL " + syminfo.tickerid + " entry_price=" + str.tostring(close) + " percent=100%"
+    alert(entryAlertMessage, alert.freq_once_per_bar_close) // Alerta de entrada Cornix
+
+    // Mensaje de alerta personalizado para la entrada SHORT (para TradingView o logs)
+    alertMessageEntryShort = "📉 ENTRADA SHORT 📉\n" + 
+                             "Símbolo: " + syminfo.tickerid + "\n" +
+                             "Acción: VENTA\n" +
+                             "Precio de Entrada: " + str.tostring(close) + "\n" +
+                             "Cantidad: " + str.tostring(strategy.position_size) + "\n" +
+                             "TP Trailing Activa: " + str.tostring(trailingProfitActivationPercent) + " % del Precio\n" +
+                             "TP Trailing Margen: " + str.tostring(trailingProfitOffsetPercent) + " % del Precio\n" +
+                             "Stop-Loss Inicial: " + str.tostring(stopLossPercent) + " %\n" +
+                             "Capital Estrategia: " + str.tostring(strategy.equity)
+
+    strategy.entry("Short", strategy.short, alert_message=alertMessageEntryShort)
+
+// --- Lógica de Salida Principal si hay una posición corta abierta ---
+if (strategy.position_size < 0)
+    entryPrice = strategy.opentrades.entry_price(0)
+    positionSizeUnits = math.abs(strategy.position_size)
+    currentFloatingProfit := strategy.opentrades.profit(0) // Actualizar beneficio flotante
+
+    // --- CÁLCULO Y ACTIVACIÓN DEL PRECIO DE PROFIT GARANTIZADO ---
+    // ESTA LÓGICA ESTÁ DESACTIVADA TEMPORALMENTE.
+    // if currentFloatingProfit >= guaranteedProfitActivationThresholdUSD and not guaranteedProfitActivated
+    //     priceForGuaranteedProfitExit := entryPrice - (guaranteedProfitAmountUSD / positionSizeUnits)
+    //     guaranteedProfitActivated := true
+
+    // --- LÓGICA DE SALIDA POR PROFIT GARANTIZADO (con strategy.close) ---
+    // ESTA LÓGICA ESTÁ DESACTIVADA TEMPORALMENTE.
+    // if guaranteedProfitActivated and close >= priceForGuaranteedProfitExit
+    //     alertMessageGuaranteedProfit = "✅ SALIDA POR PROFIT GARANTIZADO ✅ Símbolo: " + syminfo.tickerid + " Acción: COMPRA (Cierre) Precio de Cierre: " + str.tostring(close) + " Capital Estrategia: " + str.tostring(strategy.equity)
+    //     strategy.close("Short", comment="Profit Garantizado", alert_message=alertMessageGuaranteedProfit)
+    //     guaranteedProfitActivated := false
+    //     priceForGuaranteedProfitExit := na
+    
+    // --- LÓGICA DE SALIDA POR MACD (Ahora siempre prioritaria si ocurre) ---
+    canExitByMacd := shortExitCondition // Si el MACD cruza hacia arriba, cerrar
+
+    if (canExitByMacd)
+        // Mensaje de alerta para la salida SHORT que Cornix puede interpretar
+        string exitAlertMessage = "BUY " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+        alert(exitAlertMessage, alert.freq_once_per_bar_close) // Alerta de salida Cornix
+
+        alertMessageExitShort = "📈 SALIDA SHORT (MACD UP) 📈 Símbolo: " + syminfo.tickerid + " Acción: COMPRA (Cierre) Precio de Cierre: " + str.tostring(close) + " Capital Estrategia: " + str.tostring(strategy.equity)
+        strategy.close("Short", comment="MACD Exit", alert_message=alertMessageExitShort) // Cerrar la posición corta existente con alerta
+    else
+        // --- CÁLCULOS PARA STRATEGY.EXIT (SL INICIAL Y TRAILING TP PRINCIPAL) ---
+        // Cálculo del Stop-Loss inicial en ticks
+        float initialStopLossInTicks = (entryPrice * (stopLossPercent / 100)) / syminfo.mintick
+        
+        // Cálculo de Take-Profit de activación para el Trailing Stop principal (en ticks)
+        float priceMovementForTPActivate = entryPrice * (trailingProfitActivationPercent / 100)
+        float takeProfitActivateInTicks = priceMovementForTPActivate / syminfo.mintick
+        
+        // Cálculo del margen del Trailing Stop principal (en ticks)
+        float priceMovementForTrailingOffset = entryPrice * (trailingProfitOffsetPercent / 100)
+        float trailingOffsetInTicks = priceMovementForTrailingOffset / syminfo.mintick
+        
+        // Mensaje de alerta para la salida por TP/SL/Trailing que Cornix puede interpretar
+        string exitAlertMessageTP_SL = "BUY " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+        
+        // strategy.exit gestiona el Stop Loss inicial y el Trailing Stop principal.
+        // Se ejecuta siempre que haya una posición abierta y sus condiciones de salida se evalúan internamente.
+        strategy.exit("Salida TP/SL/Trailing", from_entry="Short",
+                       loss=initialStopLossInTicks, // Stop Loss fijo inicial
+                       trail_points=takeProfitActivateInTicks, // Activa el trailing después de X % de profit
+                       trail_offset=trailingOffsetInTicks, // Margen de Y % para el trailing
+                       alert_message=exitAlertMessageTP_SL) // Mensaje de alerta Cornix para TP/SL/Trailing
+else
+    currentFloatingProfit := 0.0 
+    canExitByMacd := false 
+
+
+// --- PLOTS PARA DEBUGGING Y VISUALIZACIÓN ---
+// Flecha roja hacia abajo en el gráfico principal para la entrada en SHORT
+plotshape(shortEntryCondition, "SHORT Entry", location=location.abovebar, color=color.red, style=shape.arrowdown, size=size.normal)
+
+// Flecha verde hacia arriba en el gráfico principal para la salida del SHORT (Solo si el MACD cierra)
+// La condición de plotshape debe reflejar la lógica real del cierre por MACD.
+plotshape(canExitByMacd, // Usa la variable 'canExitByMacd' declarada globalmente
+         "SHORT Exit (MACD Up)", location=location.belowbar, color=color.green, style=shape.arrowup, size=size.normal)

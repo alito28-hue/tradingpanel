@@ -1,0 +1,57 @@
+//@version=6
+strategy("Estrategia MACD (1m) - Long con Histograma MACD (TP en USD)", overlay=true, initial_capital=300000, default_qty_value=100, default_qty_type=strategy.percent_of_equity) // Capital ajustado
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// RSI y SMA ya no se usan como condición de entrada, pero se mantienen para futuros usos si se desea.
+rsiLength = input.int(14, "RSI Length")
+rsiValue = ta.rsi(close, rsiLength)
+rsiThreshold = input.int(50, "RSI Threshold")
+
+smaLength = input.int(200, "SMA Length")
+sma = ta.sma(close, smaLength)
+
+volumeLength = input.int(20, "Volume Average Length")
+volumeAvg = ta.sma(volume, volumeLength)
+
+// --- LÓGICA DE ENTRADA (LONG) ---
+// Condición: El histograma del MACD cambia de decreciente negativo a creciente (la barra actual es más grande que la anterior)
+hist_cambia_a_creciente = histLine > histLine[1] 
+
+// Condición: El histograma del MACD está en territorio negativo (no ha cruzado la línea cero aún)
+hist_en_territorio_negativo = histLine < 0 
+
+// Condición: MACD debe ser MENOR a -90 (por ejemplo, -91, -100, -190), indicando una zona profunda
+macd_menor_a_menos_90 = macdLine < -90 
+
+// Se ajusta la condición de entrada para ANTICIPAR el movimiento
+// El histograma crece, está en negativo y el MACD es profundo
+longCondition = hist_cambia_a_creciente and hist_en_territorio_negativo and macd_menor_a_menos_90
+
+// Variables de TP y SL para los mensajes de alerta y cálculos
+takeProfitInUSDInput = input.float(296.0, "Take-Profit en USD") // CAMBIO: Ahora es un valor fijo en USD
+stopLossPercent = input.float(0.42, "Stop-Loss en %")
+
+if (longCondition)
+    // Mensaje de alerta para la entrada LONG
+    alertMessageEntryLong = "🔔 ENTRADA LONG 🔔\nSímbolo: " + syminfo.tickerid + "\nAcción: COMPRA\nPrecio de Entrada: " + str.tostring(close) + "\nCantidad: " + str.tostring(strategy.position_size) + "\nTake-Profit: " + str.tostring(takeProfitInUSDInput) + " USD\nStop-Loss: " + str.tostring(stopLossPercent) + " %\nCapital Estrategia: " + str.tostring(strategy.equity)
+
+    strategy.entry("Long", strategy.long, alert_message=alertMessageEntryLong) // La alerta SOLO se envía aquí
+
+// --- LÓGICA DE SALIDA ---
+if (strategy.opentrades > 0)
+    entryPrice = strategy.opentrades.entry_price(strategy.opentrades - 1)
+    
+    // CAMBIO: Cálculo de Take-Profit en ticks usa el valor en USD
+    takeProfitInTicks = (takeProfitInUSDInput / syminfo.mintick)
+    stopLossInTicks = (entryPrice * (stopLossPercent / 100)) / syminfo.mintick
+    
+    // Aquí se ejecuta la salida, PERO NO se envía alerta.
+    strategy.exit("Salida", from_entry="Long", profit=takeProfitInTicks, loss=stopLossInTicks)
+
+// --- PLOTS PARA DEBUGGING ---
+plotshape(longCondition, "LONG ENTRY Condition", location=location.belowbar, color=color.blue, style=shape.arrowup, size=size.normal) // Flecha para la condición de entrada

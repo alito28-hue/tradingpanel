@@ -1,0 +1,99 @@
+//@version=6
+strategy("Estrategia Corta 1M - 50 Entradas - Mejorado", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10)
+
+// --- INPUTS DE INDICADORES ---
+// Configuración de MACD del marco de tiempo actual
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Configuración de RSI del marco de tiempo actual (1 minuto)
+rsiLength = input.int(14, "RSI Length (1m)")
+rsiThreshold = input.float(50.0, "RSI Buy Threshold (1m)", minval=0, maxval=100)
+
+// Configuración de RSI del marco de tiempo superior (5 minutos)
+rsiLengthMTF = input.int(14, "RSI Length (5m)")
+rsiThresholdMTF = input.float(40.0, "RSI Threshold (5m)", minval=0, maxval=100)
+
+// Configuración de Stop Loss en USD
+stopLossUSD = input.float(245, "Stop Loss en USD")
+
+// --- OPCIONES PARA TAKE PROFIT Y STOP LOSS ---
+// Interruptor para elegir entre Trailing TP y TP Fijo
+useTrailingTP = input.bool(true, "Usar Trailing TP?")
+trailingActivateUSD = input.float(185, "Trailing TP Activate (USD)", minval=0)
+trailingStopUSD = input.float(50, "Trailing TP Distance (USD)", minval=0)
+fixedTakeProfitUSD = input.float(185, "Take Profit Fijo en USD")
+
+// Códigos de alerta para el bot
+alertEntryCode = "ENTER-LONG_BINANCE_BTCUSDT_20 ENTRADAS_1M_c5d74cb28a8d28970f396d5b"
+alertExitCode = "EXIT-LONG_BINANCE_BTCUSDT_20 ENTRADAS_1M_c5d74cb28a8d28970f396d5b"
+
+// --- NUEVO FILTRO DE MACD DE 5 MINUTOS ---
+// Umbral de MACD de 5 minutos para evitar entradas
+macdMtfThreshold = input.float(60.0, "MACD 5m No-Entry Threshold")
+
+// --- CÁLCULOS DE INDICADORES ---
+// Cálculo de MACD del marco de tiempo actual
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// Cálculo de MACD de un marco de tiempo superior (5 minutos)
+[macdMtfLine, signalMtfLine, histMtfLine] = request.security(syminfo.tickerid, "5", ta.macd(close, fastLength, slowLength, signalLength))
+
+// Cálculo de RSI del marco de tiempo actual (1 minuto)
+rsiValue = ta.rsi(close, rsiLength)
+
+// Cálculo de RSI de un marco de tiempo superior (5 minutos)
+rsiValueMTF = request.security(syminfo.tickerid, "5", ta.rsi(close, rsiLengthMTF))
+
+// --- LÓGICA DE ENTRADA FINAL ---
+// Regla 1: La línea del MACD del marco de tiempo actual cruza por encima de la línea de señal.
+bool macdCrossoverCondition = ta.crossover(macdLine, signalLine)
+
+// Regla 2: El filtro de MACD se cumple si es menor que -30 O si está entre -10 y -5.
+bool macdFilterCondition = macdLine < -30 or (macdLine > -10 and macdLine < -5)
+
+// Regla 3: El valor del RSI del marco de tiempo actual es mayor que el umbral de compra.
+bool rsiFilterCondition = rsiValue > rsiThreshold
+
+// Regla 4: El valor del RSI de 5 minutos es mayor o igual a 40.
+bool mtfRsiFilterCondition = rsiValueMTF >= rsiThresholdMTF
+
+// Regla 5: El MACD en 5 minutos está por debajo del umbral de no entrada.
+bool mtfMacdFilterCondition = macdMtfLine < macdMtfThreshold
+
+// Condición combinada: Todas las reglas DEBEN ser verdaderas para entrar.
+bool longEntryCondition = macdCrossoverCondition and macdFilterCondition and rsiFilterCondition and mtfRsiFilterCondition and mtfMacdFilterCondition
+
+// --- VARIABLES PARA LA GESTIÓN DE SALIDAS DINÁMICAS ---
+// Usamos 'var' para mantener el valor de esta variable a lo largo de las barras
+var float dynamicSL = na
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Entrar en una posición larga cuando se cumplen las condiciones
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long, comment=alertEntryCode)
+
+// Lógica de gestión de la posición
+if (strategy.position_size > 0)
+    // Precio de entrada
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    // Inicializar o actualizar el SL dinámico en cada barra
+    if (na(dynamicSL) or close < entryPrice) // Reiniciar si no está inicializado o el precio cae por debajo del punto de entrada
+        dynamicSL := entryPrice - stopLossUSD
+            
+    // Salida con stop loss dinámico y TP seleccionable
+    if (useTrailingTP)
+        // Lógica de Trailing TP
+        float trailActivatePoints = trailingActivateUSD / syminfo.mintick
+        float trailStopPoints = trailingStopUSD / syminfo.mintick
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, trail_points=trailActivatePoints, trail_offset=trailStopPoints, comment=alertExitCode)
+    else
+        // Lógica de TP Fijo
+        float fixedTP = entryPrice + fixedTakeProfitUSD
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, limit=fixedTP, comment=alertExitCode)
+    
+// --- PLOTS PARA VISUALIZACIÓN ---
+// Trazar una flecha verde para las señales de entrada
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)

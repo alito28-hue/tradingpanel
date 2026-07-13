@@ -1,0 +1,127 @@
+//@version=5
+// ═══════════════════════════════════════════════════════════════
+//  PLAYBOOK BTC — SETUP DEL DÍA (Breitstein Playbook)
+//  Instalación (una sola vez):
+//  TradingView → Editor Pine → pegar todo → "Añadir al gráfico"
+//  Uso diario: rueda dentada del indicador → cargar los valores
+//  que te doy cada mañana en el informe de pre-mercado.
+// ═══════════════════════════════════════════════════════════════
+indicator("Playbook BTC — Setup del Día", overlay = true)
+
+// ── ① SETUP PRINCIPAL ──────────────────────────────────────────
+grpA  = "① Setup Principal"
+showA = input.bool(true,     "Activar",                  group = grpA)
+nameA = input.string("S2 — Short Rallie de Alivio", "Nombre", group = grpA)
+dirA  = input.string("Short", "Dirección", options = ["Long", "Short"], group = grpA)
+zTopA = input.float(65450.0, "Zona de entrada: techo",   group = grpA)
+zBotA = input.float(64800.0, "Zona de entrada: piso",    group = grpA)
+slA   = input.float(65600.0, "Stop (invalidez de tesis)",group = grpA)
+tp1A  = input.float(63200.0, "TP1 (parcial 40-50%)",     group = grpA)
+tp2A  = input.float(62000.0, "TP2 (parcial 30-40%)",     group = grpA)
+
+// ── ② SETUP ALTERNATIVO ────────────────────────────────────────
+grpB  = "② Setup Alternativo"
+showB = input.bool(true,     "Activar",                  group = grpB)
+nameB = input.string("L1 — Long Capitulación (dormido)", "Nombre", group = grpB)
+dirB  = input.string("Long", "Dirección", options = ["Long", "Short"], group = grpB)
+zTopB = input.float(62000.0, "Zona de entrada: techo",   group = grpB)
+zBotB = input.float(61500.0, "Zona de entrada: piso",    group = grpB)
+slB   = input.float(61100.0, "Stop (invalidez de tesis)",group = grpB)
+tp1B  = input.float(63200.0, "TP1 (parcial 40-50%)",     group = grpB)
+tp2B  = input.float(64300.0, "TP2 (parcial 30-40%)",     group = grpB)
+
+// ── ③ RIESGO ───────────────────────────────────────────────────
+grpR    = "③ Gestión de Riesgo"
+capital = input.float(5000.0, "Capital (USD)",           group = grpR)
+riskPct = input.float(1.0,    "Riesgo por trade (%)", minval = 0.1, maxval = 2.0, group = grpR)
+
+// ── ④ CONTEXTO ─────────────────────────────────────────────────
+grpC    = "④ Contexto"
+showEMA = input.bool(true, "Mostrar EMA 20/50", group = grpC)
+
+ema20 = ta.ema(close, 20)
+ema50 = ta.ema(close, 50)
+plot(showEMA ? ema20 : na, "EMA 20", color = color.new(color.aqua,   30))
+plot(showEMA ? ema50 : na, "EMA 50", color = color.new(color.orange, 30))
+
+// ── DIBUJO ─────────────────────────────────────────────────────
+f_drawSetup(_show, _name, _dir, _zTop, _zBot, _sl, _tp1, _tp2) =>
+    var box   bZone = na
+    var line  lSL   = na
+    var line  lTP1  = na
+    var line  lTP2  = na
+    var label lInfo = na
+    if barstate.islast
+        box.delete(bZone), line.delete(lSL), line.delete(lTP1), line.delete(lTP2), label.delete(lInfo)
+        if _show
+            left  = bar_index - 60
+            right = bar_index + 25
+            colZ  = _dir == "Long" ? color.new(color.teal, 75) : color.new(color.red, 80)
+            bZone := box.new(left, _zTop, right, _zBot, border_color = color.gray, bgcolor = colZ)
+            lSL   := line.new(left, _sl,  right, _sl,  color = color.red,   width = 2, style = line.style_dashed)
+            lTP1  := line.new(left, _tp1, right, _tp1, color = color.green, width = 1, style = line.style_dotted)
+            lTP2  := line.new(left, _tp2, right, _tp2, color = color.green, width = 2)
+            // Cálculo de posición: riesgo fijo en $, tamaño desde el stop
+            entryMid = (_zTop + _zBot) / 2
+            riskUsd  = capital * riskPct / 100
+            distPct  = math.abs(entryMid - _sl) / entryMid
+            posUsd   = distPct > 0 ? riskUsd / distPct : 0.0
+            levEff   = capital > 0 ? posUsd / capital : 0.0
+            rr2      = math.abs(_tp2 - entryMid) / math.max(math.abs(entryMid - _sl), 0.01)
+            txt = _name + " (" + _dir + ")" +
+                 "\nEntrada media: " + str.tostring(entryMid, "#,###") +
+                 "\nRiesgo: $" + str.tostring(riskUsd, "#") +
+                 " | Posición: $" + str.tostring(posUsd, "#,###") +
+                 "\nPalanca efectiva: " + str.tostring(levEff, "#.##") + "x" +
+                 " | R:R a TP2: " + str.tostring(rr2, "#.#") + ":1"
+            lInfo := label.new(right, _zTop, txt, style = label.style_label_left, textcolor = color.white, color = color.new(color.gray, 20), size = size.small)
+
+f_drawSetup(showA, nameA, dirA, zTopA, zBotA, slA, tp1A, tp2A)
+f_drawSetup(showB, nameB, dirB, zTopB, zBotB, slB, tp1B, tp2B)
+
+// ── ALERTAS ────────────────────────────────────────────────────
+// La alerta avisa que el precio ENTRÓ en la zona. NO es la entrada:
+// el gatillo de confirmación en 15m/5m sigue siendo obligatorio.
+inZoneA = showA and high >= zBotA and low <= zTopA
+inZoneB = showB and high >= zBotB and low <= zTopB
+alertcondition(inZoneA, "Zona Setup Principal",   "BTC entró en la zona del Setup Principal. Busca el gatillo de 15m — NO entres sin confirmación.")
+alertcondition(inZoneB, "Zona Setup Alternativo", "BTC entró en la zona del Setup Alternativo. Busca el gatillo de 15m — NO entres sin confirmación.")
+
+// ── ⑤ SETUP BR — RUPTURA Y RETEST ─────────────────────────────
+// Vigila UN NIVEL. Alerta 1: cierre más allá del nivel (ruptura).
+// Alerta 2: el precio regresa al nivel tras la aceptación (retest).
+// El retest es donde se busca la vela de rechazo — NUNCA se opera la ruptura.
+grpBR    = "⑤ Nivel BR (Ruptura y Retest)"
+showBR   = input.bool(false,    "Activar",                    group = grpBR)
+brLevel  = input.float(63000.0, "Nivel vigilado",             group = grpBR)
+brTolPct = input.float(0.15,    "Tolerancia aceptación (%)", minval = 0.05, maxval = 0.5, group = grpBR) / 100
+
+var bool brUp  = false
+var bool brDn  = false
+var int  brBar = na
+if showBR
+    if not brUp and close > brLevel * (1 + brTolPct)
+        brUp  := true
+        brDn  := false
+        brBar := bar_index
+    if not brDn and close < brLevel * (1 - brTolPct)
+        brDn  := true
+        brUp  := false
+        brBar := bar_index
+
+brRuptura  = showBR and not na(brBar) and bar_index == brBar
+brAcepta   = showBR and not na(brBar) and bar_index >= brBar + 2
+brRetestL  = brAcepta and brUp and low  <= brLevel * (1 + brTolPct)
+brRetestS  = brAcepta and brDn and high >= brLevel * (1 - brTolPct)
+
+var line  brLn = na
+var label brLb = na
+if barstate.islast
+    line.delete(brLn), label.delete(brLb)
+    if showBR
+        brLn := line.new(bar_index - 60, brLevel, bar_index + 25, brLevel, color = color.purple, width = 2, style = line.style_dotted)
+        estadoBR = brUp ? "roto ↑ (retest = LONG)" : brDn ? "roto ↓ (retest = SHORT)" : "intacto — esperando ruptura"
+        brLb := label.new(bar_index + 25, brLevel, "Nivel BR " + str.tostring(brLevel, "#,###") + "\n" + estadoBR, style = label.style_label_left, color = color.new(color.purple, 20), textcolor = color.white, size = size.small)
+
+alertcondition(brRuptura,             "BR: ruptura del nivel", "BTC cerró más allá del nivel BR. NO persigas: espera aceptación (2-3 velas de 15m) y el RETEST.")
+alertcondition(brRetestL or brRetestS, "BR: retest del nivel",  "BTC está retesteando el nivel BR roto. Busca la vela de rechazo en 15m + chequeo de contexto antes de entrar.")

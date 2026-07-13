@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TRADEPANEL | Bot Configuration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0B0C0E;
+            color: #e2e2e6;
+            font-family: 'Geist', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .bento-card {
+            background-color: #1C1F23;
+            border: 1px solid #2D3139;
+            border-radius: 0.25rem;
+        }
+        .bento-card:hover {
+            border-color: #444933;
+        }
+        .cyber-lime-glow {
+            box-shadow: 0 0 15px rgba(171, 214, 0, 0.15);
+        }
+        .syntax-string { color: #abd600; }
+        .syntax-comment { color: #8e9379; }
+        .syntax-key { color: #ffffff; }
+        .syntax-value { color: #d8e2ff; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0c0e; }
+        ::-webkit-scrollbar-thumb { background: #333538; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444933; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#930005",
+                        "tertiary-fixed": "#d8e2ff",
+                        "surface-dim": "#111316",
+                        "on-surface": "#e2e2e6",
+                        "surface-container-highest": "#333538",
+                        "on-secondary": "#690003",
+                        "tertiary": "#ffffff",
+                        "outline-variant": "#444933",
+                        "on-tertiary-container": "#0060cc",
+                        "on-primary-container": "#556d00",
+                        "inverse-primary": "#506600",
+                        "error-container": "#93000a",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-variant": "#333538",
+                        "on-error-container": "#ffdad6",
+                        "secondary-container": "#c5020b",
+                        "surface": "#111316",
+                        "outline": "#8e9379",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "error": "#ffb4ab",
+                        "background": "#111316",
+                        "surface-bright": "#37393d",
+                        "on-tertiary": "#002e69",
+                        "on-primary": "#283500",
+                        "primary-container": "#c3f400",
+                        "on-background": "#e2e2e6",
+                        "on-primary-fixed": "#161e00",
+                        "primary-fixed": "#c3f400",
+                        "on-tertiary-fixed-variant": "#004493",
+                        "inverse-on-surface": "#2f3034",
+                        "secondary": "#ffb4aa",
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary-fixed-dim": "#ffb4aa",
+                        "tertiary-container": "#d8e2ff",
+                        "primary": "#ffffff",
+                        "secondary-fixed": "#ffdad5",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#001a41",
+                        "on-secondary-container": "#ffd2cc",
+                        "tertiary-fixed-dim": "#adc6ff",
+                        "on-secondary-fixed": "#410001",
+                        "surface-container-low": "#1a1c1f",
+                        "surface-container-high": "#282a2d",
+                        "surface-container": "#1e2023",
+                        "surface-tint": "#abd600",
+                        "surface-container-lowest": "#0c0e11",
+                        "inverse-surface": "#e2e2e6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "container-padding": "24px",
+                        "xs": "4px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "data-md": ["JetBrains Mono"],
+                        "data-lg": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "data-lg": ["20px", { "lineHeight": "28px", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-container-lowest min-h-screen flex">
+<!-- Sidebar Component -->
+<aside class="hidden md:flex flex-col h-screen py-lg px-md gap-base bg-surface-container border-r border-outline-variant w-64 fixed left-0">
+<div class="flex items-center gap-sm mb-lg px-xs">
+<img alt="TradePanel Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLs_EdOi0FnvHvFnUQinKO-E3Vs58su7mcG7f0aOE07E4ikmydDYPplLAWyikZrqFK7eeeZQFgW4POkoaho-ZWLgZpYvDIWXamhyigSSV_C4uDbjessrJhHqCpvF0Dt7amnEKMHN0LCvBpfOT8G55hGb_38Np5mVMDTO5QS5axlVDsp-ev6zyZa9jOxFzTfQF66aG4tpTHFGo0RSZEzsd340QTKNdZ_4mJSyqd5-aUDm5u7oNed5fmrn7Bo"/>
+<span class="font-headline-md text-headline-md font-bold text-primary-fixed tracking-tight">TRADEPANEL</span>
+</div>
+<nav class="flex-1 flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-base text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-label-sm uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">show_chart</span> Live Markets
+            </a>
+<a class="flex items-center gap-sm px-sm py-base text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-label-sm uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">history</span> Backtest History
+            </a>
+<a class="flex items-center gap-sm px-sm py-base bg-primary-container text-on-primary-container rounded-lg font-label-sm uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">smart_toy</span> Bot Status
+            </a>
+<a class="flex items-center gap-sm px-sm py-base text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-label-sm uppercase tracking-widest" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span> Account
+            </a>
+</nav>
+<div class="mt-auto pt-lg border-t border-outline-variant flex flex-col gap-md">
+<div class="flex items-center gap-sm px-xs">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center border border-outline">
+<span class="material-symbols-outlined text-primary-fixed">person</span>
+</div>
+<div>
+<p class="font-label-sm text-on-surface font-bold">Pro Trader</p>
+<p class="text-[10px] text-on-surface-variant opacity-70">Signal Precision Active</p>
+</div>
+</div>
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-bold py-sm rounded-lg hover:opacity-90 active:scale-95 transition-all text-label-sm uppercase tracking-widest cyber-lime-glow">
+                Execute Order
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-container-padding flex flex-col gap-lg max-w-7xl mx-auto">
+<!-- Header -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-md">
+<div>
+<div class="flex items-center gap-sm text-on-surface-variant mb-xs">
+<span class="font-label-sm uppercase tracking-widest">BOT</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm uppercase tracking-widest">Configuration</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">BingX Perpetual Futures</h1>
+</div>
+<div class="flex gap-sm">
+<button class="px-md py-sm bg-surface-container-highest text-on-surface rounded border border-outline-variant flex items-center gap-xs hover:bg-surface-bright transition-colors font-label-sm uppercase">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span> Dashboard
+                </button>
+<button class="px-md py-sm bg-surface-container-highest text-on-surface rounded border border-outline-variant flex items-center gap-xs hover:bg-surface-bright transition-colors font-label-sm uppercase">
+                    Backtest <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</header>
+<!-- Warning Banner -->
+<div class="bg-on-secondary-fixed-variant bg-opacity-10 border border-on-secondary-fixed-variant p-md rounded flex gap-md items-start">
+<span class="material-symbols-outlined text-on-secondary-fixed-variant">warning</span>
+<p class="font-body-md text-on-secondary-fixed-variant text-sm">
+                Esta pantalla solo genera la configuración — no envía órdenes ni corre el bot. El bot corre como proceso aparte (worker/) en un host propio (VPS/Railway/Fly.io), leyendo estas mismas variables de entorno. El default es <span class="font-bold">DRY_RUN=true</span> (simulado, sin plata real) — pasar a real es un cambio manual en el host, no un botón acá.
+            </p>
+</div>
+<!-- Parameters Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<div class="md:col-span-12 bento-card p-md">
+<h3 class="font-label-sm text-on-surface-variant uppercase tracking-widest mb-md">Parámetros</h3>
+<div class="grid grid-cols-2 md:grid-cols-6 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Symbol (Formato BingX)</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors" type="text" value="BTC-USDT"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Timeframe de entrada</label>
+<select class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors">
+<option>1m</option>
+<option>5m</option>
+<option>15m</option>
+</select>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Apalancamiento (x)</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors" type="number" value="10"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Tamaño trade (USD Margen)</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors" type="number" value="100"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Límite pérdida diaria (USD)</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors" type="number" value="30"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="text-[10px] text-on-surface-variant uppercase font-bold">Polling (Segundos)</label>
+<input class="bg-surface-container-lowest border border-outline-variant text-primary font-data-md text-data-md p-sm focus:border-primary-fixed focus:ring-0 outline-none transition-colors" type="number" value="20"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Preview Section -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<div class="md:col-span-12 bento-card p-md">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-label-sm text-on-surface-variant uppercase tracking-widest">Vista previa</h3>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-primary-fixed animate-pulse"></span>
+<span class="text-[11px] font-data-md text-on-surface-variant">Precio actual: $62,099.61</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase mb-xs">Notional (Margen x Leverage)</p>
+<p class="font-data-lg text-data-lg text-primary">$1,000</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase mb-xs">Cantidad Estimada</p>
+<p class="font-data-lg text-data-lg text-primary">0.0161 BTC</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase mb-xs">Umbral Seguro de Stop a 10x</p>
+<p class="font-data-lg text-data-lg text-primary-fixed">7.00%</p>
+</div>
+</div>
+<div class="mt-md p-sm bg-surface-container-low border-l-2 border-primary-fixed">
+<p class="text-xs text-on-surface-variant leading-relaxed">
+                        El worker rechaza automáticamente cualquier señal cuyo stop SR+ATR calculado quede más lejos que este umbral — eso protege contra abrir una posición que podría liquidarse antes de que el stop se ejecute. Con 20x este umbral bajaba tanto que ~14% de los trades históricos lo hubieran superado; con 10x baja a ~1.5%.
+                    </p>
+</div>
+</div>
+</section>
+<!-- .env Config Block -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<div class="md:col-span-12 bento-card overflow-hidden">
+<div class="bg-surface-container-high px-md py-sm flex justify-between items-center border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-[18px] text-primary-fixed">terminal</span>
+<h3 class="font-label-sm text-primary uppercase tracking-widest">.env para el host del worker</h3>
+</div>
+<button class="flex items-center gap-xs text-[10px] font-label-sm uppercase text-on-surface-variant hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-[16px]">content_copy</span> Copiar tal cual
+                    </button>
+</div>
+<div class="bg-[#0B0C0E] p-md overflow-x-auto">
+<pre class="font-data-md text-data-md leading-relaxed whitespace-pre"><span class="syntax-key">BOT_SYMBOL</span>=<span class="syntax-value">BTC-USDT</span>
+<span class="syntax-key">BOT_ENTRY_INTERVAL</span>=<span class="syntax-value">1m</span>
+<span class="syntax-key">BOT_LEVERAGE</span>=<span class="syntax-value">10</span>
+<span class="syntax-key">BOT_POSITION_SIZE_USD</span>=<span class="syntax-value">100</span>
+<span class="syntax-key">BOT_DAILY_LOSS_LIMIT_USD</span>=<span class="syntax-value">30</span>
+<span class="syntax-key">BOT_POLL_MS</span>=<span class="syntax-value">20000</span>
+
+<span class="syntax-comment"># Trading real vs. simulado — cambiar a mano en el host del worker,</span>
+<span class="syntax-comment"># nunca desde esta pantalla:</span>
+<span class="syntax-key">DRY_RUN</span>=<span class="syntax-value">true</span>
+
+<span class="syntax-comment"># Credenciales de BingX (permisos de solo trading, sin retiro):</span>
+<span class="syntax-key">BINGX_API_KEY</span>=
+<span class="syntax-key">BINGX_API_SECRET</span>=
+
+<span class="syntax-comment"># Notificaciones Telegram (opcional, @BotFather + tu chat id):</span>
+<span class="syntax-key">TELEGRAM_BOT_TOKEN</span>=
+<span class="syntax-key">TELEGRAM_CHAT_ID</span>=</pre>
+</div>
+</div>
+</section>
+<!-- Stats Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<div class="md:col-span-12 bento-card p-md">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-label-sm text-on-surface-variant uppercase tracking-widest">Historial Diario</h3>
+<span class="text-[10px] font-label-sm text-on-surface-variant opacity-50 uppercase">PnL real/DRY_RUN del worker, día por día</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md border-b border-outline-variant pb-md">
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold mb-xs">HOY — TRADES</p>
+<p class="font-data-lg text-data-lg text-primary">0</p>
+</div>
+<div>
+<p class="text-[10px] text-on-secondary-fixed-variant uppercase font-bold mb-xs">HOY — WIN RATE</p>
+<p class="font-data-lg text-data-lg text-on-secondary-fixed-variant">0%</p>
+</div>
+<div>
+<p class="text-[10px] text-primary-fixed uppercase font-bold mb-xs">HOY — PNL</p>
+<p class="font-data-lg text-data-lg text-primary-fixed">+0.00 USD</p>
+</div>
+</div>
+<div class="py-xl flex flex-col items-center justify-center text-on-surface-variant opacity-30 gap-sm">
+<span class="material-symbols-outlined text-[48px]">inventory_2</span>
+<p class="font-body-md">Todavía no se cerró ningún día completo.</p>
+</div>
+</div>
+</section>
+<!-- Footer Rules -->
+<footer class="mt-auto pt-md border-t border-outline-variant">
+<div class="flex flex-col gap-sm">
+<h4 class="font-label-sm text-primary uppercase tracking-widest flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed">security</span>
+                    Reglas de seguridad activas (siempre, no dependen del DRY_RUN)
+                </h4>
+<p class="text-[12px] text-on-surface-variant leading-relaxed">
+                    Máximo 1 posición abierta a la vez · Entradas con orden LIMIT · Salidas con STOP_MARKET (inicial) + TRAILING_STOP_MARKET (una vez que el precio se mueve 1.33% a favor, trailing 0.25%) · Corte automático al superar el límite de pérdida diaria configurado arriba.
+                </p>
+</div>
+</footer>
+</main>
+<!-- Floating UI elements -->
+<div class="fixed bottom-gutter right-gutter flex flex-col gap-sm">
+<button class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-primary-fixed shadow-xl hover:bg-surface-bright transition-all active:scale-90">
+<span class="material-symbols-outlined">chat_bubble</span>
+</button>
+<button class="w-12 h-12 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cyber-lime-glow">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+<script>
+        // Micro-interactions
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('focus', () => {
+                el.parentElement.querySelector('label').classList.add('text-primary-fixed');
+            });
+            el.addEventListener('blur', () => {
+                el.parentElement.querySelector('label').classList.remove('text-primary-fixed');
+            });
+        });
+
+        // Add visual feedback on copy (simulation)
+        document.querySelector('button[class*="Copiar"]').addEventListener('click', function() {
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> Copiado';
+            this.classList.add('text-primary-fixed');
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.classList.remove('text-primary-fixed');
+            }, 2000);
+        });
+    </script>
+</body></html>

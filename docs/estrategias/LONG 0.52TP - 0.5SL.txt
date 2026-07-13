@@ -1,0 +1,71 @@
+//@version=6
+strategy("Estrategia 0.52TP - 0.5SL", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10, process_orders_on_close=true)
+
+// --- INPUTS DE USUARIO ---
+sendExitAlerts = input.bool(false, "Enviar Alertas de Salida", tooltip="Activa esta opción si quieres que TradingView envíe las alertas de salida al bot.")
+
+// Toggle para TP y Trailing TP
+useTrailingTP = input.bool(true, "Usar Trailing TP?", tooltip="Activa para usar Trailing TP. Si está desactivado, se usará el TP fijo.")
+
+// Códigos de Alerta para el bot
+alertEntryCode = "ENTER-LONG_BINGX_BTC-USDT_2MR_1M_c5914cb2888d28970f-----d66dd8"
+alertExitCode = "EXIT-LONG_BINGX_BTC-USDT_2MR_1M_c5914cb2888d28970f-----d66dd8"
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO EN PORCENTAJES ---
+stopLossPercent = input.float(0.9, "Stop Loss (%)", minval=0.01)
+fixedTakeProfitPercent = input.float(0.5, "Take Profit Fijo (%)", minval=0.01)
+trailingActivatePercent = input.float(1.95, "Trailing TP Activate (%)", minval=0.01)
+trailingStopPercent = input.float(0.2, "Trailing TP Distance (%)", minval=0.01)
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+// MACD (1M)
+macdFastLength = input.int(12, "MACD Fast Length")
+macdSlowLength = input.int(26, "MACD Slow Length")
+macdSignalLength = input.int(9, "MACD Signal Length")
+[macdLine, signalLine, histLine] = ta.macd(close, macdFastLength, macdSlowLength, macdSignalLength)
+
+// RSI (1M)
+rsiLength = input.int(14, "RSI Length")
+rsiValue = ta.rsi(close, rsiLength)
+
+// --- LÓGICA DE ENTRADA FINAL ---
+// RSI mayor a 30
+bool rsiCondition = rsiValue > 30
+
+// MACD (1M) entre -60 y -200
+bool macdRangeCondition = macdLine > -500 and macdLine < -100
+
+// Cruce positivo del MACD (1M) sobre la línea de señal
+bool macdCrossoverCondition = ta.crossover(macdLine, signalLine)
+
+// Lógica de entrada completa
+bool longEntryCondition = rsiCondition and macdRangeCondition and macdCrossoverCondition
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Lógica de entrada. La orden ahora se procesa al cierre de la barra.
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long)
+    alert(alertEntryCode)
+
+// Lógica de gestión de salida
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    float stopLossPrice = entryPrice * (1 - (stopLossPercent / 100))
+    
+    if (useTrailingTP)
+        float trailActivatePrice = entryPrice * (1 + (trailingActivatePercent / 100))
+        float trailStopPoints = (entryPrice * (trailingStopPercent / 100)) / syminfo.mintick
+        // La orden de salida también se procesa al cierre de la barra
+        strategy.exit("ExitLong", from_entry="Long", stop=stopLossPrice, trail_price=trailActivatePrice, trail_offset=trailStopPoints)
+    else
+        float fixedTakeProfitPrice = entryPrice * (1 + (fixedTakeProfitPercent / 100))
+        // La orden de salida también se procesa al cierre de la barra
+        strategy.exit("ExitLong", from_entry="Long", stop=stopLossPrice, limit=fixedTakeProfitPrice)
+    
+// Lógica de alertas de salida separadas
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    if (sendExitAlerts)
+        alert(alertExitCode)
+
+// --- PLOTS PARA VISUALIZACIÓN ---
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)

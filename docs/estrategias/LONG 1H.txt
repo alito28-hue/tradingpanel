@@ -1,0 +1,84 @@
+//@version=6
+strategy("Estrategia MACD 1h Crossover Long Simple - SL MACD Down V5 - Con Alertas Cornix", overlay=true, initial_capital=6000, default_qty_value=360000, default_qty_type=strategy.cash, margin_long=0.01) // Capital y operación ajustados
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Filtro de histograma del MACD
+histThreshold = input.float(10, "MACD Histograma >= (para entrada)", tooltip="La entrada solo se activará si el histograma del MACD de 1h es mayor o igual a este valor.")
+
+// NUEVO: Configuración del RSI para el filtro
+rsiLength = input.int(14, "RSI Length")
+rsiThreshold = input.float(40.0, "RSI >= (para entrada)", tooltip="La entrada solo se activará si el RSI de 1h es mayor o igual a este valor.")
+
+// NUEVO: Opción para activar o desactivar la salida por cruce del MACD
+useMacdExit = input.bool(true, "Activar Salida por Cruce de MACD")
+
+// Obtener los valores del MACD y RSI en el marco de tiempo de 1 hora
+[macdLine_1h, signalLine_1h, histLine_1h] = request.security(syminfo.tickerid, "60", ta.macd(close, fastLength, slowLength, signalLength))
+rsiValue = request.security(syminfo.tickerid, "60", ta.rsi(close, rsiLength))
+
+// --- LÓGICA DE ENTRADA (LONG) ---
+// Condición de entrada: MACD de 1 hora cruza hacia arriba Y el histograma es mayor o igual al umbral Y el RSI es mayor o igual al umbral
+longEntryCondition = ta.crossover(macdLine_1h, signalLine_1h) and histLine_1h >= histThreshold and rsiValue >= rsiThreshold
+
+// --- LÓGICA DE SALIDA ADICIONAL (MACD Crossing Down) ---
+// Condición de salida: MACD de 1 hora cruza hacia abajo
+macdCrossingDownExitCondition = ta.crossunder(macdLine_1h, signalLine_1h)
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO ---
+// Parámetros para el Trailing Stop (en USD)
+trailActivationUSD = input.float(450.0, "Trailing Activar en (USD)")
+trailOffsetUSD = input.float(175.0, "Trailing Margen (USD)")
+
+stopLossPercent = input.float(0.65, "Stop-Loss en %")
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+
+// Mensaje de alerta para la entrada LONG que Cornix puede interpretar
+string entryAlertMessage = "BUY " + syminfo.tickerid + " entry_price=" + str.tostring(close) + " percent=100%"
+
+if (longEntryCondition)
+    alert(entryAlertMessage, alert.freq_once_per_bar_close) // Alerta de entrada Cornix
+    strategy.entry("Long", strategy.long, alert_message="🔔 ENTRADA LONG 🔔") // Mensaje TradingView para el log
+
+// --- LÓGICA DE SALIDA (MACD Crossing Down, Trailing Stop y SL Fijo) ---
+
+if (strategy.position_size > 0) // Si tenemos una posición Long abierta
+    // --- Salida por MACD Crossing Down (tiene prioridad si está activado) ---
+    if (useMacdExit and macdCrossingDownExitCondition)
+        string alertMessageExitMacdDown = "SELL " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+        alert(alertMessageExitMacdDown, alert.freq_once_per_bar_close) // Alerta de salida Cornix
+        strategy.close("Long", comment="MACD 1H Cross Down", alert_message="📉 SALIDA LONG (MACD DOWN) 📉") // Mensaje TradingView
+    else
+        float entryPrice = strategy.opentrades.entry_price(0) // Precio de entrada de la posición actual
+
+        // Cálculo de Stop-Loss en ticks (basado en porcentaje)
+        float stopLossInTicks = (entryPrice * (stopLossPercent / 100)) / syminfo.mintick
+        
+        // Cálculo de Trailing Stop en ticks (basado en USD)
+        float trailPointsInTicks = trailActivationUSD / syminfo.mintick
+        float trailOffsetInTicks = trailOffsetUSD / syminfo.mintick
+        
+        // Mensaje de alerta para la salida por SL o Trailing TP
+        string exitAlertMessageSLTP = "SELL " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+
+        // Ejecuta las órdenes de salida con SL fijo y Trailing Stop
+        alert(exitAlertMessageSLTP, alert.freq_once_per_bar_close) // Alerta de salida Cornix
+        strategy.exit("Salida TP/SL Fijo", from_entry="Long", 
+                       loss=stopLossInTicks, // Stop Loss fijo inicial
+                       trail_points=trailPointsInTicks, // Activa el trailing después de X USD de profit
+                       trail_offset=trailOffsetInTicks, // Margen de Y USD para el trailing
+                       alert_message="⚠️ SALIDA POR TP/SL/TRAILING ⚠️") // Mensaje TradingView
+
+// --- PLOTS PARA DEBUGGING Y VISUALIZACIÓN ---
+// Flecha para la condición de entrada
+plotshape(longEntryCondition, "LONG ENTRY", location=location.belowbar, color=color.new(color.blue, 0), style=shape.arrowup, size=size.normal)
+
+// Flecha para la nueva condición de salida por MACD Crossing Down
+plotshape(macdCrossingDownExitCondition and strategy.position_size > 0, "MACD Down Exit", location=location.abovebar, color=color.new(color.orange, 0), style=shape.arrowdown, size=size.normal)
+
+// Plot de la línea de cierre para asegurar que el gráfico principal se dibuje
+plot(close, title="Precio de Cierre", color=color.black, linewidth=1, style=plot.style_line)

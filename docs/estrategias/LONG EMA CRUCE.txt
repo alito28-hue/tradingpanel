@@ -1,0 +1,80 @@
+//@version=6
+strategy("EMA Crossover with ADX Filter", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10)
+
+// --- INPUTS DE USUARIO ---
+// Configuración de Medias Móviles
+fast_ema_length = input.int(9, "EMA Rápida (Periodos)")
+slow_ema_length = input.int(21, "EMA Lenta (Periodos)")
+
+// Configuración de MACD
+fast_length_macd = input.int(12, "MACD EMA Rápida")
+slow_length_macd = input.int(26, "MACD EMA Lenta")
+signal_length_macd = input.int(9, "MACD Señal")
+
+// Configuración de ADX
+adx_length = input.int(14, "ADX Periodos")
+adx_threshold = input.float(25.0, "ADX Umbral (Fuerza de Tendencia)")
+
+// Códigos de alerta para el bot
+alertEntryCode = input.string("ENTER-LONG_BINANCE_BTCUSDT_20 ENTRADAS_1M_c5d74cb28a8d28970f396d5b", "Alerta de Entrada")
+alertExitCode = input.string("EXIT-LONG_BINANCE_BTCUSDT_20 ENTRADAS_1M_c5d74cb28a8d28970f396d5b", "Alerta de Salida")
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO ---
+useTrailingTP = input.bool(true, "Usar Trailing TP?")
+stopLossUSD = input.float(245, "Stop Loss en USD", minval=0)
+trailingActivateUSD = input.float(250, "Trailing TP Activate (USD)", minval=0)
+trailingStopUSD = input.float(150, "Trailing TP Distance (USD)", minval=0)
+fixedTakeProfitUSD = input.float(185, "Take Profit Fijo en USD")
+
+// --- CÁLCULOS DE INDICADORES ---
+// EMA rápida y lenta
+fast_ema = ta.ema(close, fast_ema_length)
+slow_ema = ta.ema(close, slow_ema_length)
+
+// MACD
+[macd_line, signal_line, hist_line] = ta.macd(close, fast_length_macd, slow_length_macd, signal_length_macd)
+
+// Cálculo Manual de ADX
+plus_di = ta.rma(high - high[1] > low[1] - low ? math.max(high - high[1], 0) : 0, adx_length)
+minus_di = ta.rma(low[1] - low > high - high[1] ? math.max(low[1] - low, 0) : 0, adx_length)
+adx_val = 100 * ta.rma(math.abs(plus_di - minus_di) / (plus_di + minus_di == 0 ? 1 : plus_di + minus_di), adx_length)
+
+// --- LÓGICA DE ENTRADA FINAL ---
+// Condición 1: Cruce de la EMA rápida sobre la EMA lenta
+emaCrossover = ta.crossover(fast_ema, slow_ema)
+
+// Condición 2: El MACD es alcista
+macdUp = macd_line > signal_line
+
+// Condición 3: La fuerza de la tendencia es suficiente (ADX por encima del umbral)
+adxFilter = adx_val > adx_threshold
+
+// Condición de entrada combinada
+longEntryCondition = emaCrossover and macdUp and adxFilter
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Entrar en una posición larga
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long, comment=alertEntryCode)
+
+// Lógica de gestión de la posición
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    float dynamicSL = entryPrice - stopLossUSD
+            
+    if (useTrailingTP)
+        float trailActivatePoints = trailingActivateUSD / syminfo.mintick
+        float trailStopPoints = trailingStopUSD / syminfo.mintick
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, trail_points=trailActivatePoints, trail_offset=trailStopPoints, comment=alertExitCode)
+    else
+        float fixedTP = entryPrice + fixedTakeProfitUSD
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, limit=fixedTP, comment=alertExitCode)
+    
+// --- PLOTS PARA VISUALIZACIÓN ---
+// Trazar las EMAs en el gráfico
+plot(fast_ema, "EMA Rápida", color.blue)
+plot(slow_ema, "EMA Lenta", color.orange)
+
+// Trazar una flecha para las señales de entrada
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)

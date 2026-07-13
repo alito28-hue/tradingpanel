@@ -1,0 +1,123 @@
+//@version=6
+strategy("Estrategia MACD 1h Short V8 - Trailing Prioritario", overlay=true, initial_capital=3000, default_qty_value=180000, default_qty_type=strategy.cash, margin_long=0.01, margin_short=0.01) // Capital: 3000, Operación: 180,000 (apalancado x100)
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Obtener los valores del MACD en el marco de tiempo de 1 hora (60 minutos)
+[macdLine_1h, signalLine_1h, histLine_1h] = request.security(syminfo.tickerid, "60", ta.macd(close, fastLength, slowLength, signalLength))
+
+// --- LÓGICA DE ENTRADA (SHORT) ---
+// Condición de entrada: MACD de 1 hora cruza hacia abajo (línea azul por debajo de la naranja)
+shortEntryCondition = ta.crossunder(macdLine_1h, signalLine_1h)
+
+// --- LÓGICA DE SALIDA (CIERRE DE SHORT POR CAMBIO DE DIRECCIÓN) ---
+// Condición de salida: MACD de 1 hora cruza hacia arriba (línea azul por encima de la naranja)
+shortExitCondition = ta.crossover(macdLine_1h, signalLine_1h)
+
+// Variables de Take-Profit (TP) y Stop-Loss (SL)
+// Parámetros para el Trailing Stop de Take-Profit (principal)
+trailingProfitActivationThresholdUSD = input.float(2750.0, "TP Trailing Activar en USD") // Activación a 4500 USD de beneficio
+trailingProfitOffsetUSD = input.float(750.0, "TP Trailing Margen en USD")   // Margen a 750 USD
+
+// Nuevos parámetros para la protección de beneficio mínimo (Mover SL a 300 USD de profit)
+// ESTOS PARÁMETROS SE MANTIENEN PERO SU LÓGICA ESTÁ DESACTIVADA TEMPORALMENTE.
+guaranteedProfitActivationThresholdUSD = input.float(1000.0, "Umbral de Ganancia para Activar Profit Garantizado (USD)") 
+guaranteedProfitAmountUSD = input.float(300.0, "Profit Garantizado (USD)") 
+
+stopLossPercent = input.float(0.42, "Stop-Loss en %") // SL inicial: 0.42%
+
+// Variables para gestionar el estado del Stop Loss garantizado y el precio de salida
+var float priceForGuaranteedProfitExit = na 
+var bool guaranteedProfitActivated = false 
+
+// Declarar currentFloatingProfit y canExitByMacd en un alcance superior
+var float currentFloatingProfit = 0.0 
+var bool canExitByMacd = false 
+
+// Ejecución de la estrategia de entrada
+if (shortEntryCondition)
+    // Reiniciar las variables al entrar en una nueva operación
+    priceForGuaranteedProfitExit := na
+    guaranteedProfitActivated := false
+    currentFloatingProfit := 0.0 
+    canExitByMacd := false 
+    
+    // Mensaje de alerta personalizado para la entrada SHORT
+    alertMessageEntryShort = "📉 ENTRADA SHORT 📉\n" + 
+                             "Símbolo: " + syminfo.tickerid + "\n" +
+                             "Acción: VENTA\n" +
+                             "Precio de Entrada: " + str.tostring(close) + "\n" +
+                             "Cantidad: " + str.tostring(strategy.position_size) + "\n" +
+                             "TP Trailing Activa: " + str.tostring(trailingProfitActivationThresholdUSD) + " USD\n" +
+                             "TP Trailing Margen: " + str.tostring(trailingProfitOffsetUSD) + " USD\n" +
+                             "Profit Garantizado Activa: " + str.tostring(guaranteedProfitActivationThresholdUSD) + " USD\n" +
+                             "Profit Garantizado a: " + str.tostring(guaranteedProfitAmountUSD) + " USD\n" +
+                             "Stop-Loss Inicial: " + str.tostring(stopLossPercent) + " %\n" +
+                             "Capital Estrategia: " + str.tostring(strategy.equity)
+
+    strategy.entry("Short", strategy.short, alert_message=alertMessageEntryShort) // Abrir posición corta con alerta
+
+// --- Lógica de Salida Principal si hay una posición corta abierta ---
+if (strategy.position_size < 0)
+    entryPrice = strategy.opentrades.entry_price(0)
+    positionSizeUnits = math.abs(strategy.position_size)
+    currentFloatingProfit := strategy.opentrades.profit(0) // Actualizar beneficio flotante
+
+    // --- CÁLCULO Y ACTIVACIÓN DEL PRECIO DE PROFIT GARANTIZADO ---
+    // ESTA LÓGICA ESTÁ DESACTIVADA TEMPORALMENTE.
+    // if currentFloatingProfit >= guaranteedProfitActivationThresholdUSD and not guaranteedProfitActivated
+    //     priceForGuaranteedProfitExit := entryPrice - (guaranteedProfitAmountUSD / positionSizeUnits)
+    //     guaranteedProfitActivated := true
+
+    // --- LÓGICA DE SALIDA POR PROFIT GARANTIZADO (con strategy.close) ---
+    // ESTA LÓGICA ESTÁ DESACTIVADA TEMPORALMENTE.
+    // if guaranteedProfitActivated and close >= priceForGuaranteedProfitExit
+    //     alertMessageGuaranteedProfit = "✅ SALIDA POR PROFIT GARANTIZADO ✅ Símbolo: " + syminfo.tickerid + " Acción: COMPRA (Cierre) Precio de Cierre: " + str.tostring(close) + " Capital Estrategia: " + str.tostring(strategy.equity)
+    //     strategy.close("Short", comment="Profit Garantizado", alert_message=alertMessageGuaranteedProfit)
+    //     guaranteedProfitActivated := false
+    //     priceForGuaranteedProfitExit := na
+    
+    // --- LÓGICA DE SALIDA POR MACD (Solo si NO estamos en zona de activación del Trailing Stop principal) ---
+    // Esta salida solo se ejecuta si el MACD cambia de dirección Y el beneficio flotante es MENOR
+    // que el umbral de activación del Trailing Stop principal.
+    canExitByMacd := shortExitCondition and currentFloatingProfit < trailingProfitActivationThresholdUSD // CAMBIO: Restricción para dar prioridad al Trailing TP
+
+    if (canExitByMacd)
+        alertMessageExitShort = "📈 SALIDA SHORT (MACD UP) 📈 Símbolo: " + syminfo.tickerid + " Acción: COMPRA (Cierre) Precio de Cierre: " + str.tostring(close) + " Capital Estrategia: " + str.tostring(strategy.equity)
+        strategy.close("Short", comment="MACD Exit", alert_message=alertMessageExitShort) // Cerrar la posición corta existente con alerta
+
+    // --- CÁLCULOS PARA STRATEGY.EXIT (SL INICIAL Y TRAILING TP PRINCIPAL) ---
+    // Cálculo del Stop-Loss inicial en ticks
+    float initialStopLossInTicks = (entryPrice * (stopLossPercent / 100)) / syminfo.mintick
+    
+    // Cálculo de Take-Profit de activación para el Trailing Stop principal
+    float priceMovementForTPActivate = trailingProfitActivationThresholdUSD / positionSizeUnits
+    float takeProfitActivateInTicks = priceMovementForTPActivate / syminfo.mintick
+    
+    // Cálculo del margen del Trailing Stop principal
+    float priceMovementForTrailingOffset = trailingProfitOffsetUSD / positionSizeUnits
+    float trailingOffsetInTicks = priceMovementForTrailingOffset / syminfo.mintick
+    
+    // strategy.exit gestiona el Stop Loss inicial y el Trailing Stop principal.
+    // Se ejecuta siempre que haya una posición abierta y sus condiciones de salida se evalúan internamente.
+    strategy.exit("Salida TP/SL/Trailing", from_entry="Short",
+                   loss=initialStopLossInTicks, // Stop Loss fijo inicial
+                   trail_points=takeProfitActivateInTicks, // Activa el trailing después de X USD de profit
+                   trail_offset=trailingOffsetInTicks, // Margen de Y USD para el trailing
+                   alert_message="⚠️ SL INICIAL / TRAILING TP ACTIVADO ⚠️")
+else
+    currentFloatingProfit := 0.0 
+    canExitByMacd := false 
+
+
+// --- PLOTS PARA DEBUGGING Y VISUALIZACIÓN ---
+// Flecha roja hacia abajo en el gráfico principal para la entrada en SHORT
+plotshape(shortEntryCondition, "SHORT Entry", location=location.abovebar, color=color.red, style=shape.arrowdown, size=size.normal)
+
+// Flecha verde hacia arriba en el gráfico principal para la salida del SHORT (Solo si el MACD cierra)
+// La condición de plotshape debe reflejar la lógica real del cierre por MACD.
+plotshape(canExitByMacd, // Usa la variable 'canExitByMacd' declarada globalmente
+         "SHORT Exit (MACD Up)", location=location.belowbar, color=color.green, style=shape.arrowup, size=size.normal)

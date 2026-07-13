@@ -1,0 +1,78 @@
+//@version=6
+strategy("Estrategia Corta 1M - 20 Entradas - Mejorado", overlay=true, initial_capital=30000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10)
+
+// --- INPUTS DE INDICADORES ---
+sendExitAlerts = input.bool(true, "Enviar Alertas de Salida", tooltip="Activa esta opción si quieres que TradingView envíe las alertas de salida al bot.")
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+rsiLength = input.int(14, "RSI Length (1m)")
+rsiThreshold = input.float(50.0, "RSI Buy Threshold (1m)", minval=0, maxval=100)
+rsiLengthMTF = input.int(14, "RSI Length (5m)")
+rsiThresholdMTF = input.float(40.0, "RSI Threshold (5m)", minval=0, maxval=100)
+stopLossUSD = input.float(240, "Stop Loss en USD")
+
+// --- OPCIONES PARA TAKE PROFIT Y STOP LOSS ---
+useTrailingTP = input.bool(true, "Usar Trailing TP?")
+trailingActivateUSD = input.float(370, "Trailing TP Activate (USD)", minval=0)
+trailingStopUSD = input.float(50, "Trailing TP Distance (USD)", minval=0)
+fixedTakeProfitUSD = input.float(390, "Take Profit Fijo en USD")
+
+// Códigos de alerta para el bot
+commentEntry = "ENTER-LONG_BINANCE_BTCUSDT_20_1M_c5d74cb28a8d28970f396d5b"
+commentExit = "EXIT-LONG_BINANCE_BTCUSDT_20_1M_c5d74cb28a8d28970f396d5b"
+macdMtfThreshold = input.float(60.0, "MACD 5m No-Entry Threshold")
+
+// --- CÁLCULOS DE INDICADORES ---
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+[macdMtfLine, signalMtfLine, histMtfLine] = request.security(syminfo.tickerid, "5", ta.macd(close, fastLength, slowLength, signalLength))
+rsiValue = ta.rsi(close, rsiLength)
+rsiValueMTF = request.security(syminfo.tickerid, "5", ta.rsi(close, rsiLengthMTF))
+
+// --- LÓGICA DE ENTRADA FINAL ---
+bool macdCrossoverCondition = ta.crossover(macdLine, signalLine)
+bool macdFilterCondition = macdLine < -30 or (macdLine > -10 and macdLine < -5)
+bool rsiFilterCondition = rsiValue > rsiThreshold
+bool mtfRsiFilterCondition = rsiValueMTF >= rsiThresholdMTF
+bool mtfMacdFilterCondition = macdMtfLine < macdMtfThreshold
+bool longEntryCondition = macdCrossoverCondition and macdFilterCondition and rsiFilterCondition and mtfRsiFilterCondition and mtfMacdFilterCondition
+
+// --- VARIABLES PARA LA GESTIÓN DE SALIDAS DINÁMICAS ---
+var float dynamicSL = na
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Lógica para la entrada (con alerta dedicada)
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long)
+    alert(commentEntry)
+
+// Lógica de gestión de la posición
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    if (na(dynamicSL) or close < entryPrice)
+        dynamicSL := entryPrice - stopLossUSD
+            
+    // Salida con stop loss dinámico y TP seleccionable
+    if (useTrailingTP)
+        float trailActivatePoints = trailingActivateUSD / syminfo.mintick
+        float trailStopPoints = trailingStopUSD / syminfo.mintick
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, trail_points=trailActivatePoints, trail_offset=trailStopPoints)
+    else
+        float fixedTP = entryPrice + fixedTakeProfitUSD
+        strategy.exit("Exit", from_entry="Long", stop=dynamicSL, limit=fixedTP)
+    
+// Lógica de alerta de salida separada
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    if (sendExitAlerts)
+        alert(commentExit)
+
+// --- LABELS Y PLOTS ---
+if (strategy.position_size > 0 and strategy.position_size[1] == 0)
+    label.new(bar_index, low, "ENTRADA", xloc.bar_index, yloc.belowbar, color.new(color.green, 10), textcolor=color.white, style=label.style_label_up)
+
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    label.new(bar_index[1], high[1], "SALIDA", xloc.bar_index, yloc.abovebar, color.new(color.red, 10), textcolor=color.white, style=label.style_label_down)
+    
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
+plotshape(series=mtfMacdFilterCondition, title="MACD 5m No-Entry", style=shape.diamond, location=location.top, color=color.new(color.blue, 70), size=size.tiny)

@@ -1,0 +1,66 @@
+codigo de momentum:
+
+//@version=6
+strategy("Estrategia Warrior: LA BUENA (Final)", overlay=true, initial_capital=2000, default_qty_type=strategy.cash, default_qty_value=2000, currency=currency.USD)
+
+// ==========================================
+// 1. CONFIGURACIÓN
+// ==========================================
+tp_pct = input.float(10.0, "Take Profit 1ra Mitad (%)") / 100
+
+// FILTRO HORARIO (Fijo hasta las 9:30 AM NY)
+horario_permitido = input.session("0400-0930", "Horario Operativo (NY)")
+en_horario = not na(time(timeframe.period, horario_permitido, "America/New_York"))
+
+// FILTRO MACD (Solo positivo)
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+bool macd_positivo = histLine > 0
+
+// ==========================================
+// 2. LÓGICA DE ENTRADA
+// ==========================================
+// Identificamos el pullback (Vela Roja)
+bool esVelaRoja = close < open
+
+// Visualización de zonas prohibidas (Rojo = MACD Malo | Gris = Tarde)
+bgcolor(not macd_positivo ? color.new(color.red, 90) : na)
+bgcolor(not en_horario ? color.new(color.gray, 90) : na)
+
+// EJECUCIÓN: Vela Roja + MACD Verde + Horario Correcto + Sin Posición
+if esVelaRoja and macd_positivo and en_horario and strategy.position_size == 0
+    
+    // DEFINICIÓN DE PRECIOS
+    float precio_entrada = high       // Comprar si rompe el techo
+    float precio_sl = low             // SL en el piso
+    float precio_tp_parcial = precio_entrada * (1 + tp_pct) // Objetivo +10%
+    
+    string id = "Warrior Long"
+    
+    // ORDEN DE ENTRADA (STOP)
+    // Espera a que el precio SUBA y toque el máximo de la vela roja
+    strategy.entry(id, strategy.long, stop=precio_entrada, comment="Breakout " + str.tostring(precio_entrada, format.mintick))
+    
+    // ==========================================
+    // 3. GESTIÓN DE SALIDAS
+    // ==========================================
+    
+    // A. SALIDA PARCIAL (TP 10%): Vende la mitad (50%)
+    strategy.exit("TP 50%", from_entry=id, qty_percent=50, limit=precio_tp_parcial, stop=precio_sl, comment_profit="TP 50%")
+    
+    // B. PROTECCIÓN RESTANTE: Mantiene el SL original para la otra mitad
+    strategy.exit("SL Restante", from_entry=id, stop=precio_sl, comment_loss="SL Total")
+
+// ==========================================
+// 4. SALIDA DEL RUNNER (CIERRE POR VELA ROJA)
+// ==========================================
+// Si estamos dentro y la vela cierra roja -> VENDEMOS TODO
+if strategy.position_size > 0
+    if close < open
+        strategy.close("Warrior Long", comment="Cierre Vela Roja")
+
+// ==========================================
+// 5. DIBUJO
+// ==========================================
+if esVelaRoja and macd_positivo and en_horario
+    line.new(bar_index, high, bar_index + 1, high, color=color.green, width=2)
+    line.new(bar_index, low, bar_index + 1, low, color=color.red, style=line.style_dashed, width=2)

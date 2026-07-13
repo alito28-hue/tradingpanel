@@ -1,0 +1,51 @@
+//@version=6
+strategy("Estrategia Limpia v34", overlay=true, initial_capital=18000, default_qty_value=180000, default_qty_type=strategy.cash, margin_long=0.10)
+
+// --- INPUTS DE INDICADORES ---
+// MACD Configuration
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Stop Loss en USD
+stopLossUSD = input.float(455, "Stop Loss en USD")
+
+// Trailing Take Profit configuration
+// The offset is the profit required to activate the trailing stop.
+// The trail points is the distance the price can retrace before the exit is triggered.
+trailingActivateUSD = input.float(135, "Trailing TP Activate (USD)", minval=0)
+trailingStopUSD = input.float(100, "Trailing TP Distance (USD)", minval=0)
+
+// --- INDICATOR CALCULATIONS ---
+// MACD calculation for the current timeframe
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// --- ENTRY LOGIC ---
+// Rule 1: Current timeframe MACD histogram is between -20 and 10
+bool histRangeCondition = histLine > -20 and histLine < 10
+
+// Rule 2: Current timeframe MACD line is more negative than -50
+bool macdFilterCondition = macdLine < -50
+
+// Combined condition: All rules must be true to enter
+bool longEntryCondition = histRangeCondition and macdFilterCondition
+
+// --- STRATEGY EXECUTION ---
+// Enter a long position when conditions are met
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long)
+
+// Calculate prices and points for exit
+float stopLossPrice = strategy.opentrades.entry_price(0) - stopLossUSD
+float trailActivatePoints = trailingActivateUSD / syminfo.mintick
+float trailStopPoints = trailingStopUSD / syminfo.mintick
+
+// Exit the position with a fixed Stop Loss and a Trailing Stop Take Profit
+// The 'trail_offset' activates the trailing stop when the price moves 'trailActivatePoints' above the entry.
+// The 'trail_points' is the distance the price can drop from its peak before the position is closed.
+if (strategy.position_size > 0)
+    strategy.exit("Exit", from_entry="Long", stop=stopLossPrice, trail_offset=trailActivatePoints, trail_points=trailStopPoints)
+
+// --- PLOTS FOR VISUALIZATION ---
+// Plot a green arrow for entry signals
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)

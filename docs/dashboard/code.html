@@ -1,0 +1,267 @@
+<!DOCTYPE html><html class="dark" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Signal Precision | Dashboard de Trading</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Geist -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: '#111316',
+            'surface-container': '#1a1c1f',
+            'surface-bright': '#37393d',
+            primary: '#ccff00',
+            negative: '#ff4d4d',
+          },
+          fontFamily: {
+            sans: ['Geist', 'ui-sans-serif', 'system-ui'],
+            mono: ['Geist Mono', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+<style data-purpose="typography">
+    body {
+      font-family: 'Geist', sans-serif;
+      background-color: #111316;
+      color: #e2e8f0;
+    }
+    /* Tabular numbers for price and data stability */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+<style data-purpose="custom-scroll">
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111316;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #37393d;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4a4d52;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-primary selection:text-black">
+<!-- BEGIN: MainHeader -->
+<header class="sticky top-0 z-50 border-b border-surface-bright bg-surface/80 backdrop-blur-md px-6 py-3 flex items-center justify-between" data-purpose="app-header">
+<div class="flex items-center gap-4">
+<img alt="Signal Precision Logo" class="w-12 h-12 object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLvt3ThIOwZH9gYN_JSjYxayN-LJc6ANP-BB29D-F6Ok8rJsMtLANwq7J_6Ux7KYr2WdBQXYms0a_etA-pjiN7whv6QOyeCD9mVIORULj5EYH6I3tQx5uZmTeEz3VTFJXtlW0U5wtp9lCZvWEGIL1Iumg5wwuMHWELbxHfv6tSV02x7fdywDb-9YwDKyZshSbxTmWAFHT6WVzt1mOe1BnrW9tNRYtuGS2GdTX9T54JbDWP30aGHvAy2tpQ">
+<div class="flex flex-col">
+<span class="text-xs uppercase tracking-widest text-slate-500 font-bold">Intraday Momentum</span>
+<h1 class="text-xl font-bold tracking-tight">BTC / USDT</h1>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="flex flex-col items-end">
+<span class="text-2xl font-bold tabular-nums">$62,113.24</span>
+<span class="text-xs font-semibold px-2 py-0.5 bg-negative/20 text-negative rounded flex items-center gap-1">
+<span class="block w-1.5 h-1.5 rounded-full bg-negative animate-pulse"></span>
+          ▼ 1H BEARISH
+        </span>
+</div>
+<nav class="flex items-center gap-2">
+<button class="px-4 py-2 text-sm font-medium hover:bg-surface-bright rounded transition-colors border border-surface-bright">⚙ Settings</button>
+<button class="px-4 py-2 text-sm font-medium bg-primary text-black hover:bg-primary/90 rounded transition-colors flex items-center gap-2">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          Refresh
+        </button>
+<button class="px-4 py-2 text-sm font-medium hover:bg-surface-bright rounded transition-colors border border-surface-bright">Backtest →</button>
+<button class="px-4 py-2 text-sm font-medium border border-primary text-primary hover:bg-primary hover:text-black rounded transition-colors">Bot →</button>
+</nav>
+</div>
+</header>
+<!-- END: MainHeader -->
+<main class="p-6 space-y-6">
+<!-- BEGIN: AlertBanner -->
+<div class="bg-negative/10 border-l-4 border-negative p-4 rounded flex items-center justify-between" data-purpose="active-signal-alert">
+<div class="flex items-center gap-3 text-negative">
+<span class="w-2 h-2 rounded-full bg-negative animate-ping"></span>
+<p class="font-bold tabular-nums">SHORT activo desde 8/7/2026, 04:14:00 ART @ 62093.0 • stop actual: 64191.7</p>
+</div>
+<span class="text-xs text-slate-500 uppercase">Auto-refreshing every 20s • Last updated: 06:40:52 p. m. ART</span>
+</div>
+<!-- END: AlertBanner -->
+<!-- BEGIN: ConfigurationGrid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" data-purpose="trading-config">
+<!-- Symbol & Timeframe -->
+<div class="bg-surface-container p-4 rounded-lg border border-surface-bright flex flex-col gap-3">
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block mb-1">Symbol</label>
+<div class="flex gap-2">
+<input class="bg-surface border-surface-bright text-sm rounded w-full focus:ring-primary focus:border-primary" type="text" value="BTCUSDT">
+<button class="bg-primary text-black text-xs font-bold px-3 rounded">Load</button>
+</div>
+</div>
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block mb-1">Entry Timeframe</label>
+<select class="bg-surface border-surface-bright text-sm rounded w-full focus:ring-primary">
+<option>1m</option>
+<option>5m</option>
+<option>15m</option>
+</select>
+</div>
+</div>
+<!-- Signal Mode -->
+<div class="bg-surface-container p-4 rounded-lg border border-surface-bright">
+<label class="text-[10px] uppercase font-bold text-slate-500 block mb-2">Signal Mode</label>
+<select class="bg-surface border-surface-bright text-sm rounded w-full focus:ring-primary">
+<option>Price crosses single MA</option>
+<option>Two MA Cross</option>
+</select>
+<div class="mt-4 grid grid-cols-2 gap-2">
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block">MA len</label>
+<input class="bg-surface border-surface-bright text-sm rounded w-full" type="number" value="200">
+</div>
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block">Cooldown (min)</label>
+<input class="bg-surface border-surface-bright text-sm rounded w-full" type="number" value="0">
+</div>
+</div>
+</div>
+<!-- Filters -->
+<div class="bg-surface-container p-4 rounded-lg border border-surface-bright space-y-3">
+<label class="text-[10px] uppercase font-bold text-slate-500 block">MACD Zero Filter</label>
+<label class="flex items-center gap-3 text-sm cursor-pointer">
+<input checked="" class="rounded bg-surface border-surface-bright text-primary focus:ring-primary" type="checkbox">
+          Require MACD agreement
+        </label>
+<div class="pt-2">
+<label class="text-[10px] uppercase font-bold text-slate-500 block">Regime Gate</label>
+<label class="flex items-center gap-3 text-sm mt-2 cursor-pointer">
+<input checked="" class="rounded bg-surface border-surface-bright text-primary focus:ring-primary" type="checkbox">
+            Gate entries by the 1H regime
+          </label>
+</div>
+</div>
+<!-- Volume -->
+<div class="bg-surface-container p-4 rounded-lg border border-surface-bright space-y-3">
+<label class="text-[10px] uppercase font-bold text-slate-500 block">Volume (Tape)</label>
+<label class="flex items-center gap-3 text-sm cursor-pointer">
+<input class="rounded bg-surface border-surface-bright text-primary focus:ring-primary" type="checkbox">
+          Confirm with aggressor volume
+        </label>
+<div class="pt-2">
+<label class="text-[10px] uppercase font-bold text-slate-500 block">Volumen V2</label>
+<div class="space-y-2 mt-2">
+<label class="flex items-center gap-3 text-sm cursor-pointer">
+<input checked="" class="rounded bg-surface border-surface-bright text-primary focus:ring-primary" type="checkbox">
+              Marcar climax
+            </label>
+<label class="flex items-center gap-3 text-sm cursor-pointer">
+<input class="rounded bg-surface border-surface-bright text-primary focus:ring-primary" type="checkbox">
+              Marcar divergencia
+            </label>
+</div>
+</div>
+</div>
+<!-- 1H Settings -->
+<div class="bg-surface-container p-4 rounded-lg border border-surface-bright">
+<label class="text-[10px] uppercase font-bold text-slate-500 block mb-2">1H Settings</label>
+<div class="grid grid-cols-2 gap-2">
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block">MA len</label>
+<input class="bg-surface border-surface-bright text-sm rounded w-full" type="number" value="200">
+</div>
+<div>
+<label class="text-[10px] uppercase font-bold text-slate-500 block">Cooldown (h)</label>
+<input class="bg-surface border-surface-bright text-sm rounded w-full" type="number" value="6">
+</div>
+</div>
+</div>
+</section>
+<!-- END: ConfigurationGrid -->
+<!-- BEGIN: ChartSection -->
+<section class="space-y-4" data-purpose="trading-charts">
+<!-- 1H Regime Chart -->
+<div class="bg-surface-container border border-surface-bright rounded-lg overflow-hidden">
+<div class="px-4 py-2 bg-surface/50 border-b border-surface-bright flex justify-between items-center">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">1H — Regime</h3>
+<span class="text-[10px] text-slate-500">Price vs SMA 200</span>
+</div>
+<div class="h-[300px] w-full relative bg-[#0d0e11]">
+<!-- Chart Placeholder Image -->
+<img alt="1H Regime Chart" class="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNXbfKYCVYESDSRC8c4rPOzMKHCXX28hDRNGrBj8Rq314e-JPAT1O-JpC5Z1-TtOAcROw1gwGhK9ruQOqWrvrELM3LYxflJgpDXxViU1m71KKPRoUfxa8CD6ZzQWybTgFbJfxP5kpgG87tfrfY4ld-mfy4aAXFZAI7JjmPMlKHEC6ew8telpH7-EC6fy2O-9Z70KDzFgWDqvloPvc1_4TSj8LW-h65mWzCdB11ZUfvF4jVBW2MseKv">
+<!-- Overlay elements mockup -->
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 tabular-nums text-[10px] font-bold">
+<span class="text-negative bg-negative/20 px-1 border-r-2 border-negative">62099.61</span>
+<span class="text-orange-400 bg-orange-400/20 px-1 border-r-2 border-orange-400">61965.97</span>
+</div>
+</div>
+</div>
+<!-- Entry (1m) Chart -->
+<div class="bg-surface-container border border-surface-bright rounded-lg overflow-hidden">
+<div class="px-4 py-2 bg-surface/50 border-b border-surface-bright flex justify-between items-center">
+<div class="flex items-center gap-4">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Entry (1m) — Entries &amp; Exits</h3>
+<div class="flex items-center gap-3 text-[9px] uppercase font-bold">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> Green = Long</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-negative"></span> Red = Short</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-400"></span> Amber = Exit</span>
+</div>
+</div>
+<span class="text-[10px] text-slate-500">TIMEFRAME DE ESTE CHART</span>
+</div>
+<div class="h-[400px] w-full relative bg-[#0d0e11]">
+<img alt="1m Entry Chart" class="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDk5DbuFycIYX_UL0QlCreIeuK-MO58mTGCP7JNcW9OY6dKXHDK3ru1y8lD58zPfaK8apwofbWFk68ZFDYjiiX6wxKz2hWzg8pYz89wMWC0HuShWlOJ-OfZnWLUjzswGOwWg-zRnM7wMSBPw1F8NmopHAiPuleI0SaVylkmlx5Ei7zofvncZoecgMipPU69O520WjLRAnXc59UdWEqBoz0iauhlrPKSLssk64GI2j2tDRi3PCyzQEwk">
+<!-- Price Tag Mockup -->
+<div class="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-1 tabular-nums text-[11px] font-bold">
+<div class="bg-surface-bright p-1 pr-4 border-l-4 border-orange-400 text-orange-400">62168.16</div>
+<div class="bg-surface-bright p-1 pr-4 border-l-4 border-primary text-primary">62113.24</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: ChartSection -->
+<!-- BEGIN: DataTables -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Trade History -->
+<div class="bg-surface-container border border-surface-bright rounded-lg" data-purpose="trade-history">
+<div class="px-4 py-3 border-b border-surface-bright flex justify-between items-center">
+<h3 class="font-bold text-sm">Trade history</h3>
+<span class="text-[10px] text-slate-500 uppercase">0 trades cerrados en total</span>
+</div>
+<div class="p-8 text-center text-slate-600 italic text-sm">
+          Ningún trade se cerró todavía.
+        </div>
+</div>
+<!-- Active Rule -->
+<div class="bg-surface-container border border-surface-bright rounded-lg" data-purpose="rule-explanation">
+<div class="px-4 py-3 border-b border-surface-bright">
+<h3 class="font-bold text-sm">Active rule</h3>
+</div>
+<div class="p-4 space-y-4 text-sm text-slate-400 leading-relaxed">
+<p class="">Long when the 1m shows price crossing SMA200 with MACD agreeing on the same side of zero, while the 1H regime stays aligned. Short mirrors this on the bearish side. Exit via a support/resistance + ATR stop that trails once price moves 1.33% in favor — validated against 180 days of BTCUSDT (see backtest): net profit factor ~9.5, both long and short profitable.</p>
+<div class="p-3 bg-surface rounded border border-surface-bright text-xs">
+            6 gated entries found in the loaded window. This is a research/visualization aid, not financial advice — validate against your own backtest before trading it live.
+          </div>
+</div>
+</div>
+</section>
+<!-- END: DataTables -->
+</main>
+<!-- Sidebar Tooltips/Actions Mock -->
+<div class="fixed right-4 bottom-10 flex flex-col gap-3">
+<button class="w-12 h-12 bg-surface-container border border-surface-bright rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="w-12 h-12 bg-surface-container border border-surface-bright rounded-full flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16m-7 6h7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+
+
+</body></html>

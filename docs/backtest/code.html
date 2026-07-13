@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed-variant": "#930005",
+            "tertiary-fixed": "#d8e2ff",
+            "surface-dim": "#111316",
+            "on-surface": "#e2e2e6",
+            "surface-container-highest": "#333538",
+            "on-secondary": "#690003",
+            "tertiary": "#ffffff",
+            "outline-variant": "#444933",
+            "on-tertiary-container": "#0060cc",
+            "on-primary-container": "#556d00",
+            "inverse-primary": "#506600",
+            "error-container": "#93000a",
+            "primary-fixed-dim": "#abd600",
+            "surface-variant": "#333538",
+            "on-error-container": "#ffdad6",
+            "secondary-container": "#c5020b",
+            "surface": "#111316",
+            "outline": "#8e9379",
+            "on-primary-fixed-variant": "#3c4d00",
+            "error": "#ffb4ab",
+            "background": "#111316",
+            "surface-bright": "#37393d",
+            "on-tertiary": "#002e69",
+            "on-primary": "#283500",
+            "primary-container": "#c3f400",
+            "on-background": "#e2e2e6",
+            "on-primary-fixed": "#161e00",
+            "primary-fixed": "#c3f400",
+            "on-tertiary-fixed-variant": "#004493",
+            "inverse-on-surface": "#2f3034",
+            "secondary": "#ffb4aa",
+            "on-surface-variant": "#c4c9ac",
+            "secondary-fixed-dim": "#ffb4aa",
+            "tertiary-container": "#d8e2ff",
+            "primary": "#ffffff",
+            "secondary-fixed": "#ffdad5",
+            "on-error": "#690005",
+            "on-tertiary-fixed": "#001a41",
+            "on-secondary-container": "#ffd2cc",
+            "tertiary-fixed-dim": "#adc6ff",
+            "on-secondary-fixed": "#410001",
+            "surface-container-low": "#1a1c1f",
+            "surface-container-high": "#282a2d",
+            "surface-container": "#1e2023",
+            "surface-tint": "#abd600",
+            "surface-container-lowest": "#0c0e11",
+            "inverse-surface": "#e2e2e6",
+            "cyber-lime": "#CCFF00",
+            "vivid-red": "#FF3B30"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "xl": "32px",
+            "md": "16px",
+            "gutter": "16px",
+            "lg": "24px",
+            "sm": "8px",
+            "container-padding": "24px",
+            "xs": "4px",
+            "base": "8px"
+          },
+          "fontFamily": {
+            "headline-md": ["Geist"],
+            "headline-lg": ["Geist"],
+            "data-md": ["JetBrains Mono"],
+            "data-lg": ["JetBrains Mono"],
+            "body-md": ["Geist"],
+            "label-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+            "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+            "data-lg": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .bento-card {
+      background-color: #1C1F23;
+      border: 1px solid #2D3139;
+      transition: border-color 0.2s ease;
+    }
+    .bento-card:hover {
+      border-color: #444933;
+    }
+    
+    .data-table-row:hover {
+      background-color: #2D3139;
+    }
+
+    input, select {
+      background-color: #111316 !important;
+      border: 1px solid #2D3139 !important;
+      color: #e2e2e6 !important;
+    }
+    input:focus, select:focus {
+      border-color: #CCFF00 !important;
+      outline: none !important;
+      box-shadow: 0 0 0 1px #CCFF00;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden flex h-screen">
+<!-- Side Navigation Bar -->
+<aside class="flex flex-col h-screen py-lg px-md gap-base bg-surface-container border-r border-outline-variant w-64 shrink-0 hidden md:flex">
+<div class="flex items-center gap-sm mb-xl">
+<img class="h-8 w-auto" data-alt="A high-tech logo for TRADEPANEL, featuring minimalist geometric lines in cyber-lime green and slate grey against a dark, professional background. The logo embodies precision and clinical data analysis, with a sharp, modern typeface for the text. The aesthetic is clean, technical, and authoritative, matching a professional crypto trading environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwlm3rNhrD2RDZfIIeCYOavUQfBPWbm0nLsDGyCXn2Q8suG5n3QjcWbzPaBUB59K6bWPSiKObuXtNcBpo0nOB08dfpeDyTFDxokbrKvcALpsG4EVikOuX-tey7DQvhHEZxrEJ1LcXQFK9vgwmMnRsn4AFSmH8XksajYIkhjlO2SPepHbyLCdluaJZ9Eyy-sCvRkdl_mxSuviRBTlLAhDtD1kInyfKVQs5FLcjsCiTvmUVLfMbT9jHj"/>
+<span class="font-headline-md text-headline-md text-primary-fixed tracking-tight">TRADEPANEL</span>
+</div>
+<div class="space-y-sm flex-1">
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined">show_chart</span>
+<span class="font-label-sm uppercase tracking-widest">Live Markets</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg bg-primary-container text-on-primary-container transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm uppercase tracking-widest">Backtest History</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-sm uppercase tracking-widest">Bot Status</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-transform active:scale-95" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-sm uppercase tracking-widest">Account</span>
+</a>
+</div>
+<div class="mt-auto border-t border-outline-variant pt-lg">
+<div class="flex items-center gap-md mb-md">
+<img class="w-10 h-10 rounded-full border border-outline" data-alt="A professional user avatar for a senior crypto trader, rendered as a high-fidelity 3D profile icon with a technical, minimalist aesthetic. The lighting is low-key with subtle green rim light, emphasizing the clinical and authoritative mood of the trading dashboard. The avatar looks sophisticated and focused." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0TBV7_NtiBImsOLkV21goupZzV1tSteMktuYsMSyCCus9Hhjtw7egML5FJFTY_XZpXUseGGyCr7OepGZwNzEy-GRWjnfHyVn5mJgnCTHWVUY9DyxPuwyOC648HqWnQfjpoK_0ag2tOJR89JvqC5oFZGkBuEFh8HnFFRFVmzE-4kWR-PkWUYQ55HeHP12bxe63f-7FPuMu6MAg3sx9y8OZsGfo1Q-SgKxzzv8ElF0RcIzSXZPpPKqm"/>
+<div>
+<p class="font-data-md text-data-md text-on-surface">Pro Trader</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Signal Precision Active</p>
+</div>
+</div>
+<button class="w-full bg-cyber-lime text-on-primary-fixed font-label-sm uppercase font-bold py-md rounded-lg hover:opacity-90 active:scale-95 transition-all">
+        Execute Order
+      </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- Top Bar -->
+<header class="flex justify-between items-center w-full px-container-padding h-16 bg-surface border-b border-outline-variant shrink-0">
+<div class="flex items-center gap-xl">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Backtest</span>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Intraday Momentum — datos históricos reales</h1>
+</div>
+<nav class="hidden lg:flex items-center gap-lg ml-md">
+<a class="font-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="font-label-sm text-primary-fixed border-b-2 border-primary-fixed pb-2" href="#">Backtesting</a>
+<a class="font-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Bot Config</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="relative flex items-center bg-surface-container px-md py-xs rounded border border-outline-variant focus-within:border-cyber-lime transition-all">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm py-1 ml-2 w-32 lg:w-48" placeholder="Search parameters..." type="text"/>
+</div>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</header>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto p-gutter scrollbar-hide space-y-md">
+<!-- Control Panel / Bento Header -->
+<section class="grid grid-cols-12 gap-md">
+<div class="col-span-12 lg:col-span-10 bento-card p-md rounded flex flex-wrap gap-xl items-end">
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">SYMBOL</label>
+<input class="w-32 px-md py-sm rounded-sm font-data-md" type="text" value="BTCUSDT"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">Días atrás</label>
+<input class="w-20 px-md py-sm rounded-sm font-data-md text-center" type="number" value="7"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">TIMEFRAME</label>
+<select class="w-28 px-md py-sm rounded-sm font-data-md">
+<option>1m</option>
+<option>5m</option>
+<option>15m</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">Cooldown 1H</label>
+<input class="w-20 px-md py-sm rounded-sm font-data-md text-center" type="number" value="6"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">VOLUMEN (TAPE)</label>
+<label class="flex items-center gap-sm cursor-pointer py-sm">
+<input checked="" class="rounded-sm border-outline-variant text-cyber-lime focus:ring-cyber-lime bg-surface" type="checkbox"/>
+<span class="text-sm">Confirmar con volumen</span>
+</label>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">MODO DE SALIDA</label>
+<select class="w-48 px-md py-sm rounded-sm font-data-md">
+<option>SR + ATR (trailing)</option>
+<option>Fixed TP/SL</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-label-sm text-on-surface-variant uppercase">Trail %</label>
+<input class="w-24 px-md py-sm rounded-sm font-data-md" type="text" value="0,25"/>
+</div>
+<button class="bg-cyber-lime text-on-primary-fixed px-xl py-[10px] rounded-sm font-label-sm uppercase font-bold hover:opacity-90 active:scale-95 transition-all">
+            Ejecutar backtest
+          </button>
+</div>
+<div class="col-span-12 lg:col-span-2 bento-card p-md rounded flex flex-col justify-between">
+<div>
+<p class="font-label-sm text-on-surface-variant uppercase mb-xs">Range Covered</p>
+<p class="font-data-md text-xs text-on-surface">1/7/2026 → 8/7/2026</p>
+</div>
+<div class="mt-md">
+<p class="font-data-md text-xs text-on-surface-variant">10,080 velas de 1m</p>
+<p class="font-data-md text-xs text-on-surface-variant">168 velas de 1h</p>
+</div>
+</div>
+</section>
+<!-- Metrics Row -->
+<section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-md">
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">TRADES</p>
+<p class="font-data-lg text-data-lg text-primary">27</p>
+</div>
+<div class="bento-card p-md rounded text-center border-l-2 border-l-cyber-lime">
+<p class="font-label-sm text-on-surface-variant uppercase">WIN RATE</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">70%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">PROFIT FACTOR</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">2.29</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">AVG WIN</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">+0.85%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">AVG LOSS</p>
+<p class="font-data-lg text-data-lg text-vivid-red">-0.88%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">EXPECTANCY</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">+0.34%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">RETORNO NETO</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">+9.1%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">RETORNO BRUTO</p>
+<p class="font-data-lg text-data-lg text-cyber-lime">+11.8%</p>
+</div>
+<div class="bento-card p-md rounded text-center">
+<p class="font-label-sm text-on-surface-variant uppercase">COMISIÓN</p>
+<p class="font-data-lg text-data-lg text-vivid-red">-2.7%</p>
+</div>
+<div class="bento-card p-md rounded text-center border-l-2 border-l-vivid-red">
+<p class="font-label-sm text-on-surface-variant uppercase">DRAWDOWN</p>
+<p class="font-data-lg text-data-lg text-vivid-red">-3.1%</p>
+</div>
+</section>
+<!-- Trades Table -->
+<section class="bento-card rounded overflow-hidden flex flex-col">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h2 class="font-label-sm uppercase tracking-widest text-on-surface-variant">Trades History (27 of 27)</h2>
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-xs font-label-sm text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-base">download</span> Export CSV</button>
+<button class="flex items-center gap-xs font-label-sm text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-base">filter_list</span> Filters</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-dim">
+<tr class="border-b border-outline-variant">
+<th class="p-md font-label-sm text-on-surface-variant uppercase">Entrada</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase">Salida</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase">Dur.</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase">Tipo</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase text-right">Precio In</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase text-right">Precio Out</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase text-right">P&L Bruto</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase text-right">P&L Neto</th>
+<th class="p-md font-label-sm text-on-surface-variant uppercase">Razón</th>
+</tr>
+</thead>
+<tbody class="font-data-md divide-y divide-outline-variant/30">
+<tr class="data-table-row transition-colors">
+<td class="p-md">6/7/2026, 09:24:00</td>
+<td class="p-md">8/7/2026, 05:21:00</td>
+<td class="p-md">1917m</td>
+<td class="p-md text-cyber-lime font-bold">LONG</td>
+<td class="p-md text-right">64236.0</td>
+<td class="p-md text-right">62286.0</td>
+<td class="p-md text-right text-vivid-red">-3.04%</td>
+<td class="p-md text-right text-vivid-red">-3.14%</td>
+<td class="p-md text-on-surface-variant italic">stop</td>
+</tr>
+<tr class="data-table-row transition-colors">
+<td class="p-md">6/7/2026, 08:38:00</td>
+<td class="p-md">6/7/2026, 08:39:00</td>
+<td class="p-md">1m</td>
+<td class="p-md text-vivid-red font-bold">SHORT</td>
+<td class="p-md text-right">64118.6</td>
+<td class="p-md text-right">63212.1</td>
+<td class="p-md text-right text-cyber-lime">+1.41%</td>
+<td class="p-md text-right text-cyber-lime">+1.31%</td>
+<td class="p-md text-on-surface-variant italic">stop</td>
+</tr>
+<tr class="data-table-row transition-colors">
+<td class="p-md">6/7/2026, 08:33:00</td>
+<td class="p-md">6/7/2026, 08:34:00</td>
+<td class="p-md">1m</td>
+<td class="p-md text-vivid-red font-bold">SHORT</td>
+<td class="p-md text-right">64128.9</td>
+<td class="p-md text-right">63212.1</td>
+<td class="p-md text-right text-cyber-lime">+1.43%</td>
+<td class="p-md text-right text-cyber-lime">+1.33%</td>
+<td class="p-md text-on-surface-variant italic">stop</td>
+</tr>
+<tr class="data-table-row transition-colors">
+<td class="p-md">6/7/2026, 08:24:00</td>
+<td class="p-md">6/7/2026, 08:25:00</td>
+<td class="p-md">1m</td>
+<td class="p-md text-vivid-red font-bold">SHORT</td>
+<td class="p-md text-right">64108.0</td>
+<td class="p-md text-right">63212.1</td>
+<td class="p-md text-right text-cyber-lime">+1.40%</td>
+<td class="p-md text-right text-cyber-lime">+1.30%</td>
+<td class="p-md text-on-surface-variant italic">stop</td>
+</tr>
+<tr class="data-table-row transition-colors">
+<td class="p-md">6/7/2026, 05:28:00</td>
+<td class="p-md">6/7/2026, 06:10:00</td>
+<td class="p-md">42m</td>
+<td class="p-md text-cyber-lime font-bold">LONG</td>
+<td class="p-md text-right">63760.8</td>
+<td class="p-md text-right">64538.3</td>
+<td class="p-md text-right text-cyber-lime">+1.22%</td>
+<td class="p-md text-right text-cyber-lime">+1.12%</td>
+<td class="p-md text-on-surface-variant italic">trailing TP</td>
+</tr>
+<!-- More rows would be here in a real app -->
+</tbody>
+</table>
+</div>
+<div class="p-md bg-surface-dim border-t border-outline-variant text-[11px] text-on-surface-variant flex justify-between">
+<span>* "Retorno simple" suma el % de cada trade sin reinvertir — no es una curva de capital compuesta.</span>
+<span class="font-data-md">Showing 1-27 of 27 results</span>
+</div>
+</section>
+</div>
+<!-- Floating Helper -->
+<button class="fixed bottom-xl right-xl bg-surface-container-highest w-12 h-12 rounded-full border border-outline flex items-center justify-center shadow-lg hover:border-cyber-lime transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</main>
+<script>
+    // Simple micro-interaction for rows
+    document.querySelectorAll('.data-table-row').forEach(row => {
+      row.addEventListener('mouseenter', () => {
+        row.style.borderLeft = '2px solid #CCFF00';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.borderLeft = 'none';
+      });
+    });
+  </script>
+</body></html>

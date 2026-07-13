@@ -1,0 +1,48 @@
+//@version=5
+strategy("Estrategia MACD & RSI (5m) - Con Vol y SMA (NUEVA BASE SOLIDA)", overlay=true, initial_capital=5000, default_qty_value=180000, default_qty_type=strategy.cash)
+
+// --- CONFIGURACIÓN DE INDICADORES ---
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+rsiLength = input.int(14, "RSI Length")
+rsiValue = ta.rsi(close, rsiLength)
+rsiThreshold = input.int(50, "RSI Threshold")
+
+smaLength = input.int(200, "SMA Length")
+sma = ta.sma(close, smaLength)
+
+volumeLength = input.int(20, "Volume Average Length")
+volumeAvg = ta.sma(volume, volumeLength)
+
+// --- LÓGICA DE ENTRADA (LONG) ---
+macd_crossover = ta.crossover(macdLine, signalLine)
+rsi_is_below_threshold = rsiValue < rsiThreshold
+
+// price_above_sma ha sido reintroducido
+price_above_sma = close > sma
+// volume_is_high ha sido removido
+
+// Se ajusta la condición de entrada para incluir MA y remover Volumen
+longCondition = macd_crossover and rsi_is_below_threshold and price_above_sma
+
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+
+// --- LÓGICA DE SALIDA ---
+profitInUSD = input.float(485.0, "Take-Profit en USD")
+stopLossPercent = input.float(0.69, "Stop-Loss en %")
+
+if (strategy.opentrades > 0)
+    entryPrice = strategy.opentrades.entry_price(strategy.opentrades - 1)
+    
+    // Configuración del Take-Profit en ticks
+    takeProfitInTicks = (profitInUSD / syminfo.mintick)
+    
+    // Configuración del Stop-Loss en ticks
+    stopLossInTicks = (entryPrice * (stopLossPercent / 100)) / syminfo.mintick
+    
+    // Ejecuta las órdenes de salida usando los valores en ticks
+    strategy.exit("Salida", from_entry="Long", profit=takeProfitInTicks, loss=stopLossInTicks)

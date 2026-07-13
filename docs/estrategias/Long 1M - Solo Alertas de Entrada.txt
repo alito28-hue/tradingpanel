@@ -1,0 +1,75 @@
+//@version=6
+strategy("Estrategia Corta 1M - Con Alertas de Entrada Solamente", overlay=true, initial_capital=36000, default_qty_value=300000, default_qty_type=strategy.cash, margin_long=0.10)
+
+// --- INPUTS DE INDICADORES ---
+// Configuración de MACD del marco de tiempo actual
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Configuración de RSI del marco de tiempo actual (1 minuto)
+rsiLength = input.int(14, "RSI Length (1m)")
+rsiThreshold = input.float(50.0, "RSI Buy Threshold (1m)", minval=0, maxval=100)
+rsiOverboughtThreshold = input.float(70.0, "RSI Overbought Threshold (1m)", minval=0, maxval=100)
+
+// Configuración de RSI del marco de tiempo superior (5 minutos)
+rsiLengthMTF = input.int(14, "RSI Length (5m)")
+rsiThresholdMTF = input.float(40.0, "RSI Threshold (5m)", minval=0, maxval=100)
+
+// --- CONFIGURACIÓN DE GESTIÓN DE RIESGO EN PORCENTAJES ---
+stopLossPercent = input.float(0.10, "Stop Loss (%)", tooltip="Porcentaje de pérdida máxima desde el precio de entrada.", minval=0.01)
+trailingActivatePercent = input.float(0.18, "Trailing TP Activate (%)", minval=0.01, tooltip="Porcentaje de ganancia para activar el trailing stop.")
+trailingStopPercent = input.float(0.05, "Trailing TP Distance (%)", minval=0.01, tooltip="Porcentaje de distancia que el trailing stop mantiene del precio.")
+
+// --- OPCIÓN PARA CONTROLAR LAS ALERTAS DE SALIDA (NUEVO) ---
+sendExitAlerts = input.bool(true, "Enviar Alertas de Salida?", tooltip="Desactiva esto para que solo se envíen alertas de entrada.")
+
+// --- CÁLCULOS DE INDICADORES ---
+// Cálculo de MACD del marco de tiempo actual (1 minuto)
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+
+// Cálculo de RSI del marco de tiempo actual (1 minuto)
+rsiValue = ta.rsi(close, rsiLength)
+
+// Cálculo de RSI de un marco de tiempo superior (5 minutos)
+rsiValueMTF = request.security(syminfo.tickerid, "5", ta.rsi(close, rsiLengthMTF))
+
+// Cálculo de MACD del marco de tiempo de 5 minutos para el filtro
+[macdLine_5m, signalLine_5m, histLine_5m] = request.security(syminfo.tickerid, "5", ta.macd(close, fastLength, slowLength, signalLength))
+
+// --- LÓGICA DE ENTRADA FINAL ---
+bool macdCrossoverCondition = ta.crossover(macdLine, signalLine)
+bool macdFilterCondition = (macdLine < -30 or (macdLine > -10 and macdLine < -5)) and macdLine < 10
+bool rsiFilterCondition = rsiValue > rsiThreshold and rsiValue < rsiOverboughtThreshold
+bool mtfRsiFilterCondition = rsiValueMTF >= rsiThresholdMTF
+bool macd5mTrendFilter = macdLine_5m > signalLine_5m
+
+bool longEntryCondition = macdCrossoverCondition and macdFilterCondition and rsiFilterCondition and mtfRsiFilterCondition and macd5mTrendFilter
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+string entryAlertMessage = "BUY " + syminfo.tickerid + " entry_price=" + str.tostring(close) + " percent=100%"
+string exitAlertMessage = "SELL " + syminfo.tickerid + " exit_price=" + str.tostring(close)
+
+// Entrar en una posición larga cuando se cumplen las condiciones
+if (longEntryCondition)
+    strategy.entry("Long", strategy.long, alert_message=entryAlertMessage)
+
+// Lógica de gestión de la posición
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    // CÁLCULO DE STOP LOSS y Trailing TP EN PORCENTAJE
+    float stopLossPrice = entryPrice * (1 - stopLossPercent / 100)
+    float trailActivatePrice = entryPrice * (1 + trailingActivatePercent / 100)
+    float trailStopPrice = close * (1 - trailingStopPercent / 100)
+
+    // La salida usa un SL fijo en porcentaje y un Trailing Stop
+    strategy.exit("Exit", from_entry="Long", stop=stopLossPrice, trail_price=trailActivatePrice, trail_offset=trailingStopPercent)
+
+    // SOLO enviamos la alerta de salida si la opción está activada
+    if (sendExitAlerts)
+        alert(exitAlertMessage, alert.freq_once_per_bar_close)
+
+// --- PLOTS PARA VISUALIZACIÓN ---
+plotshape(series=longEntryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
+plotshape(series=macd5mTrendFilter, title="MACD 5M Trend Filter", style=shape.diamond, location=location.top, color=color.new(color.blue, 70), size=size.tiny)

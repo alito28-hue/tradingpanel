@@ -1,0 +1,62 @@
+//@version=6
+strategy("LONG CRUCE EXACTO 1M", overlay=true, margin_long=0.10)
+
+// --- INPUTS ---
+// Configuración de alertas
+sendExitAlerts = input.bool(false, "Enviar Alertas de Salida")
+
+// Códigos de alerta para el bot
+alertEntryCode = "ENTER-LONG_BINANCE_BTCUSDT_40_1M_c5474cb25d8d28970f076d69"
+alertExitCode = "EXIT-LONG_BINANCE_BTCUSDT_40_1M_c5474cb25d8d28970f076d69"
+
+// Configuración de MACD
+fastLength = input.int(12, "MACD Fast Length")
+slowLength = input.int(26, "MACD Slow Length")
+signalLength = input.int(9, "MACD Signal Length")
+
+// Gestión de Riesgo (%)
+stopLossPercent = input.float(0.22, "Stop Loss (%)", minval=0.01)
+trailingActivatePercent = input.float(0.18, "Trailing TP Activate (%)", minval=0.01)
+trailingStopPercent = input.float(0.01, "Trailing TP Distance (%)", minval=0.01)
+
+// --- CÁLCULOS DE INDICADORES ---
+[macdLine, signalLine, histLine] = ta.macd(close, fastLength, slowLength, signalLength)
+[macdLine_5m, signalLine_5m, histLine_5m] = request.security(syminfo.tickerid, "5", ta.macd(close, fastLength, slowLength, signalLength))
+
+// --- LÓGICA DE ENTRADA ---
+bool macdCrossover = ta.crossover(macdLine, signalLine)
+bool macdIsNegative = macdLine < 0 and signalLine < 0
+bool hist5mIncreasing = histLine_5m > histLine_5m[1]
+bool entryCondition = macdCrossover and macdIsNegative and hist5mIncreasing
+
+// --- EJECUCIÓN DE LA ESTRATEGIA ---
+// Lógica para la entrada (con alerta dedicada)
+if (entryCondition)
+    strategy.entry("Long", strategy.long)
+    alert(alertEntryCode)
+
+// Lógica de gestión de la posición
+if (strategy.position_size > 0)
+    float entryPrice = strategy.opentrades.entry_price(0)
+    
+    // Convertir porcentajes a precios
+    float stopLossPrice = entryPrice * (1 - stopLossPercent / 100)
+    float trailActivatePrice = entryPrice * (1 + (trailingActivatePercent / 100))
+    float trailStopPoints = (entryPrice * (trailingStopPercent / 100)) / syminfo.mintick
+    
+    // Aquí usamos un 'strategy.exit' sin un 'comment', ya que las alertas se manejan por separado
+    strategy.exit("Exit", from_entry="Long", stop=stopLossPrice, trail_price=trailActivatePrice, trail_offset=trailStopPoints)
+
+// Lógica de alerta de salida separada
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    if (sendExitAlerts)
+        alert(alertExitCode)
+
+// --- LABELS Y PLOTS ---
+if (strategy.position_size > 0 and strategy.position_size[1] == 0)
+    label.new(bar_index, low, "ENTRADA", xloc.bar_index, yloc.belowbar, color.new(color.green, 10), textcolor=color.white, style=label.style_label_up)
+
+if (strategy.position_size == 0 and strategy.position_size[1] > 0)
+    label.new(bar_index[1], high[1], "SALIDA", xloc.bar_index, yloc.abovebar, color.new(color.red, 10), textcolor=color.white, style=label.style_label_down)
+    
+plotshape(series=entryCondition, title="Long Entry", style=shape.arrowup, location=location.belowbar, color=color.new(color.green, 0), size=size.normal)
