@@ -37,15 +37,6 @@ function tradeMarkers(trades, openPosition) {
 }
 
 // A 'stop' exit is, by definition, the original protective stop being hit —
-// which can only ever happen on an adverse move. A 'stop'-reason trade with
-// a favorable (>0) P&L is impossible under correct logic; it's the exact
-// signature of the wrong-side-stop bug fixed in lib/strategy.js. Trades
-// already sitting in localStorage from before that fix won't fix themselves
-// on their own, so this filters them out wherever the log is read/written.
-function isValidClosedTrade(t) {
-  return !(t.reason === 'stop' && t.netPnlPct > 0);
-}
-
 function reasonLabel(reason) {
   if (reason === 'trailing') return 'trailing TP';
   if (reason === 'stop') return 'stop';
@@ -166,44 +157,33 @@ export default function DashboardPage() {
     return { entries, trades, markersEntry, openPosition, regime1hMarkers };
   }, [analysis1h, analysisEntry, candles1h, candlesEntry, gateByRegime, useVolumeFilter, deltaWindow]);
 
-  // The chart only ever sees the last ~500 candles (a rolling window), so a
-  // trade that closed hours ago eventually scrolls out of `trades` even
-  // though it really happened. Accumulate closed trades into localStorage
-  // instead of only showing whatever's in the current window — this makes
-  // the history survive page reloads, but it's still just this browser on
-  // this device, not a real synced database.
-  const [tradeLog, setTradeLog] = useState([]);
+  // Real closed trades from the worker (same source as the header banner and
+  // Telegram) — not a local re-simulation. That local approach produced
+  // impossible overlapping "positions" and instant fake closes, since each
+  // 20s poll re-simulated from scratch over a rolling, shifting window with
+  // no memory of what a previous poll had already computed.
+  const [tradeLog, setTradeLog] = useState(null);
+  const [tradeLogError, setTradeLogError] = useState(null);
   const [tradeLogPage, setTradeLogPage] = useState(0);
-  const TRADE_LOG_KEY = 'tradingpanel_tradeLog';
   const TRADES_PER_PAGE = 5;
 
-  useEffect(() => {
+  const loadTradeLog = useCallback(async () => {
     try {
-      const stored = JSON.parse(window.localStorage.getItem(TRADE_LOG_KEY) || '[]').filter(isValidClosedTrade);
-      setTradeLog(stored);
-      window.localStorage.setItem(TRADE_LOG_KEY, JSON.stringify(stored));
-    } catch {
-      setTradeLog([]);
+      const res = await fetch('/api/bot-trades');
+      const data = await res.json();
+      if (!res.ok || data.error) { setTradeLogError(data.error || `Error ${res.status}`); return; }
+      setTradeLogError(null);
+      setTradeLog(data.trades);
+    } catch (err) {
+      setTradeLogError(err.message);
     }
   }, []);
 
-  const clearTradeLog = () => {
-    window.localStorage.removeItem(TRADE_LOG_KEY);
-    setTradeLog([]);
-    setTradeLogPage(0);
-  };
-
+  useEffect(() => { loadTradeLog(); }, [loadTradeLog]);
   useEffect(() => {
-    if (!trades.length) return;
-    setTradeLog(prev => {
-      const known = new Set(prev.map(t => `${t.entryTime}-${t.type}`));
-      const fresh = trades.filter(t => !known.has(`${t.entryTime}-${t.type}`) && isValidClosedTrade(t)).map(t => ({ ...t, symbol }));
-      if (!fresh.length) return prev;
-      const merged = [...prev, ...fresh].sort((a, b) => a.entryTime - b.entryTime);
-      window.localStorage.setItem(TRADE_LOG_KEY, JSON.stringify(merged));
-      return merged;
-    });
-  }, [trades, symbol]);
+    const id = setInterval(loadTradeLog, 20000);
+    return () => clearInterval(id);
+  }, [loadTradeLog]);
 
   const macdSignal1h = useMemo(() => analysis1h ? ema(analysis1h.macdLine, 9) : [], [analysis1h]);
   const macdSignalEntry = useMemo(() => analysisEntry ? ema(analysisEntry.macdLine, 9) : [], [analysisEntry]);
@@ -450,15 +430,15 @@ export default function DashboardPage() {
         )}
       </Panel>
 
-      <Panel title="Trade history" subtitle={`${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados en total · guardado en este navegador`}>
-        {tradeLog.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-            <button onClick={clearTradeLog} style={{ background: 'transparent', border: 'none', color: COLORS.muted, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-              Limpiar historial
-            </button>
+      <Panel title="Trade history" subtitle={tradeLog ? `${tradeLog.length} trade${tradeLog.length === 1 ? '' : 's'} cerrados en total · datos reales del worker` : ''}>
+        {tradeLogError ? (
+          <div style={{ color: COLORS.muted, fontSize: 13, lineHeight: 1.6 }}>
+            No se pudo conectar con el worker ({tradeLogError}). Revisar que <code>WORKER_URL</code> y{' '}
+            <code>WORKER_API_SECRET</code> estén configurados en Vercel y que el worker tenga un dominio público en Railway.
           </div>
-        )}
-        {(() => {
+        ) : !tradeLog ? (
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
+        ) : (() => {
           const metrics = computeMetrics(tradeLog);
           return metrics ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 14 }}>
@@ -469,10 +449,10 @@ export default function DashboardPage() {
             </div>
           ) : null;
         })()}
-        {tradeLog.length === 0 ? (
+        {tradeLog && tradeLog.length === 0 ? (
           <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía.</div>
-        ) : (() => {
-          const reversed = tradeLog.slice().reverse();
+        ) : tradeLog && tradeLog.length > 0 && (() => {
+          const reversed = tradeLog; // getRecentTrades() on the worker already sorts newest-first
           const totalPages = Math.max(1, Math.ceil(reversed.length / TRADES_PER_PAGE));
           const page = Math.min(tradeLogPage, totalPages - 1);
           const pageItems = reversed.slice(page * TRADES_PER_PAGE, page * TRADES_PER_PAGE + TRADES_PER_PAGE);

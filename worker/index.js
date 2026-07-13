@@ -9,7 +9,7 @@
 // on whatever host runs this, never something this code does on its own.
 const path = require('path');
 const http = require('http');
-const { buildAnalysis, gateEntries, simulateTrades } = require('../lib/strategy');
+const { buildAnalysis, gateEntries, simulateTrades, stepExit } = require('../lib/strategy');
 const { fetchKlines } = require('../lib/binance');
 const bingx = require('../lib/bingx');
 const { sendMessage } = require('../lib/telegram');
@@ -117,6 +117,15 @@ function startServer() {
       return;
     }
 
+    if (req.method === 'GET' && req.url === '/trades') {
+      // Real (or DRY_RUN-simulated-with-real-prices) closed trades — what the
+      // dashboard's Trade History table reads instead of re-simulating
+      // locally in the browser.
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify({ trades: dailyLoss.getRecentTrades() }));
+      return;
+    }
+
     if (req.method === 'POST' && req.url === '/mode') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
@@ -143,7 +152,7 @@ function startServer() {
 
     res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /mode — requires X-Worker-Secret)`));
+  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /trades, /mode — requires X-Worker-Secret)`));
 }
 
 // Runs once at startup (real trading only — DRY_RUN has no real BingX state
@@ -256,14 +265,63 @@ async function placeExits() {
   position.phase = 'in_position';
   position.stopOrderId = stopOrder.orderId || stopOrder.order?.orderId || 'dry-run';
   position.trailingOrderId = trailingOrder.orderId || trailingOrder.order?.orderId || 'dry-run';
+  // Same shape as a backtest `pos` object — stepExit() (lib/strategy.js)
+  // needs these to simulate the exit against real candles in DRY_RUN.
+  position.peak = position.entryPrice;
+  position.activated = false;
+  position.currentStop = position.stopPrice;
+  position.lastCheckedTime = position.entryTime;
 
   const msg = `Entrada ${SYMBOL} llena @ ${position.entryPrice.toFixed(1)}. Exits: stop ${position.stopPrice.toFixed(1)}, trailing activa en ${activationPrice.toFixed(1)} (${EXIT_CFG.trailPct}% trail).`;
   console.log(msg);
   await sendMessage(msg);
 }
 
-async function checkExitFill() {
-  if (bingx.isDryRun()) return; // nothing real to poll for in dry-run
+// Shared by both the real-fill path and the DRY_RUN simulated-fill path —
+// one place records the trade, notifies, and resets state, so those two
+// paths can never quietly diverge in what they consider "closed".
+async function closePosition(exitPrice, exitTime, reason) {
+  const isLong = position.type === 'long';
+  const pnlUsd = (isLong ? exitPrice - position.entryPrice : position.entryPrice - exitPrice) * position.quantity;
+  const grossPnlPct = (isLong ? (exitPrice - position.entryPrice) / position.entryPrice : (position.entryPrice - exitPrice) / position.entryPrice) * 100;
+  const netPnlPct = grossPnlPct - EXIT_CFG.commissionPct * 2;
+
+  dailyLoss.recordTrade(pnlUsd, {
+    entryTime: position.entryTime, exitTime, entryPrice: position.entryPrice, exitPrice,
+    type: position.type, grossPnlPct, netPnlPct, reason, symbol: SYMBOL,
+  });
+
+  const msg = `${pnlUsd >= 0 ? '✅' : '🔴'} Cerrado ${position.type.toUpperCase()} ${SYMBOL} @ ${exitPrice.toFixed(1)} · PnL ${pnlUsd >= 0 ? '+' : ''}${pnlUsd.toFixed(2)} USD. PnL del día: ${dailyLoss.state.realizedPnlUsd.toFixed(2)} USD.`;
+  console.log(msg);
+  await sendMessage(msg);
+
+  position = { phase: 'idle' };
+
+  if (dailyLoss.isKilled()) {
+    const killMsg = `🛑 Límite de pérdida diaria (-${DAILY_LOSS_LIMIT_USD} USD) alcanzado. El bot no abre posiciones nuevas hasta que lo reinicies.`;
+    console.log(killMsg);
+    await sendMessage(killMsg);
+  }
+}
+
+async function checkExitFill(candlesEntry) {
+  if (bingx.isDryRun()) {
+    // No real order to poll — replay any candles that arrived since the last
+    // check through the exact same stop/trailing math the backtest uses
+    // (stepExit, lib/strategy.js), against real prices from Binance. This is
+    // what makes DRY_RUN actually record a closed trade instead of never
+    // detecting an exit at all.
+    const newCandles = candlesEntry.filter(c => c.time > position.lastCheckedTime);
+    for (const c of newCandles) {
+      const result = stepExit(position, c, EXIT_CFG);
+      position.lastCheckedTime = c.time;
+      if (result) {
+        await closePosition(result.exitPrice, c.time, result.reason);
+        return;
+      }
+    }
+    return;
+  }
 
   const [stopStatus, trailStatus] = await Promise.all([
     bingx.getOrder(SYMBOL, position.stopOrderId),
@@ -277,21 +335,8 @@ async function checkExitFill() {
   await bingx.cancelOrder(SYMBOL, otherOrderId).catch((err) => console.error('cancelOrder failed (may have already filled/expired):', err.message));
 
   const exitPrice = Number(filled.avgPrice || filled.price);
-  const isLong = position.type === 'long';
-  const pnlUsd = (isLong ? exitPrice - position.entryPrice : position.entryPrice - exitPrice) * position.quantity;
-  dailyLoss.recordTrade(pnlUsd);
-
-  const msg = `${pnlUsd >= 0 ? '✅' : '🔴'} Cerrado ${position.type.toUpperCase()} ${SYMBOL} @ ${exitPrice.toFixed(1)} · PnL ${pnlUsd >= 0 ? '+' : ''}${pnlUsd.toFixed(2)} USD. PnL del día: ${dailyLoss.state.realizedPnlUsd.toFixed(2)} USD.`;
-  console.log(msg);
-  await sendMessage(msg);
-
-  position = { phase: 'idle' };
-
-  if (dailyLoss.isKilled()) {
-    const killMsg = `🛑 Límite de pérdida diaria (-${DAILY_LOSS_LIMIT_USD} USD) alcanzado. El bot no abre posiciones nuevas hasta que lo reinicies.`;
-    console.log(killMsg);
-    await sendMessage(killMsg);
-  }
+  const reason = filled === stopStatus ? 'stop' : 'trailing';
+  await closePosition(exitPrice, Date.now(), reason);
 }
 
 async function tick() {
@@ -312,7 +357,7 @@ async function tick() {
   ]);
 
   if (position.phase === 'in_position') {
-    await checkExitFill();
+    await checkExitFill(candlesEntry);
   } else if (position.phase === 'awaiting_entry_fill') {
     await checkEntryFill();
   } else {

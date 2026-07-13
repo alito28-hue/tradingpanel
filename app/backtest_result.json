@@ -65,11 +65,11 @@
           "currentStop": 81546.89678571429,
           "exitIndex": 19690,
           "exitTime": 1778775000000,
+          "durationMinutes": 1144,
           "exitPrice": 81546.89678571429,
           "grossPnlPct": -2.4571127928186645,
           "netPnlPct": -2.5571127928186645,
           "commissionPct": 0.05,
-          "durationMinutes": 1144,
           "reason": "stop"
         },
         {
@@ -83,11 +83,11 @@
           "currentStop": 79013.06357142857,
           "exitIndex": 20990,
           "exitTime": 1778853000000,
+          "durationMinutes": 184,
           "exitPrice": 79013.06357142857,
           "grossPnlPct": -1.9903296929026446,
           "netPnlPct": -2.0903296929026447,
           "commissionPct": 0.05,
-          "durationMinutes": 184,
           "reason": "stop"
         },
         {
@@ -101,11 +101,11 @@
           "currentStop": 76438.68071428571,
           "exitIndex": 31365,
           "exitTime": 1779475500000,
+          "durationMinutes": 3260,
           "exitPrice": 76438.68071428571,
           "grossPnlPct": -1.3812148688244124,
           "netPnlPct": -1.4812148688244124,
           "commissionPct": 0.05,
-          "durationMinutes": 3260,
           "reason": "stop"
         },
         {
@@ -119,11 +119,11 @@
           "currentStop": 77455.875,
           "exitIndex": 34930,
           "exitTime": 1779689400000,
+          "durationMinutes": 1869,
           "exitPrice": 77455.875,
           "grossPnlPct": 1.1539622834692425,
           "netPnlPct": 1.0539622834692424,
           "commissionPct": 0.05,
-          "durationMinutes": 1869,
           "reason": "trailing"
         },
         {
@@ -137,11 +137,11 @@
           "currentStop": 76357.22249999999,
           "exitIndex": 36931,
           "exitTime": 1779809460000,
+          "durationMinutes": 1897,
           "exitPrice": 76357.22249999999,
           "grossPnlPct": -1.2985446305541157,
           "netPnlPct": -1.3985446305541158,
           "commissionPct": 0.05,
-          "durationMinutes": 1897,
           "reason": "stop"
         },
         {
@@ -155,11 +155,11 @@
           "currentStop": 75053.34545,
           "exitIndex": 38272,
           "exitTime": 1779889920000,
+          "durationMinutes": 1048,
           "exitPrice": 75053.34545,
           "grossPnlPct": 1.3052694456443816,
           "netPnlPct": 1.2052694456443815,
           "commissionPct": 0.05,
-          "durationMinutes": 1048,
           "reason": "trailing"
         },
         {
@@ -173,11 +173,11 @@
           "currentStop": 74351.14432499999,
           "exitIndex": 38957,
           "exitTime": 1779931020000,
+          "durationMinutes": 552,
           "exitPrice": 74351.14432499999,
           "grossPnlPct": 1.1638501013005251,
           "netPnlPct": 1.063850101300525,
           "commissionPct": 0.05,
-          "durationMinutes": 552,
           "reason": "trailing"
         },
         {
@@ -191,11 +191,11 @@
           "currentStop": 73543.7609,
           "exitIndex": 39105,
           "exitTime": 1779939900000,
+          "durationMinutes": 141,
           "exitPrice": 73543.7609,
           "grossPnlPct": 1.2331647014584703,
           "netPnlPct": 1.1331647014584703,
           "commissionPct": 0.05,
-          "durationMinutes": 141,
           "reason": "trailing"
         },
         {
@@ -209,11 +209,11 @@
           "currentStop": 72470.72499999999,
           "exitIndex": 45358,
           "exitTime": 1780315080000,
+          "durationMinutes": 5855,
           "exitPrice": 72470.72499999999,
           "grossPnlPct": 1.22242668731521,
           "netPnlPct": 1.12242668731521,
           "commissionPct": 0.05,
-          "durationMinutes": 5855,
           "reason": "trailing"
         },
         {
@@ -227,11 +227,11 @@
           "currentStop": 70462.05584999999,
           "exitIndex": 46206,
           "exitTime": 1780365960000,
+          "durationMinutes": 411,
           "exitPrice": 70462.05584999999,
           "grossPnlPct": 1.3440316490761675,
           "netPnlPct": 1.2440316490761674,
           "commissionPct": 0.05,
-          "durationMinutes": 411,
           "reason": "trailing"
         },
         {
@@ -245,11 +245,11 @@
           "currentStop": 70133.386225,
           "exitIndex": 46500,
           "exitTime": 1780383600000,
+          "durationMinutes": 173,
           "exitPrice": 70133.386225,
           "grossPnlPct": 1.0907190751011457,
           "netPnlPct": 0.9907190751011458,
           "commissionPct": 0.05,
-          "durationMinutes": 173,
           "reason": "trailing"
         },
         {
@@ -263,11 +263,11 @@
           "currentStop": 66529.178175,
           "exitIndex": 47452,
           "exitTime": 1780440720000,
+          "durationMinutes": 26,
           "exitPrice": 66529.178175,
           "grossPnlPct": 1.2180953001029318,
           "netPnlPct": 1.1180953001029317,
           "commissionPct": 0.05,
-          "durationMinutes": 26,
           "reason": "trailing"
         },
         {
@@ -281,11 +281,11 @@
           "currentStop": 64927.91499999999,
           "exitIndex": 48775,
           "exitTime": 1780520100000,
+          "durationMinutes": 107,
           "exitPrice": 64927.91499999999,
           "grossPnlPct": 1.5528180103023443,
           "netPnlPct": 1.4528180103023443,
           "commissionPct": 0.05,
-          "durationMinutes": 107,
           "reason": "trailing"
         },
         {
@@ -299,11 +299,11 @@
           "currentStop": 63007.125,
           "exitIndex": 49527,
           "exitTime": 1780565220000,
+          "durationMinutes": 256,
           "exitPrice": 63007.125,
           "grossPnlPct": 1.162177819253592,
           "netPnlPct": 1.062177819253592,
           "commissionPct": 0.05,
-          "durationMinutes": 256,
           "reason": "trailing"
         },
         {
@@ -317,11 +317,11 @@
           "currentStop": 63102.272275,
           "exitIndex": 50027,
           "exitTime": 1780595220000,
+          "durationMinutes": 126,
           "exitPrice": 63102.272275,
           "grossPnlPct": 1.1277110165773512,
           "netPnlPct": 1.027711016577351,
           "commissionPct": 0.05,
-          "durationMinutes": 126,
           "reason": "trailing"
         },
         {
@@ -335,11 +335,11 @@
           "currentStop": 59950.02129999999,
           "exitIndex": 51523,
           "exitTime": 1780684980000,
+          "durationMinutes": 78,
           "exitPrice": 59950.02129999999,
           "grossPnlPct": 1.2875729907747218,
           "netPnlPct": 1.1875729907747217,
           "commissionPct": 0.05,
-          "durationMinutes": 78,
           "reason": "trailing"
         },
         {
@@ -353,11 +353,11 @@
           "currentStop": 60430.7,
           "exitIndex": 52091,
           "exitTime": 1780719060000,
+          "durationMinutes": 297,
           "exitPrice": 60430.7,
           "grossPnlPct": 1.4309714882234015,
           "netPnlPct": 1.3309714882234014,
           "commissionPct": 0.05,
-          "durationMinutes": 297,
           "reason": "trailing"
         },
         {
@@ -371,11 +371,11 @@
           "currentStop": 60389.597499999996,
           "exitIndex": 52470,
           "exitTime": 1780741800000,
+          "durationMinutes": 48,
           "exitPrice": 60389.597499999996,
           "grossPnlPct": 1.1537580809264714,
           "netPnlPct": 1.0537580809264713,
           "commissionPct": 0.05,
-          "durationMinutes": 48,
           "reason": "trailing"
         },
         {
@@ -389,11 +389,11 @@
           "currentStop": 61794.55112499999,
           "exitIndex": 57022,
           "exitTime": 1781014920000,
+          "durationMinutes": 651,
           "exitPrice": 61794.55112499999,
           "grossPnlPct": 1.500636038420701,
           "netPnlPct": 1.4006360384207008,
           "commissionPct": 0.05,
-          "durationMinutes": 651,
           "reason": "trailing"
         },
         {
@@ -407,11 +407,11 @@
           "currentStop": 61232.7,
           "exitIndex": 57926,
           "exitTime": 1781069160000,
+          "durationMinutes": 486,
           "exitPrice": 61232.7,
           "grossPnlPct": 1.0866100953762259,
           "netPnlPct": 0.9866100953762259,
           "commissionPct": 0.05,
-          "durationMinutes": 486,
           "reason": "trailing"
         },
         {
@@ -425,11 +425,11 @@
           "currentStop": 63788.98107142857,
           "exitIndex": 60210,
           "exitTime": 1781206200000,
+          "durationMinutes": 2096,
           "exitPrice": 63788.98107142857,
           "grossPnlPct": -3.863783169578889,
           "netPnlPct": -3.963783169578889,
           "commissionPct": 0.05,
-          "durationMinutes": 2096,
           "reason": "stop"
         },
         {
@@ -443,11 +443,11 @@
           "currentStop": 64506.33,
           "exitIndex": 63221,
           "exitTime": 1781386860000,
+          "durationMinutes": 2908,
           "exitPrice": 64506.33,
           "grossPnlPct": 1.4469954505880578,
           "netPnlPct": 1.3469954505880577,
           "commissionPct": 0.05,
-          "durationMinutes": 2908,
           "reason": "trailing"
         },
         {
@@ -461,11 +461,11 @@
           "currentStop": 65274.14565,
           "exitIndex": 64660,
           "exitTime": 1781473200000,
+          "durationMinutes": 933,
           "exitPrice": 65274.14565,
           "grossPnlPct": 1.2690416604027206,
           "netPnlPct": 1.1690416604027205,
           "commissionPct": 0.05,
-          "durationMinutes": 933,
           "reason": "trailing"
         },
         {
@@ -479,11 +479,11 @@
           "currentStop": 66781.84695,
           "exitIndex": 65610,
           "exitTime": 1781530200000,
+          "durationMinutes": 713,
           "exitPrice": 66781.84695,
           "grossPnlPct": 1.8606005765535012,
           "netPnlPct": 1.760600576553501,
           "commissionPct": 0.05,
-          "durationMinutes": 713,
           "reason": "trailing"
         },
         {
@@ -497,11 +497,11 @@
           "currentStop": 64019.3425,
           "exitIndex": 68870,
           "exitTime": 1781725800000,
+          "durationMinutes": 3004,
           "exitPrice": 64019.3425,
           "grossPnlPct": -4.316670981079564,
           "netPnlPct": -4.416670981079563,
           "commissionPct": 0.05,
-          "durationMinutes": 3004,
           "reason": "stop"
         },
         {
@@ -515,11 +515,11 @@
           "currentStop": 63452.245025,
           "exitIndex": 70037,
           "exitTime": 1781795820000,
+          "durationMinutes": 351,
           "exitPrice": 63452.245025,
           "grossPnlPct": 1.315352120649497,
           "netPnlPct": 1.2153521206494968,
           "commissionPct": 0.05,
-          "durationMinutes": 351,
           "reason": "trailing"
         },
         {
@@ -533,11 +533,11 @@
           "currentStop": 61930.450025,
           "exitIndex": 78562,
           "exitTime": 1782307320000,
+          "durationMinutes": 8321,
           "exitPrice": 61930.450025,
           "grossPnlPct": 1.1958990054888328,
           "netPnlPct": 1.0958990054888327,
           "commissionPct": 0.05,
-          "durationMinutes": 8321,
           "reason": "trailing"
         },
         {
@@ -551,11 +551,11 @@
           "currentStop": 59379.29714285714,
           "exitIndex": 84706,
           "exitTime": 1782675960000,
+          "durationMinutes": 2236,
           "exitPrice": 59379.29714285714,
           "grossPnlPct": -1.5268704098554893,
           "netPnlPct": -1.6268704098554894,
           "commissionPct": 0.05,
-          "durationMinutes": 2236,
           "reason": "stop"
         }
       ],
@@ -571,11 +571,11 @@
           "currentStop": 81546.89678571429,
           "exitIndex": 19690,
           "exitTime": 1778775000000,
+          "durationMinutes": 1144,
           "exitPrice": 81546.89678571429,
           "grossPnlPct": -2.4571127928186645,
           "netPnlPct": -2.5571127928186645,
           "commissionPct": 0.05,
-          "durationMinutes": 1144,
           "reason": "stop"
         },
         {
@@ -589,11 +589,11 @@
           "currentStop": 79013.06357142857,
           "exitIndex": 20990,
           "exitTime": 1778853000000,
+          "durationMinutes": 184,
           "exitPrice": 79013.06357142857,
           "grossPnlPct": -1.9903296929026446,
           "netPnlPct": -2.0903296929026447,
           "commissionPct": 0.05,
-          "durationMinutes": 184,
           "reason": "stop"
         },
         {
@@ -607,11 +607,11 @@
           "currentStop": 76438.68071428571,
           "exitIndex": 31365,
           "exitTime": 1779475500000,
+          "durationMinutes": 3260,
           "exitPrice": 76438.68071428571,
           "grossPnlPct": -1.3812148688244124,
           "netPnlPct": -1.4812148688244124,
           "commissionPct": 0.05,
-          "durationMinutes": 3260,
           "reason": "stop"
         },
         {
@@ -625,11 +625,11 @@
           "currentStop": 77455.875,
           "exitIndex": 34930,
           "exitTime": 1779689400000,
+          "durationMinutes": 1869,
           "exitPrice": 77455.875,
           "grossPnlPct": 1.1539622834692425,
           "netPnlPct": 1.0539622834692424,
           "commissionPct": 0.05,
-          "durationMinutes": 1869,
           "reason": "trailing"
         },
         {
@@ -643,11 +643,11 @@
           "currentStop": 76357.22249999999,
           "exitIndex": 36931,
           "exitTime": 1779809460000,
+          "durationMinutes": 1897,
           "exitPrice": 76357.22249999999,
           "grossPnlPct": -1.2985446305541157,
           "netPnlPct": -1.3985446305541158,
           "commissionPct": 0.05,
-          "durationMinutes": 1897,
           "reason": "stop"
         },
         {
@@ -661,11 +661,11 @@
           "currentStop": 75053.34545,
           "exitIndex": 38272,
           "exitTime": 1779889920000,
+          "durationMinutes": 1048,
           "exitPrice": 75053.34545,
           "grossPnlPct": 1.3052694456443816,
           "netPnlPct": 1.2052694456443815,
           "commissionPct": 0.05,
-          "durationMinutes": 1048,
           "reason": "trailing"
         },
         {
@@ -679,11 +679,11 @@
           "currentStop": 74351.14432499999,
           "exitIndex": 38957,
           "exitTime": 1779931020000,
+          "durationMinutes": 552,
           "exitPrice": 74351.14432499999,
           "grossPnlPct": 1.1638501013005251,
           "netPnlPct": 1.063850101300525,
           "commissionPct": 0.05,
-          "durationMinutes": 552,
           "reason": "trailing"
         },
         {
@@ -697,11 +697,11 @@
           "currentStop": 73543.7609,
           "exitIndex": 39105,
           "exitTime": 1779939900000,
+          "durationMinutes": 141,
           "exitPrice": 73543.7609,
           "grossPnlPct": 1.2331647014584703,
           "netPnlPct": 1.1331647014584703,
           "commissionPct": 0.05,
-          "durationMinutes": 141,
           "reason": "trailing"
         },
         {
@@ -715,11 +715,11 @@
           "currentStop": 72470.72499999999,
           "exitIndex": 45358,
           "exitTime": 1780315080000,
+          "durationMinutes": 5855,
           "exitPrice": 72470.72499999999,
           "grossPnlPct": 1.22242668731521,
           "netPnlPct": 1.12242668731521,
           "commissionPct": 0.05,
-          "durationMinutes": 5855,
           "reason": "trailing"
         },
         {
@@ -733,11 +733,11 @@
           "currentStop": 70462.05584999999,
           "exitIndex": 46206,
           "exitTime": 1780365960000,
+          "durationMinutes": 411,
           "exitPrice": 70462.05584999999,
           "grossPnlPct": 1.3440316490761675,
           "netPnlPct": 1.2440316490761674,
           "commissionPct": 0.05,
-          "durationMinutes": 411,
           "reason": "trailing"
         },
         {
@@ -751,11 +751,11 @@
           "currentStop": 70133.386225,
           "exitIndex": 46500,
           "exitTime": 1780383600000,
+          "durationMinutes": 173,
           "exitPrice": 70133.386225,
           "grossPnlPct": 1.0907190751011457,
           "netPnlPct": 0.9907190751011458,
           "commissionPct": 0.05,
-          "durationMinutes": 173,
           "reason": "trailing"
         },
         {
@@ -769,11 +769,11 @@
           "currentStop": 66529.178175,
           "exitIndex": 47452,
           "exitTime": 1780440720000,
+          "durationMinutes": 26,
           "exitPrice": 66529.178175,
           "grossPnlPct": 1.2180953001029318,
           "netPnlPct": 1.1180953001029317,
           "commissionPct": 0.05,
-          "durationMinutes": 26,
           "reason": "trailing"
         },
         {
@@ -787,11 +787,11 @@
           "currentStop": 64927.91499999999,
           "exitIndex": 48775,
           "exitTime": 1780520100000,
+          "durationMinutes": 107,
           "exitPrice": 64927.91499999999,
           "grossPnlPct": 1.5528180103023443,
           "netPnlPct": 1.4528180103023443,
           "commissionPct": 0.05,
-          "durationMinutes": 107,
           "reason": "trailing"
         },
         {
@@ -805,11 +805,11 @@
           "currentStop": 63007.125,
           "exitIndex": 49527,
           "exitTime": 1780565220000,
+          "durationMinutes": 256,
           "exitPrice": 63007.125,
           "grossPnlPct": 1.162177819253592,
           "netPnlPct": 1.062177819253592,
           "commissionPct": 0.05,
-          "durationMinutes": 256,
           "reason": "trailing"
         },
         {
@@ -823,11 +823,11 @@
           "currentStop": 63102.272275,
           "exitIndex": 50027,
           "exitTime": 1780595220000,
+          "durationMinutes": 126,
           "exitPrice": 63102.272275,
           "grossPnlPct": 1.1277110165773512,
           "netPnlPct": 1.027711016577351,
           "commissionPct": 0.05,
-          "durationMinutes": 126,
           "reason": "trailing"
         },
         {
@@ -841,11 +841,11 @@
           "currentStop": 59950.02129999999,
           "exitIndex": 51523,
           "exitTime": 1780684980000,
+          "durationMinutes": 78,
           "exitPrice": 59950.02129999999,
           "grossPnlPct": 1.2875729907747218,
           "netPnlPct": 1.1875729907747217,
           "commissionPct": 0.05,
-          "durationMinutes": 78,
           "reason": "trailing"
         },
         {
@@ -859,11 +859,11 @@
           "currentStop": 60430.7,
           "exitIndex": 52091,
           "exitTime": 1780719060000,
+          "durationMinutes": 297,
           "exitPrice": 60430.7,
           "grossPnlPct": 1.4309714882234015,
           "netPnlPct": 1.3309714882234014,
           "commissionPct": 0.05,
-          "durationMinutes": 297,
           "reason": "trailing"
         },
         {
@@ -877,11 +877,11 @@
           "currentStop": 60389.597499999996,
           "exitIndex": 52470,
           "exitTime": 1780741800000,
+          "durationMinutes": 48,
           "exitPrice": 60389.597499999996,
           "grossPnlPct": 1.1537580809264714,
           "netPnlPct": 1.0537580809264713,
           "commissionPct": 0.05,
-          "durationMinutes": 48,
           "reason": "trailing"
         },
         {
@@ -895,11 +895,11 @@
           "currentStop": 61794.55112499999,
           "exitIndex": 57022,
           "exitTime": 1781014920000,
+          "durationMinutes": 651,
           "exitPrice": 61794.55112499999,
           "grossPnlPct": 1.500636038420701,
           "netPnlPct": 1.4006360384207008,
           "commissionPct": 0.05,
-          "durationMinutes": 651,
           "reason": "trailing"
         },
         {
@@ -913,11 +913,11 @@
           "currentStop": 61232.7,
           "exitIndex": 57926,
           "exitTime": 1781069160000,
+          "durationMinutes": 486,
           "exitPrice": 61232.7,
           "grossPnlPct": 1.0866100953762259,
           "netPnlPct": 0.9866100953762259,
           "commissionPct": 0.05,
-          "durationMinutes": 486,
           "reason": "trailing"
         },
         {
@@ -931,11 +931,11 @@
           "currentStop": 63788.98107142857,
           "exitIndex": 60210,
           "exitTime": 1781206200000,
+          "durationMinutes": 2096,
           "exitPrice": 63788.98107142857,
           "grossPnlPct": -3.863783169578889,
           "netPnlPct": -3.963783169578889,
           "commissionPct": 0.05,
-          "durationMinutes": 2096,
           "reason": "stop"
         },
         {
@@ -949,11 +949,11 @@
           "currentStop": 64506.33,
           "exitIndex": 63221,
           "exitTime": 1781386860000,
+          "durationMinutes": 2908,
           "exitPrice": 64506.33,
           "grossPnlPct": 1.4469954505880578,
           "netPnlPct": 1.3469954505880577,
           "commissionPct": 0.05,
-          "durationMinutes": 2908,
           "reason": "trailing"
         },
         {
@@ -967,11 +967,11 @@
           "currentStop": 65274.14565,
           "exitIndex": 64660,
           "exitTime": 1781473200000,
+          "durationMinutes": 933,
           "exitPrice": 65274.14565,
           "grossPnlPct": 1.2690416604027206,
           "netPnlPct": 1.1690416604027205,
           "commissionPct": 0.05,
-          "durationMinutes": 933,
           "reason": "trailing"
         },
         {
@@ -985,11 +985,11 @@
           "currentStop": 66781.84695,
           "exitIndex": 65610,
           "exitTime": 1781530200000,
+          "durationMinutes": 713,
           "exitPrice": 66781.84695,
           "grossPnlPct": 1.8606005765535012,
           "netPnlPct": 1.760600576553501,
           "commissionPct": 0.05,
-          "durationMinutes": 713,
           "reason": "trailing"
         },
         {
@@ -1003,11 +1003,11 @@
           "currentStop": 64019.3425,
           "exitIndex": 68870,
           "exitTime": 1781725800000,
+          "durationMinutes": 3004,
           "exitPrice": 64019.3425,
           "grossPnlPct": -4.316670981079564,
           "netPnlPct": -4.416670981079563,
           "commissionPct": 0.05,
-          "durationMinutes": 3004,
           "reason": "stop"
         },
         {
@@ -1021,11 +1021,11 @@
           "currentStop": 63452.245025,
           "exitIndex": 70037,
           "exitTime": 1781795820000,
+          "durationMinutes": 351,
           "exitPrice": 63452.245025,
           "grossPnlPct": 1.315352120649497,
           "netPnlPct": 1.2153521206494968,
           "commissionPct": 0.05,
-          "durationMinutes": 351,
           "reason": "trailing"
         },
         {
@@ -1039,11 +1039,11 @@
           "currentStop": 61930.450025,
           "exitIndex": 78562,
           "exitTime": 1782307320000,
+          "durationMinutes": 8321,
           "exitPrice": 61930.450025,
           "grossPnlPct": 1.1958990054888328,
           "netPnlPct": 1.0958990054888327,
           "commissionPct": 0.05,
-          "durationMinutes": 8321,
           "reason": "trailing"
         },
         {
@@ -1057,11 +1057,11 @@
           "currentStop": 59379.29714285714,
           "exitIndex": 84706,
           "exitTime": 1782675960000,
+          "durationMinutes": 2236,
           "exitPrice": 59379.29714285714,
           "grossPnlPct": -1.5268704098554893,
           "netPnlPct": -1.6268704098554894,
           "commissionPct": 0.05,
-          "durationMinutes": 2236,
           "reason": "stop"
         }
       ]
@@ -1142,11 +1142,11 @@
           "currentStop": 77937.66750000001,
           "exitIndex": 754,
           "exitTime": 1777638840000,
+          "durationMinutes": 285,
           "exitPrice": 77937.66750000001,
           "grossPnlPct": 1.0923823170460492,
           "netPnlPct": 0.9923823170460492,
           "commissionPct": 0.05,
-          "durationMinutes": 285,
           "reason": "trailing"
         },
         {
@@ -1160,11 +1160,11 @@
           "currentStop": 79522.63515,
           "exitIndex": 4435,
           "exitTime": 1777859700000,
+          "durationMinutes": 3378,
           "exitPrice": 79522.63515,
           "grossPnlPct": 1.4091155382896023,
           "netPnlPct": 1.3091155382896023,
           "commissionPct": 0.05,
-          "durationMinutes": 3378,
           "reason": "trailing"
         },
         {
@@ -1178,11 +1178,11 @@
           "currentStop": 80697.75,
           "exitIndex": 5926,
           "exitTime": 1777949160000,
+          "durationMinutes": 1040,
           "exitPrice": 80697.75,
           "grossPnlPct": 1.0955454707744923,
           "netPnlPct": 0.9955454707744923,
           "commissionPct": 0.05,
-          "durationMinutes": 1040,
           "reason": "trailing"
         },
         {
@@ -1196,11 +1196,11 @@
           "currentStop": 81854.85,
           "exitIndex": 7786,
           "exitTime": 1778060760000,
+          "durationMinutes": 1617,
           "exitPrice": 81854.85,
           "grossPnlPct": 1.1362918898442118,
           "netPnlPct": 1.0362918898442117,
           "commissionPct": 0.05,
-          "durationMinutes": 1617,
           "reason": "trailing"
         },
         {
@@ -1214,11 +1214,11 @@
           "currentStop": 79898.7688,
           "exitIndex": 9566,
           "exitTime": 1778167560000,
+          "durationMinutes": 558,
           "exitPrice": 79898.7688,
           "grossPnlPct": 1.3186101889178585,
           "netPnlPct": 1.2186101889178584,
           "commissionPct": 0.05,
-          "durationMinutes": 558,
           "reason": "trailing"
         },
         {
@@ -1232,11 +1232,11 @@
           "currentStop": 81903.47357142858,
           "exitIndex": 14313,
           "exitTime": 1778452380000,
+          "durationMinutes": 4509,
           "exitPrice": 81903.47357142858,
           "grossPnlPct": -2.423076618001614,
           "netPnlPct": -2.523076618001614,
           "commissionPct": 0.05,
-          "durationMinutes": 4509,
           "reason": "stop"
         },
         {
@@ -1250,11 +1250,11 @@
           "currentStop": 80366.08714285714,
           "exitIndex": 16763,
           "exitTime": 1778599380000,
+          "durationMinutes": 1151,
           "exitPrice": 80366.08714285714,
           "grossPnlPct": -1.9030093173399467,
           "netPnlPct": -2.003009317339947,
           "commissionPct": 0.05,
-          "durationMinutes": 1151,
           "reason": "stop"
         },
         {
@@ -1268,11 +1268,11 @@
           "currentStop": 81546.89678571429,
           "exitIndex": 19690,
           "exitTime": 1778775000000,
+          "durationMinutes": 1144,
           "exitPrice": 81546.89678571429,
           "grossPnlPct": -2.4571127928186645,
           "netPnlPct": -2.5571127928186645,
           "commissionPct": 0.05,
-          "durationMinutes": 1144,
           "reason": "stop"
         },
         {
@@ -1286,11 +1286,11 @@
           "currentStop": 78957.625,
           "exitIndex": 20991,
           "exitTime": 1778853060000,
+          "durationMinutes": 978,
           "exitPrice": 78957.625,
           "grossPnlPct": -3.1016087997577975,
           "netPnlPct": -3.2016087997577976,
           "commissionPct": 0.05,
-          "durationMinutes": 978,
           "reason": "stop"
         },
         {
@@ -1304,11 +1304,11 @@
           "currentStop": 76926.9979,
           "exitIndex": 24461,
           "exitTime": 1779061260000,
+          "durationMinutes": 2133,
           "exitPrice": 76926.9979,
           "grossPnlPct": 1.4699546562226482,
           "netPnlPct": 1.3699546562226481,
           "commissionPct": 0.05,
-          "durationMinutes": 2133,
           "reason": "trailing"
         },
         {
@@ -1322,11 +1322,11 @@
           "currentStop": 75894.392825,
           "exitIndex": 31410,
           "exitTime": 1779478200000,
+          "durationMinutes": 6589,
           "exitPrice": 75894.392825,
           "grossPnlPct": 1.3361004275101407,
           "netPnlPct": 1.2361004275101406,
           "commissionPct": 0.05,
-          "durationMinutes": 6589,
           "reason": "trailing"
         },
         {
@@ -1340,11 +1340,11 @@
           "currentStop": 74475.32400000001,
           "exitIndex": 32150,
           "exitTime": 1779522600000,
+          "durationMinutes": 191,
           "exitPrice": 74475.32400000001,
           "grossPnlPct": 1.3922023186203547,
           "netPnlPct": 1.2922023186203546,
           "commissionPct": 0.05,
-          "durationMinutes": 191,
           "reason": "trailing"
         },
         {
@@ -1358,11 +1358,11 @@
           "currentStop": 77691.57250000001,
           "exitIndex": 35134,
           "exitTime": 1779701640000,
+          "durationMinutes": 2722,
           "exitPrice": 77691.57250000001,
           "grossPnlPct": -3.9671483040142044,
           "netPnlPct": -4.0671483040142045,
           "commissionPct": 0.05,
-          "durationMinutes": 2722,
           "reason": "stop"
         },
         {
@@ -1376,11 +1376,11 @@
           "currentStop": 76350.34749999999,
           "exitIndex": 36952,
           "exitTime": 1779810720000,
+          "durationMinutes": 1696,
           "exitPrice": 76350.34749999999,
           "grossPnlPct": -1.4859648783257349,
           "netPnlPct": -1.585964878325735,
           "commissionPct": 0.05,
-          "durationMinutes": 1696,
           "reason": "stop"
         },
         {
@@ -1394,11 +1394,11 @@
           "currentStop": 75053.34545,
           "exitIndex": 38272,
           "exitTime": 1779889920000,
+          "durationMinutes": 1048,
           "exitPrice": 75053.34545,
           "grossPnlPct": 1.3052694456443816,
           "netPnlPct": 1.2052694456443815,
           "commissionPct": 0.05,
-          "durationMinutes": 1048,
           "reason": "trailing"
         },
         {
@@ -1412,11 +1412,11 @@
           "currentStop": 74351.14432499999,
           "exitIndex": 38957,
           "exitTime": 1779931020000,
+          "durationMinutes": 552,
           "exitPrice": 74351.14432499999,
           "grossPnlPct": 1.1638501013005251,
           "netPnlPct": 1.063850101300525,
           "commissionPct": 0.05,
-          "durationMinutes": 552,
           "reason": "trailing"
         },
         {
@@ -1430,11 +1430,11 @@
           "currentStop": 73543.7609,
           "exitIndex": 39105,
           "exitTime": 1779939900000,
+          "durationMinutes": 141,
           "exitPrice": 73543.7609,
           "grossPnlPct": 1.2331647014584703,
           "netPnlPct": 1.1331647014584703,
           "commissionPct": 0.05,
-          "durationMinutes": 141,
           "reason": "trailing"
         },
         {
@@ -1448,11 +1448,11 @@
           "currentStop": 72470.72499999999,
           "exitIndex": 45358,
           "exitTime": 1780315080000,
+          "durationMinutes": 5855,
           "exitPrice": 72470.72499999999,
           "grossPnlPct": 1.22242668731521,
           "netPnlPct": 1.12242668731521,
           "commissionPct": 0.05,
-          "durationMinutes": 5855,
           "reason": "trailing"
         },
         {
@@ -1466,11 +1466,11 @@
           "currentStop": 70462.05584999999,
           "exitIndex": 46206,
           "exitTime": 1780365960000,
+          "durationMinutes": 411,
           "exitPrice": 70462.05584999999,
           "grossPnlPct": 1.3440316490761675,
           "netPnlPct": 1.2440316490761674,
           "commissionPct": 0.05,
-          "durationMinutes": 411,
           "reason": "trailing"
         },
         {
@@ -1484,11 +1484,11 @@
           "currentStop": 70133.386225,
           "exitIndex": 46500,
           "exitTime": 1780383600000,
+          "durationMinutes": 173,
           "exitPrice": 70133.386225,
           "grossPnlPct": 1.0907190751011457,
           "netPnlPct": 0.9907190751011458,
           "commissionPct": 0.05,
-          "durationMinutes": 173,
           "reason": "trailing"
         },
         {
@@ -1502,11 +1502,11 @@
           "currentStop": 66529.178175,
           "exitIndex": 47452,
           "exitTime": 1780440720000,
+          "durationMinutes": 26,
           "exitPrice": 66529.178175,
           "grossPnlPct": 1.2180953001029318,
           "netPnlPct": 1.1180953001029317,
           "commissionPct": 0.05,
-          "durationMinutes": 26,
           "reason": "trailing"
         },
         {
@@ -1520,11 +1520,11 @@
           "currentStop": 64927.91499999999,
           "exitIndex": 48775,
           "exitTime": 1780520100000,
+          "durationMinutes": 107,
           "exitPrice": 64927.91499999999,
           "grossPnlPct": 1.5528180103023443,
           "netPnlPct": 1.4528180103023443,
           "commissionPct": 0.05,
-          "durationMinutes": 107,
           "reason": "trailing"
         },
         {
@@ -1538,11 +1538,11 @@
           "currentStop": 63007.125,
           "exitIndex": 49527,
           "exitTime": 1780565220000,
+          "durationMinutes": 256,
           "exitPrice": 63007.125,
           "grossPnlPct": 1.162177819253592,
           "netPnlPct": 1.062177819253592,
           "commissionPct": 0.05,
-          "durationMinutes": 256,
           "reason": "trailing"
         },
         {
@@ -1556,11 +1556,11 @@
           "currentStop": 63102.272275,
           "exitIndex": 50027,
           "exitTime": 1780595220000,
+          "durationMinutes": 126,
           "exitPrice": 63102.272275,
           "grossPnlPct": 1.1277110165773512,
           "netPnlPct": 1.027711016577351,
           "commissionPct": 0.05,
-          "durationMinutes": 126,
           "reason": "trailing"
         },
         {
@@ -1574,11 +1574,11 @@
           "currentStop": 59950.02129999999,
           "exitIndex": 51523,
           "exitTime": 1780684980000,
+          "durationMinutes": 78,
           "exitPrice": 59950.02129999999,
           "grossPnlPct": 1.2875729907747218,
           "netPnlPct": 1.1875729907747217,
           "commissionPct": 0.05,
-          "durationMinutes": 78,
           "reason": "trailing"
         },
         {
@@ -1592,11 +1592,11 @@
           "currentStop": 60430.7,
           "exitIndex": 52091,
           "exitTime": 1780719060000,
+          "durationMinutes": 297,
           "exitPrice": 60430.7,
           "grossPnlPct": 1.4309714882234015,
           "netPnlPct": 1.3309714882234014,
           "commissionPct": 0.05,
-          "durationMinutes": 297,
           "reason": "trailing"
         },
         {
@@ -1610,11 +1610,11 @@
           "currentStop": 60389.597499999996,
           "exitIndex": 52470,
           "exitTime": 1780741800000,
+          "durationMinutes": 48,
           "exitPrice": 60389.597499999996,
           "grossPnlPct": 1.1537580809264714,
           "netPnlPct": 1.0537580809264713,
           "commissionPct": 0.05,
-          "durationMinutes": 48,
           "reason": "trailing"
         },
         {
@@ -1628,11 +1628,11 @@
           "currentStop": 63578.645025,
           "exitIndex": 54614,
           "exitTime": 1780870440000,
+          "durationMinutes": 665,
           "exitPrice": 63578.645025,
           "grossPnlPct": 1.6932901871401118,
           "netPnlPct": 1.5932901871401117,
           "commissionPct": 0.05,
-          "durationMinutes": 665,
           "reason": "trailing"
         },
         {
@@ -1646,11 +1646,11 @@
           "currentStop": 63939.75,
           "exitIndex": 55624,
           "exitTime": 1780931040000,
+          "durationMinutes": 788,
           "exitPrice": 63939.75,
           "grossPnlPct": 1.1012393567760297,
           "netPnlPct": 1.0012393567760296,
           "commissionPct": 0.05,
-          "durationMinutes": 788,
           "reason": "trailing"
         },
         {
@@ -1664,11 +1664,11 @@
           "currentStop": 61309.32928571429,
           "exitIndex": 57046,
           "exitTime": 1781016360000,
+          "durationMinutes": 1139,
           "exitPrice": 61309.32928571429,
           "grossPnlPct": -3.4833291866641405,
           "netPnlPct": -3.5833291866641406,
           "commissionPct": 0.05,
-          "durationMinutes": 1139,
           "reason": "stop"
         },
         {
@@ -1682,11 +1682,11 @@
           "currentStop": 61232.7,
           "exitIndex": 57926,
           "exitTime": 1781069160000,
+          "durationMinutes": 486,
           "exitPrice": 61232.7,
           "grossPnlPct": 1.0866100953762259,
           "netPnlPct": 0.9866100953762259,
           "commissionPct": 0.05,
-          "durationMinutes": 486,
           "reason": "trailing"
         },
         {
@@ -1700,11 +1700,11 @@
           "currentStop": 63788.98107142857,
           "exitIndex": 60210,
           "exitTime": 1781206200000,
+          "durationMinutes": 2096,
           "exitPrice": 63788.98107142857,
           "grossPnlPct": -3.863783169578889,
           "netPnlPct": -3.963783169578889,
           "commissionPct": 0.05,
-          "durationMinutes": 2096,
           "reason": "stop"
         },
         {
@@ -1718,11 +1718,11 @@
           "currentStop": 64506.33,
           "exitIndex": 63221,
           "exitTime": 1781386860000,
+          "durationMinutes": 2908,
           "exitPrice": 64506.33,
           "grossPnlPct": 1.4469954505880578,
           "netPnlPct": 1.3469954505880577,
           "commissionPct": 0.05,
-          "durationMinutes": 2908,
           "reason": "trailing"
         },
         {
@@ -1736,11 +1736,11 @@
           "currentStop": 65274.14565,
           "exitIndex": 64660,
           "exitTime": 1781473200000,
+          "durationMinutes": 933,
           "exitPrice": 65274.14565,
           "grossPnlPct": 1.2690416604027206,
           "netPnlPct": 1.1690416604027205,
           "commissionPct": 0.05,
-          "durationMinutes": 933,
           "reason": "trailing"
         },
         {
@@ -1754,11 +1754,11 @@
           "currentStop": 66781.84695,
           "exitIndex": 65610,
           "exitTime": 1781530200000,
+          "durationMinutes": 713,
           "exitPrice": 66781.84695,
           "grossPnlPct": 1.8606005765535012,
           "netPnlPct": 1.760600576553501,
           "commissionPct": 0.05,
-          "durationMinutes": 713,
           "reason": "trailing"
         },
         {
@@ -1772,11 +1772,11 @@
           "currentStop": 64019.3425,
           "exitIndex": 68870,
           "exitTime": 1781725800000,
+          "durationMinutes": 3004,
           "exitPrice": 64019.3425,
           "grossPnlPct": -4.316670981079564,
           "netPnlPct": -4.416670981079563,
           "commissionPct": 0.05,
-          "durationMinutes": 3004,
           "reason": "stop"
         },
         {
@@ -1790,11 +1790,11 @@
           "currentStop": 63452.245025,
           "exitIndex": 70037,
           "exitTime": 1781795820000,
+          "durationMinutes": 971,
           "exitPrice": 63452.245025,
           "grossPnlPct": 1.241641984435803,
           "netPnlPct": 1.141641984435803,
           "commissionPct": 0.05,
-          "durationMinutes": 971,
           "reason": "trailing"
         },
         {
@@ -1808,11 +1808,11 @@
           "currentStop": 61930.450025,
           "exitIndex": 78562,
           "exitTime": 1782307320000,
+          "durationMinutes": 8321,
           "exitPrice": 61930.450025,
           "grossPnlPct": 1.1958990054888328,
           "netPnlPct": 1.0958990054888327,
           "commissionPct": 0.05,
-          "durationMinutes": 8321,
           "reason": "trailing"
         },
         {
@@ -1826,11 +1826,11 @@
           "currentStop": 60014.52215,
           "exitIndex": 80025,
           "exitTime": 1782395100000,
+          "durationMinutes": 866,
           "exitPrice": 60014.52215,
           "grossPnlPct": 1.360043801978901,
           "netPnlPct": 1.2600438019789009,
           "commissionPct": 0.05,
-          "durationMinutes": 866,
           "reason": "trailing"
         },
         {
@@ -1844,11 +1844,11 @@
           "currentStop": 58754.720499999996,
           "exitIndex": 80773,
           "exitTime": 1782439980000,
+          "durationMinutes": 479,
           "exitPrice": 58754.720499999996,
           "grossPnlPct": 1.0863457767094755,
           "netPnlPct": 0.9863457767094755,
           "commissionPct": 0.05,
-          "durationMinutes": 479,
           "reason": "trailing"
         },
         {
@@ -1862,11 +1862,11 @@
           "currentStop": 59379.29714285714,
           "exitIndex": 84706,
           "exitTime": 1782675960000,
+          "durationMinutes": 2236,
           "exitPrice": 59379.29714285714,
           "grossPnlPct": -1.5268704098554893,
           "netPnlPct": -1.6268704098554894,
           "commissionPct": 0.05,
-          "durationMinutes": 2236,
           "reason": "stop"
         },
         {
@@ -1880,11 +1880,11 @@
           "currentStop": 60580.824642857144,
           "exitIndex": 85687,
           "exitTime": 1782734820000,
+          "durationMinutes": 861,
           "exitPrice": 60580.824642857144,
           "grossPnlPct": -1.8277387269203822,
           "netPnlPct": -1.9277387269203823,
           "commissionPct": 0.05,
-          "durationMinutes": 861,
           "reason": "stop"
         },
         {
@@ -1898,11 +1898,11 @@
           "currentStop": 58907.0604,
           "exitIndex": 87147,
           "exitTime": 1782822420000,
+          "durationMinutes": 343,
           "exitPrice": 58907.0604,
           "grossPnlPct": 1.0929341302485123,
           "netPnlPct": 0.9929341302485123,
           "commissionPct": 0.05,
-          "durationMinutes": 343,
           "reason": "trailing"
         }
       ],
@@ -1918,11 +1918,11 @@
           "currentStop": 76350.34749999999,
           "exitIndex": 36952,
           "exitTime": 1779810720000,
+          "durationMinutes": 1696,
           "exitPrice": 76350.34749999999,
           "grossPnlPct": -1.4859648783257349,
           "netPnlPct": -1.585964878325735,
           "commissionPct": 0.05,
-          "durationMinutes": 1696,
           "reason": "stop"
         },
         {
@@ -1936,11 +1936,11 @@
           "currentStop": 75053.34545,
           "exitIndex": 38272,
           "exitTime": 1779889920000,
+          "durationMinutes": 1048,
           "exitPrice": 75053.34545,
           "grossPnlPct": 1.3052694456443816,
           "netPnlPct": 1.2052694456443815,
           "commissionPct": 0.05,
-          "durationMinutes": 1048,
           "reason": "trailing"
         },
         {
@@ -1954,11 +1954,11 @@
           "currentStop": 74351.14432499999,
           "exitIndex": 38957,
           "exitTime": 1779931020000,
+          "durationMinutes": 552,
           "exitPrice": 74351.14432499999,
           "grossPnlPct": 1.1638501013005251,
           "netPnlPct": 1.063850101300525,
           "commissionPct": 0.05,
-          "durationMinutes": 552,
           "reason": "trailing"
         },
         {
@@ -1972,11 +1972,11 @@
           "currentStop": 73543.7609,
           "exitIndex": 39105,
           "exitTime": 1779939900000,
+          "durationMinutes": 141,
           "exitPrice": 73543.7609,
           "grossPnlPct": 1.2331647014584703,
           "netPnlPct": 1.1331647014584703,
           "commissionPct": 0.05,
-          "durationMinutes": 141,
           "reason": "trailing"
         },
         {
@@ -1990,11 +1990,11 @@
           "currentStop": 72470.72499999999,
           "exitIndex": 45358,
           "exitTime": 1780315080000,
+          "durationMinutes": 5855,
           "exitPrice": 72470.72499999999,
           "grossPnlPct": 1.22242668731521,
           "netPnlPct": 1.12242668731521,
           "commissionPct": 0.05,
-          "durationMinutes": 5855,
           "reason": "trailing"
         },
         {
@@ -2008,11 +2008,11 @@
           "currentStop": 70462.05584999999,
           "exitIndex": 46206,
           "exitTime": 1780365960000,
+          "durationMinutes": 411,
           "exitPrice": 70462.05584999999,
           "grossPnlPct": 1.3440316490761675,
           "netPnlPct": 1.2440316490761674,
           "commissionPct": 0.05,
-          "durationMinutes": 411,
           "reason": "trailing"
         },
         {
@@ -2026,11 +2026,11 @@
           "currentStop": 70133.386225,
           "exitIndex": 46500,
           "exitTime": 1780383600000,
+          "durationMinutes": 173,
           "exitPrice": 70133.386225,
           "grossPnlPct": 1.0907190751011457,
           "netPnlPct": 0.9907190751011458,
           "commissionPct": 0.05,
-          "durationMinutes": 173,
           "reason": "trailing"
         },
         {
@@ -2044,11 +2044,11 @@
           "currentStop": 66529.178175,
           "exitIndex": 47452,
           "exitTime": 1780440720000,
+          "durationMinutes": 26,
           "exitPrice": 66529.178175,
           "grossPnlPct": 1.2180953001029318,
           "netPnlPct": 1.1180953001029317,
           "commissionPct": 0.05,
-          "durationMinutes": 26,
           "reason": "trailing"
         },
         {
@@ -2062,11 +2062,11 @@
           "currentStop": 64927.91499999999,
           "exitIndex": 48775,
           "exitTime": 1780520100000,
+          "durationMinutes": 107,
           "exitPrice": 64927.91499999999,
           "grossPnlPct": 1.5528180103023443,
           "netPnlPct": 1.4528180103023443,
           "commissionPct": 0.05,
-          "durationMinutes": 107,
           "reason": "trailing"
         },
         {
@@ -2080,11 +2080,11 @@
           "currentStop": 63007.125,
           "exitIndex": 49527,
           "exitTime": 1780565220000,
+          "durationMinutes": 256,
           "exitPrice": 63007.125,
           "grossPnlPct": 1.162177819253592,
           "netPnlPct": 1.062177819253592,
           "commissionPct": 0.05,
-          "durationMinutes": 256,
           "reason": "trailing"
         },
         {
@@ -2098,11 +2098,11 @@
           "currentStop": 63102.272275,
           "exitIndex": 50027,
           "exitTime": 1780595220000,
+          "durationMinutes": 126,
           "exitPrice": 63102.272275,
           "grossPnlPct": 1.1277110165773512,
           "netPnlPct": 1.027711016577351,
           "commissionPct": 0.05,
-          "durationMinutes": 126,
           "reason": "trailing"
         },
         {
@@ -2116,11 +2116,11 @@
           "currentStop": 59950.02129999999,
           "exitIndex": 51523,
           "exitTime": 1780684980000,
+          "durationMinutes": 78,
           "exitPrice": 59950.02129999999,
           "grossPnlPct": 1.2875729907747218,
           "netPnlPct": 1.1875729907747217,
           "commissionPct": 0.05,
-          "durationMinutes": 78,
           "reason": "trailing"
         },
         {
@@ -2134,11 +2134,11 @@
           "currentStop": 60430.7,
           "exitIndex": 52091,
           "exitTime": 1780719060000,
+          "durationMinutes": 297,
           "exitPrice": 60430.7,
           "grossPnlPct": 1.4309714882234015,
           "netPnlPct": 1.3309714882234014,
           "commissionPct": 0.05,
-          "durationMinutes": 297,
           "reason": "trailing"
         },
         {
@@ -2152,11 +2152,11 @@
           "currentStop": 60389.597499999996,
           "exitIndex": 52470,
           "exitTime": 1780741800000,
+          "durationMinutes": 48,
           "exitPrice": 60389.597499999996,
           "grossPnlPct": 1.1537580809264714,
           "netPnlPct": 1.0537580809264713,
           "commissionPct": 0.05,
-          "durationMinutes": 48,
           "reason": "trailing"
         },
         {
@@ -2170,11 +2170,11 @@
           "currentStop": 63578.645025,
           "exitIndex": 54614,
           "exitTime": 1780870440000,
+          "durationMinutes": 665,
           "exitPrice": 63578.645025,
           "grossPnlPct": 1.6932901871401118,
           "netPnlPct": 1.5932901871401117,
           "commissionPct": 0.05,
-          "durationMinutes": 665,
           "reason": "trailing"
         },
         {
@@ -2188,11 +2188,11 @@
           "currentStop": 63939.75,
           "exitIndex": 55624,
           "exitTime": 1780931040000,
+          "durationMinutes": 788,
           "exitPrice": 63939.75,
           "grossPnlPct": 1.1012393567760297,
           "netPnlPct": 1.0012393567760296,
           "commissionPct": 0.05,
-          "durationMinutes": 788,
           "reason": "trailing"
         },
         {
@@ -2206,11 +2206,11 @@
           "currentStop": 61309.32928571429,
           "exitIndex": 57046,
           "exitTime": 1781016360000,
+          "durationMinutes": 1139,
           "exitPrice": 61309.32928571429,
           "grossPnlPct": -3.4833291866641405,
           "netPnlPct": -3.5833291866641406,
           "commissionPct": 0.05,
-          "durationMinutes": 1139,
           "reason": "stop"
         },
         {
@@ -2224,11 +2224,11 @@
           "currentStop": 61232.7,
           "exitIndex": 57926,
           "exitTime": 1781069160000,
+          "durationMinutes": 486,
           "exitPrice": 61232.7,
           "grossPnlPct": 1.0866100953762259,
           "netPnlPct": 0.9866100953762259,
           "commissionPct": 0.05,
-          "durationMinutes": 486,
           "reason": "trailing"
         },
         {
@@ -2242,11 +2242,11 @@
           "currentStop": 63788.98107142857,
           "exitIndex": 60210,
           "exitTime": 1781206200000,
+          "durationMinutes": 2096,
           "exitPrice": 63788.98107142857,
           "grossPnlPct": -3.863783169578889,
           "netPnlPct": -3.963783169578889,
           "commissionPct": 0.05,
-          "durationMinutes": 2096,
           "reason": "stop"
         },
         {
@@ -2260,11 +2260,11 @@
           "currentStop": 64506.33,
           "exitIndex": 63221,
           "exitTime": 1781386860000,
+          "durationMinutes": 2908,
           "exitPrice": 64506.33,
           "grossPnlPct": 1.4469954505880578,
           "netPnlPct": 1.3469954505880577,
           "commissionPct": 0.05,
-          "durationMinutes": 2908,
           "reason": "trailing"
         },
         {
@@ -2278,11 +2278,11 @@
           "currentStop": 65274.14565,
           "exitIndex": 64660,
           "exitTime": 1781473200000,
+          "durationMinutes": 933,
           "exitPrice": 65274.14565,
           "grossPnlPct": 1.2690416604027206,
           "netPnlPct": 1.1690416604027205,
           "commissionPct": 0.05,
-          "durationMinutes": 933,
           "reason": "trailing"
         },
         {
@@ -2296,11 +2296,11 @@
           "currentStop": 66781.84695,
           "exitIndex": 65610,
           "exitTime": 1781530200000,
+          "durationMinutes": 713,
           "exitPrice": 66781.84695,
           "grossPnlPct": 1.8606005765535012,
           "netPnlPct": 1.760600576553501,
           "commissionPct": 0.05,
-          "durationMinutes": 713,
           "reason": "trailing"
         },
         {
@@ -2314,11 +2314,11 @@
           "currentStop": 64019.3425,
           "exitIndex": 68870,
           "exitTime": 1781725800000,
+          "durationMinutes": 3004,
           "exitPrice": 64019.3425,
           "grossPnlPct": -4.316670981079564,
           "netPnlPct": -4.416670981079563,
           "commissionPct": 0.05,
-          "durationMinutes": 3004,
           "reason": "stop"
         },
         {
@@ -2332,11 +2332,11 @@
           "currentStop": 63452.245025,
           "exitIndex": 70037,
           "exitTime": 1781795820000,
+          "durationMinutes": 971,
           "exitPrice": 63452.245025,
           "grossPnlPct": 1.241641984435803,
           "netPnlPct": 1.141641984435803,
           "commissionPct": 0.05,
-          "durationMinutes": 971,
           "reason": "trailing"
         },
         {
@@ -2350,11 +2350,11 @@
           "currentStop": 61930.450025,
           "exitIndex": 78562,
           "exitTime": 1782307320000,
+          "durationMinutes": 8321,
           "exitPrice": 61930.450025,
           "grossPnlPct": 1.1958990054888328,
           "netPnlPct": 1.0958990054888327,
           "commissionPct": 0.05,
-          "durationMinutes": 8321,
           "reason": "trailing"
         },
         {
@@ -2368,11 +2368,11 @@
           "currentStop": 60014.52215,
           "exitIndex": 80025,
           "exitTime": 1782395100000,
+          "durationMinutes": 866,
           "exitPrice": 60014.52215,
           "grossPnlPct": 1.360043801978901,
           "netPnlPct": 1.2600438019789009,
           "commissionPct": 0.05,
-          "durationMinutes": 866,
           "reason": "trailing"
         },
         {
@@ -2386,11 +2386,11 @@
           "currentStop": 58754.720499999996,
           "exitIndex": 80773,
           "exitTime": 1782439980000,
+          "durationMinutes": 479,
           "exitPrice": 58754.720499999996,
           "grossPnlPct": 1.0863457767094755,
           "netPnlPct": 0.9863457767094755,
           "commissionPct": 0.05,
-          "durationMinutes": 479,
           "reason": "trailing"
         },
         {
@@ -2404,11 +2404,11 @@
           "currentStop": 59379.29714285714,
           "exitIndex": 84706,
           "exitTime": 1782675960000,
+          "durationMinutes": 2236,
           "exitPrice": 59379.29714285714,
           "grossPnlPct": -1.5268704098554893,
           "netPnlPct": -1.6268704098554894,
           "commissionPct": 0.05,
-          "durationMinutes": 2236,
           "reason": "stop"
         },
         {
@@ -2422,11 +2422,11 @@
           "currentStop": 60580.824642857144,
           "exitIndex": 85687,
           "exitTime": 1782734820000,
+          "durationMinutes": 861,
           "exitPrice": 60580.824642857144,
           "grossPnlPct": -1.8277387269203822,
           "netPnlPct": -1.9277387269203823,
           "commissionPct": 0.05,
-          "durationMinutes": 861,
           "reason": "stop"
         },
         {
@@ -2440,11 +2440,11 @@
           "currentStop": 58907.0604,
           "exitIndex": 87147,
           "exitTime": 1782822420000,
+          "durationMinutes": 343,
           "exitPrice": 58907.0604,
           "grossPnlPct": 1.0929341302485123,
           "netPnlPct": 0.9929341302485123,
           "commissionPct": 0.05,
-          "durationMinutes": 343,
           "reason": "trailing"
         }
       ]
