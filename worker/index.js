@@ -136,6 +136,15 @@ function startServer() {
           res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'mode debe ser "live" o "dry_run"' }));
           return;
         }
+        // Switching modes mid-position is exactly how a DRY_RUN position
+        // (fake order IDs like 'dry-run') ends up being polled against
+        // BingX's real order-status endpoint once LIVE — a guaranteed error
+        // loop, since that ID was never a real order. Block the switch
+        // entirely instead; the safe move is to wait for idle.
+        if (position.phase !== 'idle') {
+          res.writeHead(409, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: `No se puede cambiar de modo con una posición en curso (fase: ${position.phase}). Esperá a que se cierre.` }));
+          return;
+        }
         modeStore.setMode(requestedMode);
         const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
         const floorBlocked = requestedMode === 'live' && effectiveMode === 'dry_run';
