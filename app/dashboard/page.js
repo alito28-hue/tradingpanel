@@ -205,22 +205,32 @@ export default function DashboardPage() {
   // state of the bot (same object the Telegram messages come from), not the
   // locally-simulated one used by the exploration charts below.
   const workerPosition = botStatus?.position;
+  const workerPhase = workerPosition?.phase;
   const workerSignalStyle = {
     long: { background: 'rgba(204,255,0,0.15)', border: `1px solid ${COLORS.bull}`, color: COLORS.bull },
     short: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
     pending: { background: COLORS.panelAlt, border: `1px solid ${COLORS.accent}`, color: COLORS.accent },
+    halted: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
     idle: { background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.muted },
-  }[workerPosition?.phase === 'in_position' ? workerPosition.type : workerPosition?.phase === 'awaiting_entry_fill' ? 'pending' : 'idle'];
+  }[workerPhase === 'in_position' ? workerPosition.type : workerPhase === 'awaiting_entry_fill' ? 'pending' : workerPhase === 'halted' ? 'halted' : 'idle'];
 
+  // Every branch below is explicit about which phase it handles (mirrors the
+  // worker's own explicit tick() branching) — a phase this doesn't recognize
+  // falls to the last line instead of into a branch that assumes fields
+  // (entryPrice, stopPrice) that only exist on in_position/awaiting_entry_fill.
   const workerSignalText = botStatusError
     ? '⚠ No se pudo conectar con el worker'
     : !botStatus
     ? 'Cargando estado del bot…'
-    : !workerPosition || workerPosition.phase === 'idle'
+    : workerPhase === 'halted'
+    ? '🛑 Bot detenido (halted) — requiere revisión manual'
+    : !workerPosition || workerPhase === 'idle'
     ? '⚪ Sin posición'
-    : workerPosition.phase === 'awaiting_entry_fill'
+    : workerPhase === 'awaiting_entry_fill'
     ? `🟡 Orden LIMIT pendiente ${workerPosition.type === 'long' ? 'LONG' : 'SHORT'} @ ${workerPosition.entryPrice.toFixed(1)}`
-    : `${workerPosition.type === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo @ ${workerPosition.entryPrice.toFixed(1)} · stop inicial ${workerPosition.stopPrice.toFixed(1)}`;
+    : workerPhase === 'in_position'
+    ? `${workerPosition.type === 'long' ? '🟢 LONG' : '🔴 SHORT'} activo @ ${workerPosition.entryPrice.toFixed(1)} · stop inicial ${workerPosition.stopPrice.toFixed(1)}`
+    : `⚪ Estado desconocido (${workerPhase})`;
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%' }}>
