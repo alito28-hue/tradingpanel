@@ -198,7 +198,7 @@ export default function DashboardPage() {
     const trig = mode === 'dual' ? `SMA${m1.fast} crossing SMA${m1.slow}` : `price crossing SMA${m1.length}`;
     const f = useMacdFilter ? ' with MACD agreeing on the same side of zero' : '';
     const gateText = gateByRegime ? 'while the 1H regime stays aligned' : 'regardless of the 1H regime';
-    return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit via a support/resistance + ATR stop that trails once price moves ${EXIT_CFG.activationPct}% in favor — validated against 180 days of BTCUSDT (see backtest): net profit factor ~9.5, both long and short profitable.`;
+    return `Long when the ${entryInterval} shows ${trig}${f}, ${gateText}. Short mirrors this on the bearish side. Exit via a support/resistance + ATR stop that trails once price moves ${EXIT_CFG.activationPct}% in favor. Ver métricas actuales (win rate, profit factor, PnL) en /backtest — no hardcodeadas acá, para que nunca queden desactualizadas si el código cambia.`;
   }, [mode, m1, useMacdFilter, gateByRegime, entryInterval]);
 
   // Condensed, worker-sourced signal for the sticky header — the *real*
