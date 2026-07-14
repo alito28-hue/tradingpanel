@@ -263,7 +263,25 @@ async function checkEntryFill() {
     await placeExits();
     return;
   }
-  const order = await bingx.getOrder(SYMBOL, position.entryOrderId);
+  let order;
+  try {
+    order = await bingx.getOrder(SYMBOL, position.entryOrderId);
+  } catch (err) {
+    // 109421 "order not exist" means the order this position is tracking is
+    // simply gone (cancelled, expired, or — after a crash-restart — this
+    // process never really knew the real order ID to begin with). Retrying
+    // the same lookup forever just spams Telegram every tick without ever
+    // resolving. Safer to drop back to idle and let a human check BingX
+    // directly for what's actually there, than to keep polling a ghost.
+    if (err.message.includes('109421')) {
+      const msg = `⚠️ La orden de entrada que estaba siguiendo ya no existe en BingX (¿cancelada, expirada, o perdida en un reinicio?). Volviendo a idle — revisá BingX directamente para confirmar el estado real.`;
+      console.log(msg);
+      await sendMessage(msg);
+      position = { phase: 'idle' };
+      return;
+    }
+    throw err;
+  }
   if (order.status === 'FILLED') await placeExits();
 }
 
@@ -340,12 +358,34 @@ async function checkExitFill(candlesEntry) {
     return;
   }
 
-  const [stopStatus, trailStatus] = await Promise.all([
+  // allSettled, not all — a missing order (e.g. placeExits() got interrupted
+  // partway by a crash, so only one of the two ever made it to BingX) must
+  // not take down the other's real status with it via Promise.all rejecting.
+  const [stopResult, trailResult] = await Promise.allSettled([
     bingx.getOrder(SYMBOL, position.stopOrderId),
     bingx.getOrder(SYMBOL, position.trailingOrderId),
   ]);
+  const missingIsOk = (r) => r.status === 'rejected' && r.reason.message.includes('109421');
+  if (stopResult.status === 'rejected' && !missingIsOk(stopResult)) throw stopResult.reason;
+  if (trailResult.status === 'rejected' && !missingIsOk(trailResult)) throw trailResult.reason;
 
-  const filled = stopStatus.status === 'FILLED' ? stopStatus : (trailStatus.status === 'FILLED' ? trailStatus : null);
+  const stopStatus = stopResult.status === 'fulfilled' ? stopResult.value : null;
+  const trailStatus = trailResult.status === 'fulfilled' ? trailResult.value : null;
+
+  if (!stopStatus && !trailStatus) {
+    // Neither protective order exists on BingX at all — the position is
+    // sitting unprotected for real. Don't guess what happened; halt and
+    // make a human check BingX directly rather than silently doing nothing
+    // every 20s while it's actually naked.
+    const type = position.type;
+    position = { phase: 'halted' };
+    const msg = `🛑 Ni el stop ni el trailing existen en BingX para la posición ${type ? type.toUpperCase() : ''} ${SYMBOL} — está desprotegida. El bot se detiene. Revisá BingX y resolvé a mano.`;
+    console.log(msg);
+    await sendMessage(msg);
+    return;
+  }
+
+  const filled = stopStatus?.status === 'FILLED' ? stopStatus : (trailStatus?.status === 'FILLED' ? trailStatus : null);
   if (!filled) return;
 
   const otherOrderId = filled === stopStatus ? position.trailingOrderId : position.stopOrderId;
@@ -377,15 +417,19 @@ async function tick() {
     await checkExitFill(candlesEntry);
   } else if (position.phase === 'awaiting_entry_fill') {
     await checkEntryFill();
-  } else {
-    // position.phase === 'idle': the single `position` variable is the whole
-    // state machine, so MAX_OPEN_POSITIONS (1) is enforced by construction —
-    // there's no code path that opens a second one while phase isn't 'idle'.
+  } else if (position.phase === 'idle') {
+    // The single `position` variable is the whole state machine, so
+    // MAX_OPEN_POSITIONS (1) is enforced by construction — there's no code
+    // path that opens a second one while phase isn't exactly 'idle'.
     const analysis1h = buildAnalysis(candles1h, 'single', H1_CFG, true, H1_CFG.cooldownHours * 3600000);
     const analysisEntry = buildAnalysis(candlesEntry, 'single', ENTRY_CFG, true, ENTRY_CFG.cooldownMinutes * 60000);
     const { entries } = gateEntries(candlesEntry, analysisEntry.signals, candles1h, analysis1h.regime, true);
     await tryOpenPosition(candlesEntry, candles1h, entries);
   }
+  // else: phase === 'halted' (or anything unrecognized) — do nothing.
+  // Previously this was an unconditional `else`, which silently treated
+  // any non-in_position/non-awaiting phase as safe-to-open — the exact gap
+  // a 'halted' phase needs to NOT fall through.
 
   if (Date.now() - lastHeartbeat >= HEARTBEAT_MS) {
     lastHeartbeat = Date.now();
@@ -400,9 +444,25 @@ async function main() {
   // stored mode=live) must never be silent — that's exactly the scenario
   // recoverState() below exists to handle safely.
   await sendMessage(startedDryRun ? '🔒 Worker arrancó en modo TEST (DRY_RUN).' : '🔓 Worker arrancó en modo LIVE (dinero real).');
-  await bingx.setLeverage(SYMBOL, 'LONG', LEVERAGE);
-  await bingx.setLeverage(SYMBOL, 'SHORT', LEVERAGE);
-  await recoverState();
+  // setLeverage/recoverState were previously unguarded — any throw here
+  // (e.g. from recoverState's real BingX calls, which is the one code path
+  // that had literally never run against the live API before — DRY_RUN
+  // always short-circuits it) crashed the whole process. Railway's restart
+  // policy then relaunched it in a tight loop, and since `position` and
+  // `lastConsideredEntryTime` are in-memory only, every restart forgot
+  // whatever it had already tried and could open another real position on
+  // top of an unprotected one. Now: catch it, go to a 'halted' phase that
+  // tick() treats as "do nothing" (see below) instead of 'idle', and send
+  // exactly one alert instead of restarting forever.
+  try {
+    await bingx.setLeverage(SYMBOL, 'LONG', LEVERAGE);
+    await bingx.setLeverage(SYMBOL, 'SHORT', LEVERAGE);
+    await recoverState();
+  } catch (err) {
+    console.error('startup failed:', err.message);
+    position = { phase: 'halted' };
+    await sendMessage(`🛑 Error crítico al arrancar: ${err.message}. El bot NO va a abrir posiciones nuevas. Revisá BingX directamente (posiciones y órdenes abiertas) y resolvé esto a mano antes de reiniciar.`);
+  }
   startServer();
   for (;;) {
     try {
