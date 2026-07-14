@@ -53,7 +53,7 @@ const modeStore = new ModeStore(path.join(DATA_DIR, 'mode_state.json'));
 
 const HEARTBEAT_MS = 5 * 60 * 1000; // 5 min — enough to confirm the loop is alive without spamming logs
 
-let lastConsideredEntryIndex = -1;
+let lastConsideredEntryTime = -1;
 let position = { phase: 'idle' }; // idle | awaiting_entry_fill | in_position
 let lastHeartbeat = 0;
 
@@ -184,6 +184,7 @@ async function recoverState() {
   const entryPrice = Number(openPos.avgPrice);
   const quantity = Math.abs(Number(openPos.positionAmt));
   const exitSide = type === 'long' ? 'SELL' : 'BUY';
+  const bingxPositionSide = type === 'long' ? 'LONG' : 'SHORT';
 
   const openOrdersData = await bingx.getOpenOrders(SYMBOL);
   const openOrders = openOrdersData?.orders || [];
@@ -200,7 +201,7 @@ async function recoverState() {
     const safeStopPrice = type === 'long'
       ? entryPrice * (1 - checkStopDistance(entryPrice, entryPrice, LEVERAGE).safeThresholdPct / 100)
       : entryPrice * (1 + checkStopDistance(entryPrice, entryPrice, LEVERAGE).safeThresholdPct / 100);
-    stopOrder = await bingx.placeStopLoss({ symbol: SYMBOL, side: exitSide, quantity, stopPrice: safeStopPrice });
+    stopOrder = await bingx.placeStopLoss({ symbol: SYMBOL, side: exitSide, positionSide: bingxPositionSide, quantity, stopPrice: safeStopPrice });
     position.stopPrice = safeStopPrice;
   } else {
     position.stopPrice = Number(stopOrder.stopPrice);
@@ -211,7 +212,7 @@ async function recoverState() {
     const activationPrice = type === 'long'
       ? entryPrice * (1 + EXIT_CFG.activationPct / 100)
       : entryPrice * (1 - EXIT_CFG.activationPct / 100);
-    trailingOrder = await bingx.placeTrailingStop({ symbol: SYMBOL, side: exitSide, quantity, activationPrice, trailPct: EXIT_CFG.trailPct });
+    trailingOrder = await bingx.placeTrailingStop({ symbol: SYMBOL, side: exitSide, positionSide: bingxPositionSide, quantity, activationPrice, trailPct: EXIT_CFG.trailPct });
   }
   position.trailingOrderId = trailingOrder.orderId;
 
@@ -228,12 +229,18 @@ async function tryOpenPosition(candlesEntry, candles1h, entries) {
   // same checkStopDistance() safety check — no separate post-hoc rejection
   // needed here anymore.
   const { openPosition } = simulateTrades(candlesEntry, candles1h, entries, EXIT_CFG);
-  if (!openPosition || openPosition.entryIndex === lastConsideredEntryIndex) return;
-  lastConsideredEntryIndex = openPosition.entryIndex;
+  // entryTime (absolute) rather than entryIndex — candlesEntry is re-fetched
+  // fresh every tick as "the latest 500 candles", so the same real signal
+  // lands at a different array index each poll as the window slides. Tracking
+  // by index meant the same signal (including a failed order placement) got
+  // retried every single tick forever instead of being considered once.
+  if (!openPosition || openPosition.entryTime === lastConsideredEntryTime) return;
+  lastConsideredEntryTime = openPosition.entryTime;
 
   const side = openPosition.type === 'long' ? 'BUY' : 'SELL';
+  const positionSide = openPosition.type === 'long' ? 'LONG' : 'SHORT';
   const quantity = roundQty((POSITION_SIZE_USD * LEVERAGE) / openPosition.entryPrice);
-  const order = await bingx.placeLimitEntry({ symbol: SYMBOL, side, quantity, price: openPosition.entryPrice });
+  const order = await bingx.placeLimitEntry({ symbol: SYMBOL, side, positionSide, quantity, price: openPosition.entryPrice });
 
   position = {
     phase: 'awaiting_entry_fill',
@@ -262,13 +269,14 @@ async function checkEntryFill() {
 
 async function placeExits() {
   const exitSide = position.type === 'long' ? 'SELL' : 'BUY';
+  const positionSide = position.type === 'long' ? 'LONG' : 'SHORT';
   const activationPrice = position.type === 'long'
     ? position.entryPrice * (1 + EXIT_CFG.activationPct / 100)
     : position.entryPrice * (1 - EXIT_CFG.activationPct / 100);
 
-  const stopOrder = await bingx.placeStopLoss({ symbol: SYMBOL, side: exitSide, quantity: position.quantity, stopPrice: position.stopPrice });
+  const stopOrder = await bingx.placeStopLoss({ symbol: SYMBOL, side: exitSide, positionSide, quantity: position.quantity, stopPrice: position.stopPrice });
   const trailingOrder = await bingx.placeTrailingStop({
-    symbol: SYMBOL, side: exitSide, quantity: position.quantity, activationPrice, trailPct: EXIT_CFG.trailPct,
+    symbol: SYMBOL, side: exitSide, positionSide, quantity: position.quantity, activationPrice, trailPct: EXIT_CFG.trailPct,
   });
 
   position.phase = 'in_position';
