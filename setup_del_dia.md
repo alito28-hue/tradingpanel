@@ -1,32 +1,43 @@
-fecha: 2026-07-13
-regimen: Rallie de alivio dentro de rango 60,000–65,000 (estructura 1D bajista tras mínimo de 57,800 el 1/7; rebote liderado por short covering, volumen decreciente)
+fecha: 2026-07-15 (snapshot 9:15 ART / 12:15 UTC)
+regimen: Tendencia alcista incipiente — ruptura del rango de 10 días confirmada. El CPI del 14/7 rompió el techo 64,700 con la vela 4H de mayor volumen del mes (99,609 BTC) y 6 cierres 4H consecutivos sosteniendo sobre 64,500. OI colapsó −3.7% en 1h con precio subiendo (squeeze de shorts inferido) y luego se reconstruyó +3.9% con precio sosteniendo = longs nuevos, no solo covering. Funding 0.0072%/8h: sin euforia.
 
 ## Setup Principal
-nombre: S2 — Short de Rallie de Alivio
-direccion: SHORT
-zona_techo: 65600
-zona_piso: 64400
-stop: 66200
-tp1: 62400
-tp2: 60400
-gatillo: Pérdida de momentum en 64,400–65,600 en 15m (mechas superiores, fallo en reclamar 64,700 o rechazo en EMA 50 mensual ~65,630) + quiebre del primer soporte menor de 5m. Variante SFP: barrida de 64,700 con cierre de 15m de vuelta abajo. Entrada escalonada ½ + ½. Tolerancia de gatillo: 0.3% fuera de zona.
-contexto_requerido: OI plano o cayendo mientras el precio sube (short covering) + volumen decreciente + funding sin dispararse. Invalidez: aceptación sobre 66,200 con OI creciendo y spot liderando. Zona recalibrada por regla de flujo débil (piso = máximo 64,700 − 0.5%).
+nombre: BR — Long en Retest de la Ruptura 64,700 (BR alcista de ayer, confirmado)
+direccion: LONG
+zona_techo: 64750
+zona_piso: 64470
+stop: 64140
+tp1: 65250
+tp2: 66000
+gatillo: Retroceso a la zona (pivotes reales 64,451/64,457/64,473/64,528 + nivel roto 64,700) con OI estable (sin colapso ≥1.5%/1h) + vela 15m de rechazo (mecha inferior / envolvente alcista / SFP de 64,450). Entrada ½ + ½.
+contexto_requerido: FUERA de ventanas macro: PPI ya publicado 9:30 ART (reacción inicial alcista, spike a 65,123 con 5.5k BTC en 15m), Warsh ante el Senado 11:00 ART — operable recién desde ~11:30–12:00 ART con Warsh digerido. Invalidez: aceptación 4H bajo 64,200 (mínimo real post-ruptura) = ruptura fallida, de vuelta al rango 61,300–64,700.
+posicion: ~0.106 BTC (~$6,870 nocional, ~1.4x) | R:R a TP2 ≈ 3.0R
 
 ## Setup Alternativo
-nombre: L1 — Long de Capitulación (condicional)
-direccion: LONG
-zona_techo: 60300
-zona_piso: 59400
-stop: 58850
-tp1: 61600
-tp2: 63000
-gatillo: SOLO ante caída vertical (−3%+) al piso del rango: mecha climática con volumen, SFP de 60,000, o primer higher low en 5m tras el clímax. No comprar el cuchillo. Entrada ½ + ½. Tolerancia de gatillo: 0.3% fuera de zona.
-contexto_requerido: Spike de liquidaciones de LONGS + OI colapsando + funding pasando a negativo. Sin cascada visible en Coinglass, este setup NO existe. Zona extendida por regla de flujo forzado (piso = 60,000 − 1%). STOP PROVISIONAL: el real va bajo el mínimo del clímax cuando exista; si el clímax se forma más abajo (58,115/57,800 debajo), recalcular tamaño.
+nombre: S1 — Short de Euforia (condicional, contratendencia)
+direccion: SHORT
+zona_techo: 65550
+zona_piso: 65150
+stop: 65850
+tp1: 64750
+tp2: 64250
+gatillo: SOLO ante extensión vertical que barra 65,260 (máximo real 24h) SIN aceptación: SFP 15m con cierre de vuelta abajo + funding disparándose u OI vertical en la subida. Techo de zona 65,550 respeta la regla (máx real 65,260 + 0.5% = 65,586).
+contexto_requerido: Hoy el funding (0.0072%) NO muestra euforia — este setup no existe salvo que el contexto cambie (funding >0.03%/8h o OI +3% en pocas horas con spike). Contratendencia en día de ruptura: tamaño conservador, tomar TP1 agresivo. Invalidez: aceptación 4H sobre 65,850.
+posicion: ~0.100 BTC (~$6,535 nocional, ~1.3x) | R:R a TP2 ≈ 2.2R
+
+## BR vigilado
+- Nivel ALCISTA: **65,260** (máximo post-ruptura, rechazado 2 veces: 65,260 y 65,130). Aceptación 4H encima + OI expandiendo → long en retest 65,260–64,950, stop 64,600, tp1 66,000, tp2 66,800.
+- Restricción dura: PROHIBIDO durante el testimonio de Warsh (11:00–~11:45 ART) y los spikes de Cook (13:00 ART) / Beige Book (14:00 ART). Solo con la ruptura digerida.
+- El BR bajista 61,300 de ayer queda ANULADO: el precio rompió por el lado contrario.
+
+## Valores para el indicador TV
+Setup Principal (LONG): techo 64750 / piso 64470 / stop 64140 / tp1 65250 / tp2 66000
+Setup Alternativo (SHORT): techo 65550 / piso 65150 / stop 65850 / tp1 64750 / tp2 64250
+(Si BR alcista 65,260 confirmado: LONG retest — zona 65260–64950 / stop 64600 / tp1 66000 / tp2 66800)
 
 # Notas del día
-- Lunes 13/7: sin datos macro de primer nivel en EE.UU. Núcleo Londres–NY 9:00–13:00 ART.
-- MARTES 14/7 ~9:30 ART: CPI de EE.UU. Protocolo T-24h activo desde esta tarde: cerrar intradía, no abrir swings nuevos, no operar T-0 a T+15min. Testimonio del presidente de la Fed (Warsh) esta semana.
-- Order flow de apertura: OI $47.7B (+1.9% en 2 días); funding +0.0087%/4h (~19% anualizado, moderado); liquidaciones 24h $140.6M — $86.6M shorts vs $54M longs (short covering); Fear & Greed 44 (neutral).
-- Geopolítica: tensión EE.UU.–Irán, petróleo +5% cerca de $75 — riesgo de shock exógeno; noticias Categoría A cancelan el playbook del día.
-- Niveles macro: resistencias 64,200 / 64,700 / 65,630–65,800 (EMA 50 mensual); soportes 62,360 / 60,000 / 58,115–57,800. Rango con volumen decreciente: la ruptura con volumen define la próxima tendencia.
-- Advertencia de liquidez: pre-CPI la liquidez se adelgaza en la tarde — riesgo de barridas dobles en los extremos del rango.
+- Snapshot: 15/7 9:15 ART (12:15 UTC). Binance perp 65,045 / CoinGecko spot 64,868 (diff 0.27%, verificado). Movimiento vs ayer +3.6%, explicado por CPI benigno del 14/7.
+- Extremos REALES (ancla de zonas): 24h → máx 65,260 / mín 63,550 (mín post-ruptura relevante: 64,200). 48h → máx 65,260 / mín 61,806.
+- OI Binance 12:00 UTC: 106,184 BTC ($6.87B). Secuencia CPI: 106,130 → 102,191 (−3.7% en 1h con precio +3% = liquidación de shorts inferida) → reconstrucción a 106,842 → 106,184 con precio sosteniendo 64,500+ = posicionamiento long nuevo. Funding 0.0072%/8h (bajo, sin euforia).
+- AGENDA (ART): PPI junio 9:30 (publicado; esperado 0.0% m/m — reacción inicial alcista). Williams 8:45. Warsh ante Comité Bancario del Senado 11:00. Cook 13:00. Beige Book 14:00. Ventana operable: ~11:45–13:00 y post-Beige Book.
+- Sin gatillo de 15m confirmado, no hay trade.
