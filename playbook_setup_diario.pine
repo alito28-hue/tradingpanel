@@ -84,8 +84,32 @@ f_drawSetup(showB, nameB, dirB, zTopB, zBotB, slB, tp1B, tp2B)
 // el gatillo de confirmación en 15m/5m sigue siendo obligatorio.
 inZoneA = showA and high >= zBotA and low <= zTopA
 inZoneB = showB and high >= zBotB and low <= zTopB
-alertcondition(inZoneA, "Zona Setup Principal",   "BTC entró en la zona del Setup Principal. Busca el gatillo de 15m — NO entres sin confirmación.")
-alertcondition(inZoneB, "Zona Setup Alternativo", "BTC entró en la zona del Setup Alternativo. Busca el gatillo de 15m — NO entres sin confirmación.")
+// La alerta de zona dispara SOLO al ENTRAR (no en cada vela dentro) → sin spam
+entryZoneA = inZoneA and not inZoneA[1]
+entryZoneB = inZoneB and not inZoneB[1]
+alertcondition(entryZoneA, "Zona Setup Principal",   "BTC ENTRÓ en la zona del Setup Principal. Busca el gatillo de 15m — NO entres sin confirmación.")
+alertcondition(entryZoneB, "Zona Setup Alternativo", "BTC ENTRÓ en la zona del Setup Alternativo. Busca el gatillo de 15m — NO entres sin confirmación.")
+
+// ── DETECTOR DE VELA GATILLO (anatomía del playbook) ──────────
+// Marca velas dentro de la zona que cumplen: color correcto + mecha
+// dominante (≥50% del rango) + cierre en el tercio correcto.
+// Configurar la alerta de gatillo como "AL CIERRE DE LA BARRA".
+f_gatillo(_show, _dir, _zT, _zB) =>
+    inZ  = _show and high >= _zB and low <= _zT
+    rng  = high - low
+    wTop = high - math.max(open, close)
+    wBot = math.min(open, close) - low
+    pos  = rng > 0 ? (close - low) / rng : 0.5
+    tS   = inZ and _dir == "Short" and close < open and wTop >= rng * 0.5 and pos <= 0.35
+    tL   = inZ and _dir == "Long"  and close > open and wBot >= rng * 0.5 and pos >= 0.65
+    tS or tL
+
+trigA = f_gatillo(showA, dirA, zTopA, zBotA)
+trigB = f_gatillo(showB, dirB, zTopB, zBotB)
+plotshape(trigA, "Gatillo candidato Principal",  style = shape.diamond, location = location.abovebar, color = color.new(color.fuchsia, 0), size = size.small)
+plotshape(trigB, "Gatillo candidato Alternativo", style = shape.diamond, location = location.belowbar, color = color.new(color.teal, 0),   size = size.small)
+alertcondition(trigA, "GATILLO candidato — Setup Principal",  "Vela con anatomía de gatillo en la zona del Setup Principal (alerta al cierre de barra). Falta: chequeo de contexto 2-de-3 antes de entrar.")
+alertcondition(trigB, "GATILLO candidato — Setup Alternativo", "Vela con anatomía de gatillo en la zona del Setup Alternativo (alerta al cierre de barra). Falta: chequeo de contexto 2-de-3 antes de entrar.")
 
 // ── ⑤ SETUP BR — RUPTURA Y RETEST ─────────────────────────────
 // Vigila UN NIVEL. Alerta 1: cierre más allá del nivel (ruptura).

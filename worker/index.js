@@ -94,7 +94,35 @@ function startServer() {
     return;
   }
   const secret = process.env.WORKER_API_SECRET;
+  const tvWebhookSecret = process.env.TV_WEBHOOK_SECRET;
   const server = http.createServer((req, res) => {
+    // TradingView's webhook alerts can't send a custom X-Worker-Secret header
+    // (only a plain POST body), so this route is checked and handled BEFORE
+    // the generic secret gate below — its own secret lives in the URL path
+    // instead. Pure notify-only: this never touches bingx.js or `position`,
+    // it only reads the alert text and forwards it to Telegram. See
+    // docs/estrategias/PINE_ALERTA_WARRIOR.txt for the Pine side + setup.
+    if (req.method === 'POST' && req.url.startsWith('/tv-webhook/')) {
+      const providedSecret = req.url.slice('/tv-webhook/'.length);
+      if (!tvWebhookSecret || providedSecret !== tvWebhookSecret) {
+        res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unauthorized' }));
+        return;
+      }
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        // TradingView sends whatever text was configured in the alert's
+        // "Message" box, as-is — plain text or JSON, doesn't matter, this
+        // just relays it. Kept to a sane size so a malformed/huge alert body
+        // can't blow up the Telegram message.
+        const text = String(body || '').slice(0, 3000) || '(alerta vacía)';
+        console.log('[tv-webhook] alerta recibida:', text);
+        await sendMessage(`📡 Señal TradingView:\n${text}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
+      });
+      return;
+    }
+
     if (!secret || req.headers['x-worker-secret'] !== secret) {
       res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unauthorized' }));
       return;
@@ -161,7 +189,7 @@ function startServer() {
 
     res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /trades, /mode — requires X-Worker-Secret)`));
+  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /trades, /mode — requires X-Worker-Secret; /tv-webhook/<secret> — TradingView alerts, notify-only)`));
 }
 
 // Runs once at startup (real trading only — DRY_RUN has no real BingX state

@@ -1,0 +1,197 @@
+//@version=5
+// ═══════════════════════════════════════════════════════════════
+//  PILOTO INTRADÍA — Sistema A (ORB) + Sistema B (Barrido 4-6h)
+//  Todo se calcula SOLO en el gráfico. No hace falta cargar
+//  valores cada mañana — instalalo una vez y las cajas/alertas
+//  se dibujan y disparan solas. Usar en 5m o 15m.
+// ═══════════════════════════════════════════════════════════════
+indicator("Piloto Intradía — ORB + Barrido", overlay = true, max_boxes_count = 50, max_lines_count = 50)
+
+capital = input.float(5000.0, "Capital (USD)", group = "Riesgo")
+riskPct = input.float(1.0, "Riesgo por trade (%)", minval = 0.1, maxval = 2.0, group = "Riesgo")
+riskUsd = capital * riskPct / 100
+
+// ═══ FILTRO DE TENDENCIA (compartido por ambos sistemas) ═════
+// Sin esto, un ORB o un Barrido en contra de una tendencia fuerte
+// es pelear contra el río. Bloquea señales contra-tendencia en AMBOS.
+grpT = "Filtro de Tendencia (compartido)"
+useTrendFilter = input.bool(true, "Filtrar señales contra-tendencia", group = grpT)
+emaFastLen = input.int(20, "EMA rápida", group = grpT)
+emaSlowLen = input.int(50, "EMA lenta",  group = grpT)
+emaF = ta.ema(close, emaFastLen)
+emaS = ta.ema(close, emaSlowLen)
+trendUp = emaF > emaS and emaF > emaF[3]
+trendDn = emaF < emaS and emaF < emaF[3]
+plot(emaF, "EMA rápida", color = color.new(color.aqua, 30))
+plot(emaS, "EMA lenta",  color = color.new(color.orange, 30))
+
+// ═══ SISTEMA A — OPENING RANGE BREAKOUT ══════════════════════
+grpA = "Sistema A — ORB"
+showORB   = input.bool(true, "Activar ORB", group = grpA)
+orbMinPct = input.float(0.15, "Rango mínimo válido (%)", group = grpA)
+orbMaxPct = input.float(1.0,  "Rango máximo válido (%)", group = grpA)
+rrTarget  = input.float(2.0,  "TP2 = N × tamaño del rango", group = grpA)
+
+// Sesiones (hora de EXCHANGE del gráfico — ajustar si TV no está en ART)
+sAsia   = input.session("1800-1830", "Ventana Asia (apertura)",   group = grpA)
+sLondon = input.session("0400-0430", "Ventana Londres (apertura)", group = grpA)
+sNY     = input.session("0900-0930", "Ventana NY (apertura)",      group = grpA)
+
+// Zona horaria fija en ART: sin esto, time() usa la zona del feed del exchange
+// (suele ser UTC), no la hora de Argentina — causaba que las sesiones quedaran
+// corridas 3 horas y NY casi nunca coincidiera con lo que se ve en pantalla.
+f_inSession(sess) => not na(time(timeframe.period, sess, "America/Argentina/Buenos_Aires"))
+
+inAsia   = f_inSession(sAsia)
+inLondon = f_inSession(sLondon)
+inNY     = f_inSession(sNY)
+inAnyORB = inAsia or inLondon or inNY
+
+var float orbHigh = na
+var float orbLow  = na
+var bool  orbDoneUp = false
+var bool  orbDoneDn = false
+var box   orbBox = na
+var line  orbUpL = na
+var line  orbDnL = na
+
+newWindow = inAnyORB and not inAnyORB[1]
+if newWindow
+    orbHigh := high
+    orbLow  := low
+    orbDoneUp := false
+    orbDoneDn := false
+    box.delete(orbBox)
+    line.delete(orbUpL)
+    line.delete(orbDnL)
+    orbBox := box.new(bar_index, high, bar_index, low, border_color = color.new(color.blue, 40), bgcolor = color.new(color.blue, 90))
+
+if inAnyORB and not newWindow
+    orbHigh := math.max(orbHigh, high)
+    orbLow  := math.min(orbLow, low)
+    box.set_top(orbBox, orbHigh)
+    box.set_bottom(orbBox, orbLow)
+    box.set_right(orbBox, bar_index)
+
+orbRange   = orbHigh - orbLow
+orbRangePct = orbLow > 0 ? orbRange / orbLow * 100 : 0
+orbValid   = orbRangePct >= orbMinPct and orbRangePct <= orbMaxPct
+
+windowJustEnded = not inAnyORB and inAnyORB[1]
+if windowJustEnded and showORB and orbValid
+    line.delete(orbUpL)
+    line.delete(orbDnL)
+    orbUpL := line.new(bar_index, orbHigh, bar_index + 40, orbHigh, color = color.new(color.blue, 20), style = line.style_dashed)
+    orbDnL := line.new(bar_index, orbLow,  bar_index + 40, orbLow,  color = color.new(color.blue, 20), style = line.style_dashed)
+
+// NOTA: el ORB NO usa el filtro de tendencia. Es un sistema de ruptura/momentum
+// por diseño — filtrarlo con una EMA (indicador retrasado) genera falsos negativos
+// tan seguido como falsos positivos, porque ambas son señales de "dirección" que
+// pueden discrepar en el peor momento (ver auditoría del 21/7). El control de riesgo
+// del ORB es su propio stop en el extremo opuesto del rango, no un filtro externo.
+breakUp = showORB and orbValid and not orbDoneUp and not orbDoneDn and not inAnyORB and close > orbHigh and close[1] <= orbHigh
+breakDn = showORB and orbValid and not orbDoneUp and not orbDoneDn and not inAnyORB and close < orbLow  and close[1] >= orbLow
+
+if breakUp
+    orbDoneUp := true
+    stopU  = orbLow
+    tp1U   = close + orbRange
+    tp2U   = close + orbRange * rrTarget
+    distU  = (close - stopU) / close
+    posU   = distU > 0 ? riskUsd / distU : 0
+    label.new(bar_index, low, "ORB LONG\nEntrada " + str.tostring(close, "#,###") + "\nStop " + str.tostring(stopU, "#,###") + " | TP1 " + str.tostring(tp1U, "#,###") + " | TP2 " + str.tostring(tp2U, "#,###") + "\nPos ≈$" + str.tostring(posU, "#,###"), style = label.style_label_up, color = color.new(color.teal, 15), textcolor = color.white, size = size.small)
+
+if breakDn
+    orbDoneDn := true
+    stopD  = orbHigh
+    tp1D   = close - orbRange
+    tp2D   = close - orbRange * rrTarget
+    distD  = (stopD - close) / close
+    posD   = distD > 0 ? riskUsd / distD : 0
+    label.new(bar_index, high, "ORB SHORT\nEntrada " + str.tostring(close, "#,###") + "\nStop " + str.tostring(stopD, "#,###") + " | TP1 " + str.tostring(tp1D, "#,###") + " | TP2 " + str.tostring(tp2D, "#,###") + "\nPos ≈$" + str.tostring(posD, "#,###"), style = label.style_label_down, color = color.new(color.red, 15), textcolor = color.white, size = size.small)
+
+alertcondition(breakUp, "ORB Breakout LONG", "Ruptura alcista del rango de apertura. Verifica volumen y contexto antes de sumar tamaño — la vela de ruptura YA es el gatillo aquí (no esperar retest).")
+alertcondition(breakDn, "ORB Breakout SHORT", "Ruptura bajista del rango de apertura. Verifica volumen y contexto antes de sumar tamaño — la vela de ruptura YA es el gatillo aquí (no esperar retest).")
+
+// ═══ SISTEMA B — BARRIDO DE LIQUIDEZ (sobre PIVOTES reales, no máximo rodante) ══
+// v2: el "nivel" ahora es un swing confirmado (pivote con velas a ambos lados),
+// NO el máximo de las últimas N velas — eso disparaba en cada vela roja de una
+// tendencia sana. Además se filtra CONTRA la tendencia: no se shortea un barrido
+// de máximo si el mercado está en tendencia alcista clara, y viceversa.
+grpB = "Sistema B — Barrido"
+showSweep  = input.bool(true, "Activar Barrido", group = grpB)
+sweepHrs   = input.float(5.0, "Horas de la ventana de búsqueda", group = grpB)
+pivotLeft  = input.int(4, "Velas a cada lado para confirmar pivote", minval = 2, group = grpB)
+
+sweepBars = math.round(sweepHrs * 60 / timeframe.multiplier)
+
+// Tendencia: usa el filtro compartido definido arriba (useTrendFilter/trendUp/trendDn)
+
+// Pivotes confirmados (requieren `pivotLeft` velas a cada lado — con retraso pero reales)
+ph = ta.pivothigh(pivotLeft, pivotLeft)
+pl = ta.pivotlow(pivotLeft, pivotLeft)
+
+var float lastPivotHigh = na
+var float lastPivotLow  = na
+var float sweptHighLevel = na  // último pivote alto YA operado, para no repetir
+var float sweptLowLevel  = na
+
+if not na(ph)
+    lastPivotHigh := ph
+if not na(pl)
+    lastPivotLow := pl
+
+// Solo considerar pivotes dentro de la ventana horaria (evita niveles viejos de días atrás)
+pivotHighValid = not na(lastPivotHigh) and (bar_index - ta.valuewhen(not na(ph), bar_index, 0)) <= sweepBars
+pivotLowValid  = not na(lastPivotLow)  and (bar_index - ta.valuewhen(not na(pl), bar_index, 0)) <= sweepBars
+
+var line rhLine = na
+var line rlLine = na
+if barstate.islast and showSweep
+    line.delete(rhLine)
+    line.delete(rlLine)
+    if pivotHighValid
+        rhLine := line.new(bar_index - sweepBars, lastPivotHigh, bar_index + 15, lastPivotHigh, color = color.new(color.orange, 30), style = line.style_dotted, width = 2)
+    if pivotLowValid
+        rlLine := line.new(bar_index - sweepBars, lastPivotLow, bar_index + 15, lastPivotLow, color = color.new(color.orange, 30), style = line.style_dotted, width = 2)
+
+// Barrido = mecha atraviesa el PIVOTE (no el máximo de ayer-nomás) y el cierre vuelve adentro,
+// con rechazo real (mecha ≥40% del rango de la vela), y ese pivote no fue operado ya.
+rng = high - low
+wTop = high - math.max(open, close)
+wBot = math.min(open, close) - low
+
+sweepHighNow = pivotHighValid and high > lastPivotHigh and close < lastPivotHigh and wTop >= rng * 0.4 and lastPivotHigh != sweptHighLevel
+sweepLowNow  = pivotLowValid  and low  < lastPivotLow  and close > lastPivotLow  and wBot >= rng * 0.4 and lastPivotLow  != sweptLowLevel
+
+// Filtro de tendencia: no shortear barridos de máximo en tendencia alcista clara, y viceversa
+sweepShort = showSweep and sweepHighNow and (not useTrendFilter or not trendUp)
+sweepLong  = showSweep and sweepLowNow  and (not useTrendFilter or not trendDn)
+
+if sweepShort
+    sweptHighLevel := lastPivotHigh
+if sweepLong
+    sweptLowLevel := lastPivotLow
+
+plotshape(sweepShort, "Barrido SHORT", style = shape.triangledown, location = location.abovebar, color = color.new(color.red, 0), size = size.small)
+plotshape(sweepLong,  "Barrido LONG",  style = shape.triangleup,   location = location.belowbar, color = color.new(color.teal, 0), size = size.small)
+
+if sweepShort
+    midR  = (lastPivotHigh + lastPivotLow) / 2
+    stopS = high * 1.001
+    distS = (stopS - close) / close
+    posS  = distS > 0 ? riskUsd / distS : 0
+    label.new(bar_index, high, "BARRIDO SHORT\nStop " + str.tostring(stopS, "#,###") + "\nTP1 " + str.tostring(midR, "#,###") + " | TP2 " + str.tostring(lastPivotLow, "#,###") + "\nPos ≈$" + str.tostring(posS, "#,###"), style = label.style_label_down, color = color.new(color.red, 15), textcolor = color.white, size = size.small)
+
+if sweepLong
+    midR  = (lastPivotHigh + lastPivotLow) / 2
+    stopS = low * 0.999
+    distS = (close - stopS) / close
+    posS  = distS > 0 ? riskUsd / distS : 0
+    label.new(bar_index, low, "BARRIDO LONG\nStop " + str.tostring(stopS, "#,###") + "\nTP1 " + str.tostring(midR, "#,###") + " | TP2 " + str.tostring(lastPivotHigh, "#,###") + "\nPos ≈$" + str.tostring(posS, "#,###"), style = label.style_label_up, color = color.new(color.teal, 15), textcolor = color.white, size = size.small)
+
+alertcondition(sweepShort, "Barrido SHORT (candidato)", "Mecha atravesó el máximo de las últimas horas y cerró de vuelta adentro. Candidato a reversión SHORT — confirma con la vela siguiente antes de entrar.")
+alertcondition(sweepLong,  "Barrido LONG (candidato)",  "Mecha atravesó el mínimo de las últimas horas y cerró de vuelta adentro. Candidato a reversión LONG — confirma con la vela siguiente antes de entrar.")
+
+// ═══ Info de sesión (para saber si estás en ventana ORB) ═════
+bgcolor(inAnyORB ? color.new(color.blue, 92) : na, title = "Ventana de apertura activa")

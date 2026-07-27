@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "fecha": "2026-07-23",
+    "horaEntrada": "15:11",
+    "horaSalida": "15:44",
+    "symbol": "BTCUSDT",
+    "direccion": "long",
+    "precioEntrada": 64737.1,
+    "precioSalida": 64996.04,
+    "monto": null,
+    "palanca": 30,
+    "resultado": 122.5592,
+    "gastos": null,
+    "pnlReal": 77.0375,
+    "notas": "Entrada por análisis de resistencia/soporte propio, no por indicador. Entrada maker (no taker) — según Alex, con taker el resultado hubiera sido ~$100 limpio. SL en 64,640 (riesgo ~$100)."
+  }
+]

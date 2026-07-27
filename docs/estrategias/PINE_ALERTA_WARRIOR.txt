@@ -1,0 +1,66 @@
+Indicador (NO strategy — no ejecuta ni simula órdenes, solo dispara alertas)
+basado en la lógica de WARRIOR-MOMEMTUM.txt (vela roja de pullback + MACD
+histograma positivo + horario 04:00-09:30 NY). Solo AVISA vía Telegram —
+Alex ejecuta manualmente en Webull. Ver PROTOCOLO_ANALISIS_SENALES.md y
+worker/index.js (ruta /tv-webhook/<secret>) para el resto del pipeline.
+
+Setup en TradingView, por ticker:
+1. Pegar este código en Pine Editor, "Add to chart".
+2. Botón Alert (reloj) -> Condition: este indicador -> "Cualquier alert() function call".
+3. Webhook URL: https://<tu-dominio-de-railway>/tv-webhook/<TV_WEBHOOK_SECRET>
+   (TV_WEBHOOK_SECRET se define como variable de entorno en Railway, junto a
+   las que ya existen — WORKER_API_SECRET, TELEGRAM_BOT_TOKEN, etc.)
+4. El campo "Message" de la alerta en TradingView NO importa acá — el código
+   ya arma el mensaje dinámicamente con alert(), así que se ignora lo que se
+   escriba en ese campo.
+
+------------------------------------------------------------
+
+//@version=6
+indicator("Warrior Momentum — Alertas (no ejecuta nada)", overlay=true)
+
+// ==========================================
+// 1. CONFIGURACIÓN (igual que WARRIOR-MOMEMTUM.txt)
+// ==========================================
+horario_permitido = input.session("0400-0930", "Horario Operativo (NY)")
+en_horario = not na(time(timeframe.period, horario_permitido, "America/New_York"))
+
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+bool macd_positivo = histLine > 0
+
+bool esVelaRoja = close < open
+
+bgcolor(not macd_positivo ? color.new(color.red, 90) : na)
+bgcolor(not en_horario ? color.new(color.gray, 90) : na)
+
+// ==========================================
+// 2. ESTADO INTERNO (solo para saber cuándo avisar la salida — no es una
+// posición real, es memoria del indicador para no repetir alertas)
+// ==========================================
+var bool esperandoEntrada = false
+var float nivelEntrada = na
+var float nivelStop = na
+
+// ==========================================
+// 3. ALERTA DE POSIBLE ENTRADA
+// ==========================================
+if esVelaRoja and macd_positivo and en_horario and not esperandoEntrada
+    nivelEntrada := high
+    nivelStop := low
+    esperandoEntrada := true
+    msg = "ENTRADA " + syminfo.ticker + "\nBreakout arriba de " + str.tostring(nivelEntrada, format.mintick) +
+          "\nSL sugerido: " + str.tostring(nivelStop, format.mintick) +
+          "\nHora: " + str.format_time(time, "HH:mm", "America/New_York") + " NY"
+    alert(msg, alert.freq_once_per_bar_close)
+    label.new(bar_index, high, "▲ posible entrada", style=label.style_label_down, color=color.green, textcolor=color.white)
+
+// ==========================================
+// 4. ALERTA DE SALIDA (vela cierra roja mientras esperábamos el breakout, o
+// si ya veníamos "en la operación" simulada y cierra roja)
+// ==========================================
+if esperandoEntrada and close < open and bar_index > 0
+    msg = "SALIR/CANCELAR " + syminfo.ticker + "\nVela cerró roja — cerrar posición si está abierta, o cancelar la orden de breakout si no se llenó todavía." +
+          "\nHora: " + str.format_time(time, "HH:mm", "America/New_York") + " NY"
+    alert(msg, alert.freq_once_per_bar_close)
+    esperandoEntrada := false
+    label.new(bar_index, low, "▼ salir/cancelar", style=label.style_label_up, color=color.red, textcolor=color.white)

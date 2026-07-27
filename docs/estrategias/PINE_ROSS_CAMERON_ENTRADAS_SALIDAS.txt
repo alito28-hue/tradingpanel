@@ -1,0 +1,123 @@
+Indicador de TradingView (NO strategy, no ejecuta ni simula órdenes) con las
+dos entradas de velas que más usa Ross Cameron / Warrior Trading en momentum
+intradiario, más la salida. Solo dibuja señales en el gráfico — la ejecución
+en Webull la hace Alex a mano. Basado en:
+- docs/estrategias/WARRIOR-MOMEMTUM.txt (la lógica de "vela roja + MACD" que
+  ya tenías validada, "LA BUENA (Final)")
+- docs/estrategias/Micropullback-10seconds.png y -2.png (el patrón de
+  pullback chico pegado a la EMA rápida durante un impulso fuerte)
+
+Las dos entradas son setups DISTINTOS, con checkbox para prender/apagar cada
+una por separado desde el panel de Settings del indicador:
+
+1. MICRO PULLBACK: durante un impulso fuerte (precio arriba de ambas EMAs,
+   EMA rápida con pendiente positiva), aparece una vela chica (1-2 velas) que
+   NO cierra por debajo de la EMA rápida — es una pausa, no un quiebre de
+   estructura. Entrada: ruptura del máximo de esa vela de pausa. Stop: mínimo
+   de esa misma vela.
+
+2. WARRIOR BREAKOUT: vela roja de cualquier tamaño + MACD histograma en
+   positivo + dentro del horario configurado (default 04:00-09:30 NY).
+   Entrada: ruptura del máximo de la vela roja. Stop: mínimo de la vela roja.
+   (Idéntica a WARRIOR-MOMEMTUM.txt, solo que acá es alerta, no orden real.)
+
+SALIDA (para las dos): la regla de Ross es agresiva — en cuanto una vela
+cierra roja estando "en la operación" (siguiendo el precio desde la entrada
+marcada), es señal de tomar ganancia o salir. El indicador marca esa vela.
+
+Setup en TradingView: pegar el código, abrir el ícono de alarma (reloj),
+Condition = este indicador, elegir la condición específica (aparecen
+"Micro Pullback — entrada", "Warrior — entrada", "Salida — vela roja" como
+opciones separadas en el dropdown gracias a alertcondition()). No hace falta
+ningún webhook ni bot para esto — podés usar notificación en la app de
+TradingView, email, o sonido, lo que prefieras.
+
+------------------------------------------------------------
+
+//@version=6
+indicator("Ross Cameron — Micro Pullback + Warrior Breakout (solo señales)", overlay=true)
+
+// ==========================================
+// 1. CONFIGURACIÓN
+// ==========================================
+grp_mp = "Micro Pullback"
+usarMicroPullback = input.bool(true, "Activar Micro Pullback", group=grp_mp)
+emaRapidaLen      = input.int(9, "EMA rápida", group=grp_mp)
+emaLentaLen       = input.int(20, "EMA lenta (confirma tendencia)", group=grp_mp)
+maxVelasPausa     = input.int(2, "Máx. velas de pausa permitidas", group=grp_mp)
+
+grp_wb = "Warrior Breakout"
+usarWarrior      = input.bool(true, "Activar Warrior Breakout", group=grp_wb)
+horario_permitido = input.session("0400-0930", "Horario Operativo (NY)", group=grp_wb)
+
+// ==========================================
+// 2. INDICADORES BASE
+// ==========================================
+emaRapida = ta.ema(close, emaRapidaLen)
+emaLenta  = ta.ema(close, emaLentaLen)
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+bool macd_positivo = histLine > 0
+en_horario = not na(time(timeframe.period, horario_permitido, "America/New_York"))
+
+plot(emaRapida, "EMA rápida", color=color.aqua, linewidth=2)
+plot(emaLenta, "EMA lenta", color=color.purple, linewidth=1)
+
+// ==========================================
+// 3. MICRO PULLBACK
+// ==========================================
+bool impulsoFuerte = close > emaRapida and close > emaLenta and emaRapida > emaRapida[3]
+bool velaPausa = impulsoFuerte and low > emaRapida[1] and close[1] > open[1]  // vela previa NO rompió la EMA rápida hacia abajo
+
+var float mpEntrada = na
+var float mpStop = na
+var bool mpActiva = false
+
+if usarMicroPullback and velaPausa[1] and not mpActiva
+    mpEntrada := high[1]
+    mpStop := low[1]
+
+bool mpBreakout = usarMicroPullback and not na(mpEntrada) and not mpActiva and close > mpEntrada and impulsoFuerte
+if mpBreakout
+    mpActiva := true
+    label.new(bar_index, low, "▲ Micro Pullback\nEntrada " + str.tostring(mpEntrada, format.mintick) + "\nSL " + str.tostring(mpStop, format.mintick),
+      style=label.style_label_up, color=color.new(color.teal, 0), textcolor=color.white, size=size.small)
+
+alertcondition(mpBreakout, "Micro Pullback — entrada", "Micro Pullback: ruptura confirmada, revisar entrada y SL en el gráfico.")
+
+// ==========================================
+// 4. WARRIOR BREAKOUT (misma lógica de WARRIOR-MOMEMTUM.txt)
+// ==========================================
+bool esVelaRoja = close < open
+bool warriorSetup = usarWarrior and esVelaRoja and macd_positivo and en_horario
+
+var float wbEntrada = na
+var float wbStop = na
+var bool wbActiva = false
+
+if warriorSetup and not wbActiva
+    wbEntrada := high
+    wbStop := low
+
+bool wbBreakout = usarWarrior and not na(wbEntrada) and not wbActiva and close > wbEntrada
+if wbBreakout
+    wbActiva := true
+    label.new(bar_index, low, "▲ Warrior Breakout\nEntrada " + str.tostring(wbEntrada, format.mintick) + "\nSL " + str.tostring(wbStop, format.mintick),
+      style=label.style_label_up, color=color.new(color.orange, 0), textcolor=color.white, size=size.small)
+
+alertcondition(wbBreakout, "Warrior — entrada", "Warrior Breakout: ruptura confirmada, revisar entrada y SL en el gráfico.")
+
+bgcolor(usarWarrior and not macd_positivo ? color.new(color.red, 92) : na)
+bgcolor(usarWarrior and not en_horario ? color.new(color.gray, 92) : na)
+
+// ==========================================
+// 5. SALIDA (regla de Ross: primera vela roja estando "en la operación")
+// ==========================================
+bool salidaSenal = (mpActiva or wbActiva) and close < open
+if salidaSenal
+    label.new(bar_index, high, "▼ Salida\nVela cerró roja", style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    mpActiva := false
+    wbActiva := false
+    mpEntrada := na
+    wbEntrada := na
+
+alertcondition(salidaSenal, "Salida — vela roja", "Vela cerró roja estando en la operación — considerar tomar ganancia o salir.")

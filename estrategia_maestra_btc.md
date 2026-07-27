@@ -60,7 +60,43 @@ Cada día, antes de la primera operación, clasifico el mercado en uno de cuatro
 
 ---
 
-## 3. Criterios de Entrada y Salida — Los Setups
+## 2.3 PILOTO INTRADÍA (en curso — reemplaza temporalmente a los setups de abajo)
+
+*Iniciado el 19/7 tras una semana de baja frecuencia con el sistema de regímenes diarios (L1/L2/S1/S2/BR). Objetivo: capturar movimientos de $500–600 varias veces por día, sin depender de clasificar el régimen diario. Piloto de 1 semana comparando dos sistemas en paralelo; el domingo siguiente se audita cuál rindió mejor y se decide cuál queda, se combinan, o se descartan ambos.*
+
+Los setups L1/L2/S1/S2/BR de la sección 3 quedan **en pausa** durante el piloto — no se operan, quedan documentados para retomar si el piloto no rinde.
+
+### SISTEMA A — Opening Range Breakout (ORB)
+
+**Lógica:** en la apertura de cada sesión (Asia 18:00, Londres 4:00, NY 9:00, hora ART), el mercado define un rango en los primeros 30 minutos. La ruptura de ese rango con cierre de vela fuera de sus límites es la entrada — no se espera retest, la vela de ruptura ES el gatillo.
+
+- **Entrada:** cierre de vela (5m/15m) fuera del rango de apertura, en la dirección de la ruptura.
+- **Stop:** el extremo opuesto del rango de apertura.
+- **TP1:** 1× el tamaño del rango (parcial 50%). **TP2:** 2× el tamaño del rango (o el múltiplo configurado), resto con trailing.
+- **Filtro de calidad:** el indicador descarta rangos <0.15% (demasiado angosto, ruido) o >1% (probable ya fue un evento de noticia, riesgo excesivo).
+- **Una sola ruptura por sesión.** Si ya se operó Asia, no se vuelve a entrar en Asia aunque el precio regrese y rompa de nuevo.
+- **Se opera SOLO en la dirección de la primera ruptura confirmada.** Sin excepciones de "esperar la contraria".
+
+### SISTEMA B — Barrido de Liquidez (rango móvil 4-6h)
+
+**Lógica:** versión intradía del L1/S1, pero el "nivel relevante" no es un soporte/resistencia diario fijo — es el máximo/mínimo de las últimas 4-6 horas, recalculado en cada vela. Cuando el precio barre ese extremo (mecha lo atraviesa) y el cierre vuelve adentro, es candidato a reversión.
+
+- **Entrada:** confirmación en la vela SIGUIENTE al barrido (no en la propia vela de la mecha) — ideal si esa vela confirma con cuerpo en la dirección de la reversión.
+- **Stop:** apenas más allá de la mecha del barrido (~0.1%).
+- **TP1:** punto medio del rango de 4-6h. **TP2:** el extremo opuesto del rango.
+- **Cooldown:** tras un barrido, el indicador no vuelve a marcar otro en las siguientes ~6 velas, para evitar señales pegadas en chop.
+- **Nota:** en 5m/15m el ruido de order flow es mayor que en swing — el OI/funding siguen siendo útiles como filtro de convicción pero YA NO son un requisito bloqueante como en L1/S1. Si el chequeo de contexto está claramente en contra (ej. barrido de mínimo con OI expandiendo fuerte = posible ruptura real, no reversión), se descarta el trade igual.
+
+### Reglas comunes a ambos sistemas (heredadas del playbook original)
+
+- Riesgo $50/trade (1%), tamaño calculado siempre desde el stop.
+- Prohibido operar en ventana de datos macro (T-0 a T+15min mínimo).
+- Registrar cada trade en el journal con el tag **ORB** o **SWEEP** para poder comparar ambos sistemas al final de la semana.
+- El indicador de TradingView calcula las zonas y dispara las alertas SOLO — no requiere carga manual de valores cada mañana.
+
+---
+
+## 3. Criterios de Entrada y Salida — Los Setups (EN PAUSA durante el piloto intradía)
 
 Solo existen **cuatro setups** en este playbook. Si lo que ves en pantalla no es uno de estos cuatro, no es un trade: es entretenimiento.
 
