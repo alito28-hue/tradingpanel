@@ -1,0 +1,120 @@
+//@version=6
+// Indicador de TradingView (NO strategy, no ejecuta nada) — marca en tiempo
+// real máximos/mínimos semanales y diarios, pivotes de 4h, las killzones de
+// Londres y NY, y detecta el patrón "Turtle Soup" (ICT): barrido de liquidez
+// más allá de uno de esos niveles seguido de cierre de vuelta adentro.
+//
+// Nota honesta (misma que ya vimos hoy con datos reales de BTC): esto es
+// conceptualmente el mismo patrón que "Barrido"/Sweep, que ya backtesteamos
+// y dio débil. Esto es una herramienta de marcado para que vos leas, no una
+// promesa de que el patrón tiene edge.
+//
+// Cómo leerlo:
+// - Líneas naranjas (guiones) = máximo/mínimo de la semana anterior (se
+//   actualiza al cerrar cada semana). Solo se ve UNA línea semanal viva a
+//   la vez — la anterior se borra al arrancar la semana nueva, para no
+//   acumular niveles viejos que compriman las velas.
+// - Líneas azules (punteadas) = máximo/mínimo del día anterior (se
+//   actualiza al cerrar cada día). Mismo criterio: una sola línea diaria
+//   viva a la vez.
+// - Triángulos violeta = pivote confirmado en velas de 4h (con el lag
+//   normal de confirmación — un pivote solo se sabe que fue pivote unas
+//   velas después de que pasó, no en el momento exacto, es inherente al
+//   cálculo).
+// - Fondo celeste = Killzone Londres (default 02:00-05:00 NY). Fondo
+//   naranja = Killzone NY (default 07:00-10:00 NY). Configurable en
+//   Settings.
+// - Etiqueta "Turtle Soup" verde/roja = la vela metió mecha más allá de
+//   alguno de los niveles de arriba Y cerró de vuelta adentro — el barrido
+//   + rechazo que busca el patrón. Se marca con más peso visual si ocurrió
+//   dentro de una killzone, pero no se filtra — se muestra igual fuera de
+//   horario, para que decidas vos.
+//
+// Aplicar en 5m o 15m (ver charla) — los niveles semanales/diarios/4h se
+// calculan aparte vía request.security, no dependen de en qué timeframe
+// del chart estés parado.
+indicator("ICT Turtle Soup — Niveles + Killzones (solo señales)", overlay=true, max_labels_count=200)
+
+// ==========================================
+// 1. CONFIGURACIÓN
+// ==========================================
+grp_niv = "Niveles"
+mostrarSemanal = input.bool(true, "Mostrar máx/mín semana anterior", group=grp_niv)
+mostrarDiario  = input.bool(true, "Mostrar máx/mín día anterior", group=grp_niv)
+mostrarPivot4h = input.bool(true, "Mostrar pivotes de 4h", group=grp_niv)
+pivotIzq       = input.int(3, "Pivote 4h — velas a la izquierda", group=grp_niv)
+pivotDer       = input.int(3, "Pivote 4h — velas a la derecha (lag de confirmación)", group=grp_niv)
+
+grp_kz = "Killzones (hora de NY)"
+sessionLondres = input.session("0200-0500", "Killzone Londres", group=grp_kz)
+sessionNY      = input.session("0700-1000", "Killzone NY (AM)", group=grp_kz)
+
+grp_ts = "Turtle Soup"
+toleranciaPct = input.float(0.05, "Tolerancia de barrido (% más allá del nivel)", step=0.01, group=grp_ts)
+
+// ==========================================
+// 2. NIVELES SEMANALES Y DIARIOS (sin repintado — referencia al período
+// anterior ya cerrado, con lookahead apagado). Vuelta a plot(): la versión
+// con line.new()/line.delete() mostraba las marcas y después las borraba
+// sola, sin ningún error en el log del Pine Editor — imposible de
+// diagnosticar a ciegas. plot() es una serie declarativa, sin estado que
+// gestionar, no puede desaparecer por un bug de lógica.
+//
+// Si esto vuelve a achicar las velas, se soluciona desde la interfaz de
+// TradingView (click derecho sobre el eje de precio o sobre el nombre del
+// indicador, buscar la opción de escala independiente para el indicador),
+// no agregando más código.
+// ==========================================
+[semHigh, semLow] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[diaHigh, diaLow]  = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+plot(mostrarSemanal ? semHigh : na, "Máx semanal", color=color.orange, style=plot.style_line, linewidth=2)
+plot(mostrarSemanal ? semLow  : na, "Mín semanal", color=color.orange, style=plot.style_line, linewidth=2)
+plot(mostrarDiario  ? diaHigh : na, "Máx diario", color=color.blue, style=plot.style_line, linewidth=2)
+plot(mostrarDiario  ? diaLow  : na, "Mín diario", color=color.blue, style=plot.style_line, linewidth=2)
+
+// ==========================================
+// 3. PIVOTES DE 4H (calculados en 4h aunque el chart esté en otra
+// temporalidad, vía request.security — mismo lag de confirmación de
+// siempre: ta.pivothigh/low solo confirma "pivotDer" velas después)
+// ==========================================
+pivH4 = request.security(syminfo.tickerid, "240", ta.pivothigh(pivotIzq, pivotDer), lookahead=barmerge.lookahead_off)
+pivL4 = request.security(syminfo.tickerid, "240", ta.pivotlow(pivotIzq, pivotDer), lookahead=barmerge.lookahead_off)
+
+if mostrarPivot4h and not na(pivH4)
+    label.new(bar_index[pivotDer], pivH4, "▽", style=label.style_label_down, color=color.new(color.purple, 20), textcolor=color.white, size=size.tiny)
+if mostrarPivot4h and not na(pivL4)
+    label.new(bar_index[pivotDer], pivL4, "△", style=label.style_label_up, color=color.new(color.purple, 20), textcolor=color.white, size=size.tiny)
+
+// ==========================================
+// 4. KILLZONES
+// ==========================================
+enLondres = not na(time(timeframe.period, sessionLondres, "America/New_York"))
+enNY      = not na(time(timeframe.period, sessionNY, "America/New_York"))
+bgcolor(enLondres ? color.new(color.blue, 88) : na, title="Killzone Londres")
+bgcolor(enNY ? color.new(color.orange, 88) : na, title="Killzone NY")
+
+// ==========================================
+// 5. TURTLE SOUP — barrido de un nivel + cierre de vuelta adentro
+// (en Pine el tipo de retorno de una función NO se declara antes del
+// nombre, se infiere solo — por eso acá abajo NO lleva "bool" adelante)
+// ==========================================
+tol(nivel) => nivel * toleranciaPct / 100
+
+barrioMaxYVolvio(nivel) => not na(nivel) and high > nivel and high <= nivel + tol(nivel) and close < nivel
+barrioMinYVolvio(nivel) => not na(nivel) and low < nivel and low >= nivel - tol(nivel) and close > nivel
+
+bool soupBajista = barrioMaxYVolvio(semHigh) or barrioMaxYVolvio(diaHigh) or barrioMaxYVolvio(pivH4)
+bool soupAlcista = barrioMinYVolvio(semLow) or barrioMinYVolvio(diaLow) or barrioMinYVolvio(pivL4)
+
+bool enKillzone = enLondres or enNY
+
+if soupBajista
+    label.new(bar_index, high, "Turtle Soup" + (enKillzone ? " (killzone)" : ""),
+      style=label.style_label_down, color=color.new(color.red, enKillzone ? 0 : 40), textcolor=color.white, size=enKillzone ? size.normal : size.small)
+if soupAlcista
+    label.new(bar_index, low, "Turtle Soup" + (enKillzone ? " (killzone)" : ""),
+      style=label.style_label_up, color=color.new(color.green, enKillzone ? 0 : 40), textcolor=color.white, size=enKillzone ? size.normal : size.small)
+
+alertcondition(soupBajista, "Turtle Soup bajista", "Barrido de máximo (semanal/diario/pivote 4h) con cierre de vuelta adentro.")
+alertcondition(soupAlcista, "Turtle Soup alcista", "Barrido de mínimo (semanal/diario/pivote 4h) con cierre de vuelta adentro.")

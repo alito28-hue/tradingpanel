@@ -1,0 +1,38 @@
+//@version=6
+// v3: vuelta a plot() para la línea — es la única técnica que se confirmó
+// que efectivamente se dibuja (funcionó en dos pruebas distintas). El
+// line.new()/set_xy falló dos veces con síntomas distintos (desaparecía
+// solo, y ahora directamente no aparecía) sin ningún error visible en el
+// Pine Editor, así que no es diagnosticable a ciegas — dejo de insistir con
+// esa técnica. Las etiquetas (que sí funcionaron bien, se ven pegadas al
+// precio) se mantienen igual.
+//
+// Nota: plot() dibuja el valor en TODAS las velas, no solo desde el cierre
+// hacia adelante — vas a ver el escalón de cada semana/día pasado, no solo
+// el actual. Si una vez que esto esté confirmado funcionando querés que solo
+// se vea el tramo actual (ocultar el historial), lo vemos como el siguiente
+// paso — pero primero necesito que la línea aparezca, punto.
+indicator("Máx/Mín Semanal y Diario (vela cerrada)", overlay=true)
+
+[semHigh, semLow] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+[diaHigh, diaLow]  = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+plot(semHigh, "Máx semanal", color=color.orange, linewidth=2)
+plot(semLow,  "Mín semanal", color=color.orange, linewidth=2)
+plot(diaHigh, "Máx diario", color=color.blue, linewidth=2)
+plot(diaLow,  "Mín diario", color=color.blue, linewidth=2)
+
+var label lblSemHigh = na
+var label lblSemLow  = na
+var label lblDiaHigh = na
+var label lblDiaLow  = na
+
+label.delete(lblSemHigh)
+label.delete(lblSemLow)
+label.delete(lblDiaHigh)
+label.delete(lblDiaLow)
+
+lblSemHigh := label.new(bar_index, semHigh, "Weekly High", style=label.style_none, textcolor=color.orange, size=size.small, xloc=xloc.bar_index)
+lblSemLow  := label.new(bar_index, semLow,  "Weekly Low",  style=label.style_none, textcolor=color.orange, size=size.small, xloc=xloc.bar_index)
+lblDiaHigh := label.new(bar_index, diaHigh, "Daily High",  style=label.style_none, textcolor=color.blue,   size=size.small, xloc=xloc.bar_index)
+lblDiaLow  := label.new(bar_index, diaLow,  "Daily Low",   style=label.style_none, textcolor=color.blue,   size=size.small, xloc=xloc.bar_index)
