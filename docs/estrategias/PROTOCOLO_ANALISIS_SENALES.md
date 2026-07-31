@@ -18,6 +18,20 @@ Capturas de las 4 temporalidades del activo (ej. 1m, 5m, 15m, 1h — o las que t
 
 4. **SL sugerido**: un nivel de stop razonable basado en la estructura real (debajo/encima del soporte o resistencia relevante, no un % arbitrario), explicando por qué ese nivel específico.
 
+## Modelo de Análisis Técnico para Entradas (versión de Alex, 30/07/2026)
+
+Formalización propia de Alex del marco de arriba, en uso en vivo — reemplaza/amplía el punteo anterior como referencia de trabajo:
+
+1. **Análisis multitemporal (macro vs. micro)**: 4H define la tendencia principal (MACD + estructura de máximos/mínimos manda) — nunca operar en contra de 4H sin confirmación estructural masiva. 1H/15M se usa para ubicar retrocesos, pausas o zonas de confluencia donde el precio se alinea de nuevo con la tendencia macro.
+
+2. **Niveles clave y trampas de liquidez**: mapeo estricto de Daily/Weekly Highs-Lows y soportes/resistencias locales. Evaluar si un rompimiento es genuino o un barrido de liquidez (trampa de stops) antes de una reversión — no anticipar techos/pisos sin ver la reacción del precio.
+
+3. **Confluencia de indicadores de momento**: MACD para validar fuerza de impulsos en temporalidades mayores (evitar operar contra la inercia). RSI/medias móviles para sobrecompra-sobreventa relativa y soporte dinámico de tendencia.
+
+4. **Order book y flujo (contexto auxiliar)**: el book y el % compradores/vendedores es complementario, no decide — desequilibrios extremos a veces buscan inducir error operativo. La estructura del gráfico manda sobre el order book.
+
+5. **Plan de ejecución y riesgo**: esperar confirmación (no perseguir el precio ni operar por FOMO), entrada en confluencia técnica real (no niveles arbitrarios), SL en el punto donde la tesis estructural queda invalidada (debajo del swing low / arriba del swing high), R:R definido por la estructura previa.
+
 ## Lo que este análisis NO hace
 
 No da una señal de "comprar/vender" con certeza — da el estado real de la evidencia (alineada, mixta, o en contra) para que la decisión final y el timing de ejecución sean de Alex. Ya establecimos en la sesión del 23/07 que ninguna señal, técnica o de indicador, llega temprana Y confiable a la vez — este protocolo busca que la lectura sea honesta sobre esa tensión, no que la resuelva.
