@@ -1,16 +1,99 @@
+'use client';
+
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+
+const THEME_KEY = 'tp-theme';
+
+// Cada valor es una referencia a una custom property CSS (definida en
+// globals.css para :root y :root[data-theme="light"]). Así el cambio de
+// tema lo resuelve el navegador vía cascada CSS, sin depender de que React
+// vuelva a renderizar cada página — lo cual no pasa de forma confiable acá,
+// porque el árbol de páginas llega como `children` "congelado" desde el
+// layout y React puede saltarse su re-render aunque cambie el contexto.
 export const COLORS = {
-  bg: '#111316',
-  panel: '#1a1c1f',
-  panelAlt: '#242830',
-  border: '#37393d',
-  text: '#e2e8f0',
-  muted: '#64748b',
-  accent: '#ccff00',
-  bull: '#ccff00',
-  bear: '#ff4d4d',
-  warning: '#fb923c',
-  neutral: '#5B6472',
+  bg: 'var(--tp-bg)',
+  panel: 'var(--tp-panel)',
+  panelAlt: 'var(--tp-panel-alt)',
+  border: 'var(--tp-border)',
+  text: 'var(--tp-text)',
+  muted: 'var(--tp-muted)',
+  accent: 'var(--tp-accent)',
+  onAccent: 'var(--tp-on-accent)',
+  bull: 'var(--tp-bull)',
+  bear: 'var(--tp-bear)',
+  warning: 'var(--tp-warning)',
+  neutral: 'var(--tp-neutral)',
 };
+
+// Para consumidores que no pueden usar var() (ej. lightweight-charts, que
+// pinta en <canvas> y necesita un color resuelto de verdad).
+export function resolveColors() {
+  const style = getComputedStyle(document.documentElement);
+  const get = name => style.getPropertyValue(name).trim();
+  return {
+    bg: get('--tp-bg'), panel: get('--tp-panel'), panelAlt: get('--tp-panel-alt'),
+    border: get('--tp-border'), text: get('--tp-text'), muted: get('--tp-muted'),
+    accent: get('--tp-accent'), onAccent: get('--tp-on-accent'),
+    bull: get('--tp-bull'), bear: get('--tp-bear'), warning: get('--tp-warning'), neutral: get('--tp-neutral'),
+  };
+}
+
+const ThemeContext = createContext(null);
+
+function applyDom(t) {
+  document.documentElement.dataset.theme = t;
+}
+
+export function ThemeProvider({ children }) {
+  const [theme, setThemeState] = useState('dark');
+
+  useEffect(() => {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* no-op */ }
+    if (saved === 'light' || saved === 'dark') {
+      applyDom(saved);
+      setThemeState(saved);
+    }
+  }, []);
+
+  const setTheme = useCallback(t => {
+    applyDom(t);
+    setThemeState(t);
+    try { localStorage.setItem(THEME_KEY, t); } catch { /* no-op */ }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  }, [theme, setTheme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme debe usarse dentro de <ThemeProvider>');
+  return ctx;
+}
+
+export function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <button onClick={toggleTheme} title={isDark ? 'Modo claro' : 'Modo oscuro'} aria-label="Cambiar modo claro/oscuro" style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 999,
+      width: 44, height: 44, borderRadius: '50%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: COLORS.panel, color: COLORS.text, border: `1px solid ${COLORS.border}`,
+      fontSize: 18, cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+    }}>
+      {isDark ? '☀️' : '🌙'}
+    </button>
+  );
+}
 
 export function inputStyle() {
   return {
@@ -32,7 +115,7 @@ export function btnStyle(variant) {
   }
   return {
     display: 'flex', alignItems: 'center', gap: 6, background: variant ? COLORS.accent : COLORS.panelAlt,
-    color: variant ? '#0F1400' : COLORS.text, border: `1px solid ${variant ? COLORS.accent : COLORS.border}`,
+    color: variant ? COLORS.onAccent : COLORS.text, border: `1px solid ${variant ? COLORS.accent : COLORS.border}`,
     borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
   };
 }

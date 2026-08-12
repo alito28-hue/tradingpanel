@@ -32,8 +32,8 @@ export async function PUT(req, { params }) {
     const { rows } = await query(
       `UPDATE bitacora_entries SET
         fecha = $1, hora_entrada = $2, hora_salida = $3, symbol = $4, direccion = $5,
-        precio_entrada = $6, precio_salida = $7, resultado = $8, notas = $9, updated_at = now()
-       WHERE id = $10
+        precio_entrada = $6, precio_salida = $7, monto = $8, resultado = $9, notas = $10, updated_at = now()
+       WHERE id = $11
        RETURNING id`,
       [
         body.fecha,
@@ -43,6 +43,7 @@ export async function PUT(req, { params }) {
         body.direccion || 'long',
         body.precioEntrada != null && body.precioEntrada !== '' ? Number(body.precioEntrada) : null,
         body.precioSalida != null && body.precioSalida !== '' ? Number(body.precioSalida) : null,
+        body.monto != null && body.monto !== '' ? Number(body.monto) : null,
         body.resultado != null && body.resultado !== '' ? Number(body.resultado) : null,
         body.notas || '',
         id,

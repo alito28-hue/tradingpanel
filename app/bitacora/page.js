@@ -1,19 +1,33 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { COLORS, Field, Panel, inputStyle, btnStyle } from '../components/ui';
 import LogoutLink from '../components/LogoutLink';
 
 const emptyForm = {
   fecha: '', horaEntrada: '', horaSalida: '', symbol: 'BTCUSDT', direccion: 'long',
-  precioEntrada: '', precioSalida: '', resultado: '', notas: '',
+  precioEntrada: '', precioSalida: '', monto: '', resultado: '', notas: '',
 };
 
 function money(v) {
   if (v == null || v === '') return '—';
   const n = Number(v);
   return `${n >= 0 ? '+' : ''}$${n.toFixed(2)}`;
+}
+
+// % de rentabilidad = resultado / monto invertido. null si no hay monto
+// cargado (no se puede calcular, no se inventa un 0).
+function pctReturn(resultado, monto) {
+  const m = monto != null ? Number(monto) : null;
+  if (!m) return null;
+  const r = resultado != null ? Number(resultado) : 0;
+  return (r / m) * 100;
+}
+
+function formatPct(p) {
+  if (p == null) return '—';
+  return `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
 }
 
 // hora_entrada/hora_salida se guardan siempre en formato 24 hs (HH:MM, tipo
@@ -33,6 +47,11 @@ function tradeDurationMinutes(entry) {
   if (diff < 0) diff += 24 * 60; // cruzó medianoche: se asume salida al día siguiente
   return diff;
 }
+
+const linkBtnStyle = {
+  background: 'transparent', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
+  fontFamily: 'inherit', textDecoration: 'underline', color: COLORS.accent, cursor: 'pointer',
+};
 
 function formatDuration(mins) {
   if (mins == null) return '—';
@@ -67,8 +86,10 @@ function computeMonthlyStats(entries) {
 
     const results = g.entries.map(e => e.resultado).filter(r => r != null).map(Number);
     const resultado = results.reduce((a, b) => a + b, 0);
-    const mejor = results.length ? Math.max(...results) : null;
-    const peor = results.length ? Math.min(...results) : null;
+    const wins = results.filter(r => r > 0);
+    const losses = results.filter(r => r < 0);
+    const mejor = wins.length ? Math.max(...wins) : 0;
+    const peor = losses.length ? Math.min(...losses) : 0;
 
     const durations = g.entries.map(tradeDurationMinutes).filter(d => d != null);
     const duracionPromedio = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null;
@@ -77,11 +98,50 @@ function computeMonthlyStats(entries) {
     const diasOperados = g.days.size;
     const tradesPorDia = diasOperados ? totalTrades / diasOperados : null;
 
+    const montos = g.entries.map(e => e.monto).filter(m => m != null).map(Number);
+    const montoTotal = montos.reduce((a, b) => a + b, 0);
+    const pctRentabilidad = montoTotal ? (resultado / montoTotal) * 100 : null;
+
     return {
       monthKey, label, resultado, mejor, peor, duracionPromedio,
-      totalTrades, diasOperados, tradesPorDia,
+      totalTrades, diasOperados, tradesPorDia, montoTotal, pctRentabilidad,
       cerrado: monthKey < currentMonthKey,
     };
+  });
+}
+
+// Agrupa por mes (más reciente primero) y ordena cada mes de forma
+// cronológica ascendente para poder calcular un acumulado corrido tipo
+// planilla ("Acumulado (mes)"), fila a fila, como una hoja de cálculo.
+function computeHistorialGroups(entries) {
+  const sorted = [...entries].sort((a, b) => {
+    const da = a.fecha?.slice(0, 10) || '';
+    const db = b.fecha?.slice(0, 10) || '';
+    if (da !== db) return da < db ? -1 : 1;
+    const ha = a.hora_entrada || '';
+    const hb = b.hora_entrada || '';
+    if (ha !== hb) return ha < hb ? -1 : 1;
+    return a.id - b.id;
+  });
+
+  const groups = new Map();
+  for (const e of sorted) {
+    const dateStr = e.fecha?.slice(0, 10);
+    if (!dateStr) continue;
+    const monthKey = dateStr.slice(0, 7);
+    if (!groups.has(monthKey)) groups.set(monthKey, []);
+    groups.get(monthKey).push(e);
+  }
+
+  return [...groups.keys()].sort().reverse().map(monthKey => {
+    let acumulado = 0;
+    const rows = groups.get(monthKey).map(e => {
+      acumulado += e.resultado != null ? Number(e.resultado) : 0;
+      return { ...e, acumulado };
+    });
+    const [year, month] = monthKey.split('-');
+    const label = `${MONTH_NAMES[Number(month) - 1]} ${year}`;
+    return { monthKey, label, rows };
   });
 }
 
@@ -97,6 +157,7 @@ export default function BitacoraPage() {
   const [to, setTo] = useState('');
   const [tab, setTab] = useState('historial');
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     if (!lightboxUrl) return;
@@ -106,6 +167,7 @@ export default function BitacoraPage() {
   }, [lightboxUrl]);
 
   const monthlyStats = useMemo(() => computeMonthlyStats(entries || []), [entries]);
+  const historialGroups = useMemo(() => computeHistorialGroups(entries || []), [entries]);
 
   const load = useCallback(async (f, t) => {
     try {
@@ -140,6 +202,7 @@ export default function BitacoraPage() {
       direccion: entry.direccion || 'long',
       precioEntrada: entry.precio_entrada ?? '',
       precioSalida: entry.precio_salida ?? '',
+      monto: entry.monto ?? '',
       resultado: entry.resultado ?? '',
       notas: entry.notas || '',
     });
@@ -298,6 +361,9 @@ export default function BitacoraPage() {
               <Field label="Precio salida">
                 <input type="number" step="any" value={form.precioSalida} onChange={e => setForm({ ...form, precioSalida: e.target.value })} style={{ ...inputStyle(), width: 110 }} />
               </Field>
+              <Field label="Monto invertido">
+                <input type="number" step="any" value={form.monto} onChange={e => setForm({ ...form, monto: e.target.value })} style={{ ...inputStyle(), width: 110 }} />
+              </Field>
               <Field label="Resultado $">
                 <input type="number" step="any" value={form.resultado} onChange={e => setForm({ ...form, resultado: e.target.value })} style={{ ...inputStyle(), width: 100 }} />
               </Field>
@@ -318,61 +384,120 @@ export default function BitacoraPage() {
           </Panel>
         )}
 
-        <Panel title="Historial" subtitle={entries ? `${entries.length} operaci${entries.length === 1 ? 'ón' : 'ones'}` : ''}>
-          {!entries ? (
-            <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
-          ) : entries.length === 0 ? (
-            <div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no hay entradas en este rango.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {entries.map(entry => {
-                const durMin = tradeDurationMinutes(entry);
-                return (
-                <div key={entry.id} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 12, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>{entry.fecha?.slice(0, 10)}</span>
-                      <span style={{ color: COLORS.muted }}>{entry.symbol}</span>
-                      <span style={{ color: entry.direccion === 'long' ? COLORS.bull : COLORS.bear, fontWeight: 700 }}>
-                        {entry.direccion === 'long' ? 'LONG' : 'SHORT'}
-                      </span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                        {entry.hora_entrada || '—'} @ {entry.precio_entrada ?? '—'} → {entry.hora_salida || '—'} @ {entry.precio_salida ?? '—'}
-                      </span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', color: COLORS.muted }}>
-                        {formatDuration(durMin)}
-                      </span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: entry.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
-                        {money(entry.resultado)}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => startEdit(entry)} style={btnStyle()}>Editar</button>
-                      <button onClick={() => removeEntry(entry.id)} style={{ ...btnStyle(), color: COLORS.bear, borderColor: COLORS.bear }}>Borrar</button>
-                    </div>
-                  </div>
-                  {entry.notas && (
-                    <div style={{ fontSize: 12, color: COLORS.text, marginTop: 8, whiteSpace: 'pre-wrap' }}>{entry.notas}</div>
-                  )}
-                  {entry.attachments?.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      {entry.attachments.map(a => (
-                        <div key={a.id} style={{ position: 'relative' }}>
-                          <img src={a.url} alt="" onClick={() => setLightboxUrl(a.url)}
-                            style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 6, border: `1px solid ${COLORS.border}`, cursor: 'zoom-in' }} />
-                          <button onClick={() => removeAttachment(entry.id, a.id)} title="Borrar imagen" style={{
-                            position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
-                            background: COLORS.bear, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-                          }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );})}
-            </div>
-          )}
-        </Panel>
+        {!entries ? (
+          <Panel title="Historial"><div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div></Panel>
+        ) : historialGroups.length === 0 ? (
+          <Panel title="Historial"><div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no hay entradas en este rango.</div></Panel>
+        ) : historialGroups.map(g => {
+          const stats = monthlyStats.find(s => s.monthKey === g.monthKey);
+          return (
+            <Panel key={g.monthKey} title={g.label} subtitle={`${g.rows.length} operaci${g.rows.length === 1 ? 'ón' : 'ones'}`}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
+                      <th style={{ padding: '4px 8px' }}>Día</th>
+                      <th style={{ padding: '4px 8px' }}>Symbol</th>
+                      <th style={{ padding: '4px 8px' }}>Dir.</th>
+                      <th style={{ padding: '4px 8px' }}>Entrada → Salida</th>
+                      <th style={{ padding: '4px 8px' }}>Duración</th>
+                      <th style={{ padding: '4px 8px' }}>Monto</th>
+                      <th style={{ padding: '4px 8px' }}>Ganancia</th>
+                      <th style={{ padding: '4px 8px' }}>%</th>
+                      <th style={{ padding: '4px 8px' }}>Acumulado (mes)</th>
+                      <th style={{ padding: '4px 8px' }}>Tools</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.rows.map(entry => {
+                      const durMin = tradeDurationMinutes(entry);
+                      const isOpen = expandedId === entry.id;
+                      const hasDetail = entry.notas || entry.attachments?.length > 0;
+                      return (
+                        <Fragment key={entry.id}>
+                          <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{Number(entry.fecha.slice(8, 10))}</td>
+                            <td style={{ padding: '4px 8px', color: COLORS.muted }}>{entry.symbol}</td>
+                            <td style={{ padding: '4px 8px', color: entry.direccion === 'long' ? COLORS.bull : COLORS.bear, fontWeight: 700 }}>
+                              {entry.direccion === 'long' ? 'LONG' : 'SHORT'}
+                            </td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>
+                              {entry.hora_entrada || '—'} @ {entry.precio_entrada ?? '—'} → {entry.hora_salida || '—'} @ {entry.precio_salida ?? '—'}
+                            </td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{formatDuration(durMin)}</td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: COLORS.muted }}>
+                              {entry.monto != null ? `$${Number(entry.monto).toFixed(2)}` : '—'}
+                            </td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: entry.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
+                              {money(entry.resultado)}
+                            </td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: entry.monto == null ? COLORS.muted : entry.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
+                              {formatPct(pctReturn(entry.resultado, entry.monto))}
+                            </td>
+                            <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: entry.acumulado >= 0 ? COLORS.bull : COLORS.bear }}>
+                              {money(entry.acumulado)}
+                            </td>
+                            <td style={{ padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                              <button onClick={() => setExpandedId(isOpen ? null : entry.id)} disabled={!hasDetail}
+                                style={{ ...linkBtnStyle, opacity: hasDetail ? 1 : 0.35, cursor: hasDetail ? 'pointer' : 'default' }}>Ver</button>
+                              {' - '}
+                              <button onClick={() => startEdit(entry)} style={linkBtnStyle}>Editar</button>
+                              {' - '}
+                              <button onClick={() => removeEntry(entry.id)} style={{ ...linkBtnStyle, color: COLORS.bear }}>Borrar</button>
+                            </td>
+                          </tr>
+                          {isOpen && (
+                            <tr>
+                              <td colSpan={10} style={{ padding: '10px 8px 16px', background: COLORS.panelAlt }}>
+                                {entry.notas && (
+                                  <div style={{ fontSize: 12, whiteSpace: 'pre-wrap', marginBottom: entry.attachments?.length ? 10 : 0 }}>{entry.notas}</div>
+                                )}
+                                {entry.attachments?.length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                    {entry.attachments.map(a => (
+                                      <div key={a.id} style={{ position: 'relative' }}>
+                                        <img src={a.url} alt="" onClick={() => setLightboxUrl(a.url)}
+                                          style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 6, border: `1px solid ${COLORS.border}`, cursor: 'zoom-in' }} />
+                                        <button onClick={() => removeAttachment(entry.id, a.id)} title="Borrar imagen" style={{
+                                          position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
+                                          background: COLORS.bear, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
+                                        }}>×</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: `2px solid ${COLORS.border}`, fontWeight: 700 }}>
+                      <td style={{ padding: '6px 8px' }} colSpan={6}>Total</td>
+                      <td style={{ padding: '6px 8px', fontFamily: 'JetBrains Mono, monospace', color: stats.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
+                        {money(stats.resultado)}
+                      </td>
+                      <td style={{ padding: '6px 8px', fontFamily: 'JetBrains Mono, monospace', color: stats.pctRentabilidad == null ? COLORS.muted : stats.pctRentabilidad >= 0 ? COLORS.bull : COLORS.bear }}>
+                        {formatPct(stats.pctRentabilidad)}
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '6px 8px', color: COLORS.muted }} colSpan={5}>
+                        Promedio operac./día: {stats.tradesPorDia != null ? stats.tradesPorDia.toFixed(1) : '—'}
+                      </td>
+                      <td style={{ padding: '6px 8px', color: COLORS.muted }} colSpan={5}>
+                        Duración promedio: {formatDuration(stats.duracionPromedio != null ? Math.round(stats.duracionPromedio) : null)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Panel>
+          );
+        })}
         </>)}
 
         {tab === 'estadisticas' && (
@@ -389,6 +514,7 @@ export default function BitacoraPage() {
                       <th style={{ padding: '4px 8px' }}>Mes</th>
                       <th style={{ padding: '4px 8px' }}>Estado</th>
                       <th style={{ padding: '4px 8px' }}>Resultado</th>
+                      <th style={{ padding: '4px 8px' }}>% Rentabilidad</th>
                       <th style={{ padding: '4px 8px' }}>Operaciones</th>
                       <th style={{ padding: '4px 8px' }}>Días operados</th>
                       <th style={{ padding: '4px 8px' }}>Prom. operac./día</th>
@@ -403,12 +529,15 @@ export default function BitacoraPage() {
                         <td style={{ padding: '4px 8px', fontWeight: 700 }}>{s.label}</td>
                         <td style={{ padding: '4px 8px', color: s.cerrado ? COLORS.muted : COLORS.accent }}>{s.cerrado ? 'Cerrado' : 'En curso'}</td>
                         <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: s.resultado >= 0 ? COLORS.bull : COLORS.bear }}>{money(s.resultado)}</td>
+                        <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: s.pctRentabilidad == null ? COLORS.muted : s.pctRentabilidad >= 0 ? COLORS.bull : COLORS.bear }}>
+                          {formatPct(s.pctRentabilidad)}
+                        </td>
                         <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{s.totalTrades}</td>
                         <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{s.diasOperados}</td>
                         <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{s.tradesPorDia != null ? s.tradesPorDia.toFixed(1) : '—'}</td>
                         <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{formatDuration(s.duracionPromedio != null ? Math.round(s.duracionPromedio) : null)}</td>
-                        <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: COLORS.bull }}>{s.mejor != null ? money(s.mejor) : '—'}</td>
-                        <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: COLORS.bear }}>{s.peor != null ? money(s.peor) : '—'}</td>
+                        <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: COLORS.bull }}>{money(s.mejor)}</td>
+                        <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: COLORS.bear }}>{money(s.peor)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -416,7 +545,7 @@ export default function BitacoraPage() {
               </div>
             )}
             <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 12, lineHeight: 1.6 }}>
-              "Prom. operac./día" = total de operaciones del mes ÷ días en que operaste (no ÷ 30). "Duración prom." = duración promedio de una operación individual. Un mes queda "Cerrado" cuando ya terminó el mes calendario; el mes actual figura "En curso".
+              "Prom. operac./día" = total de operaciones del mes ÷ días en que operaste (no ÷ 30). "Duración prom." = duración promedio de una operación individual. "% Rentabilidad" = resultado total del mes ÷ monto invertido total del mes (solo cuenta operaciones con monto cargado; queda en "—" si ninguna operación del mes tiene monto). Un mes queda "Cerrado" cuando ya terminó el mes calendario; el mes actual figura "En curso".
             </div>
           </Panel>
         )}

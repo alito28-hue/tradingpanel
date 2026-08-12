@@ -4,10 +4,42 @@
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: dark;
+  --tp-bg: #111316;
+  --tp-panel: #1a1c1f;
+  --tp-panel-alt: #242830;
+  --tp-border: #37393d;
+  --tp-text: #e2e8f0;
+  --tp-muted: #64748b;
+  --tp-accent: #ccff00;
+  --tp-on-accent: #0F1400;
+  --tp-bull: #ccff00;
+  --tp-bear: #ff4d4d;
+  --tp-warning: #fb923c;
+  --tp-neutral: #5B6472;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --tp-bg: #f4f5f7;
+  --tp-panel: #ffffff;
+  --tp-panel-alt: #eef0f3;
+  --tp-border: #d7dbe1;
+  --tp-text: #14161a;
+  --tp-muted: #64748b;
+  --tp-accent: #4d7c0f;
+  --tp-on-accent: #ffffff;
+  --tp-bull: #4d7c0f;
+  --tp-bear: #c0293b;
+  --tp-warning: #b45309;
+  --tp-neutral: #5B6472;
+}
+
 html, body {
   margin: 0;
   padding: 0;
-  background: #111316;
-  color: #e2e8f0;
+  background: var(--tp-bg);
+  color: var(--tp-text);
   font-family: 'Geist', -apple-system, sans-serif;
 }

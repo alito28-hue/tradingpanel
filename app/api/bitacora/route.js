@@ -6,7 +6,7 @@ import { query } from '../../../lib/db';
 
 const LIST_QUERY = `
   SELECT e.id, e.fecha, e.hora_entrada, e.hora_salida, e.symbol, e.direccion,
-    e.precio_entrada, e.precio_salida, e.resultado, e.notas, e.created_at, e.updated_at,
+    e.precio_entrada, e.precio_salida, e.monto, e.resultado, e.notas, e.created_at, e.updated_at,
     COALESCE(
       json_agg(json_build_object('id', a.id, 'url', a.url, 'caption', a.caption) ORDER BY a.id)
       FILTER (WHERE a.id IS NOT NULL),
@@ -38,8 +38,8 @@ export async function POST(req) {
 
     const { rows } = await query(
       `INSERT INTO bitacora_entries
-        (fecha, hora_entrada, hora_salida, symbol, direccion, precio_entrada, precio_salida, resultado, notas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        (fecha, hora_entrada, hora_salida, symbol, direccion, precio_entrada, precio_salida, monto, resultado, notas)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         body.fecha,
@@ -49,6 +49,7 @@ export async function POST(req) {
         body.direccion || 'long',
         body.precioEntrada != null && body.precioEntrada !== '' ? Number(body.precioEntrada) : null,
         body.precioSalida != null && body.precioSalida !== '' ? Number(body.precioSalida) : null,
+        body.monto != null && body.monto !== '' ? Number(body.monto) : null,
         body.resultado != null && body.resultado !== '' ? Number(body.resultado) : null,
         body.notas || '',
       ]

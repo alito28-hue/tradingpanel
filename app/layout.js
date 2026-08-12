@@ -1,4 +1,5 @@
 import './globals.css';
+import { ThemeProvider, ThemeToggle } from './components/ui';
 
 export const metadata = {
   title: 'TradingPanel — Intraday Momentum',
@@ -10,7 +11,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        {children}
+        <ThemeProvider>
+          {children}
+          <ThemeToggle />
+        </ThemeProvider>
       </body>
     </html>
   );

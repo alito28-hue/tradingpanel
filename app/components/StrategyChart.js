@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
-import { COLORS } from './ui';
+import { resolveColors, useTheme } from './ui';
 
 // Lightweight Charts renders timestamps as if they were UTC. Argentina is a
 // fixed UTC-3 with no DST, so shifting the epoch by -3h before feeding it in
@@ -23,27 +23,29 @@ export default function StrategyChart({
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRef = useRef({});
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const C = resolveColors();
     const chart = createChart(containerRef.current, {
       autoSize: true,
-      layout: { background: { color: COLORS.panel }, textColor: COLORS.muted },
-      grid: { vertLines: { color: COLORS.border }, horzLines: { color: COLORS.border } },
+      layout: { background: { color: C.panel }, textColor: C.muted },
+      grid: { vertLines: { color: C.border }, horzLines: { color: C.border } },
       timeScale: { timeVisible: true, secondsVisible: false },
-      rightPriceScale: { borderColor: COLORS.border },
+      rightPriceScale: { borderColor: C.border },
     });
     chartRef.current = chart;
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: COLORS.bull, downColor: COLORS.bear, borderVisible: false,
-      wickUpColor: COLORS.bull, wickDownColor: COLORS.bear,
+      upColor: C.bull, downColor: C.bear, borderVisible: false,
+      wickUpColor: C.bull, wickDownColor: C.bear,
     }, 0);
-    const maSeries = chart.addSeries(LineSeries, { color: COLORS.accent, lineWidth: 2 }, 0);
+    const maSeries = chart.addSeries(LineSeries, { color: C.accent, lineWidth: 2 }, 0);
     const priceMarkers = createSeriesMarkers(candleSeries, []);
 
     const macdHistSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'price', precision: 1 } }, 1);
-    const macdLineSeries = chart.addSeries(LineSeries, { color: COLORS.accent, lineWidth: 1 }, 1);
+    const macdLineSeries = chart.addSeries(LineSeries, { color: C.accent, lineWidth: 1 }, 1);
     const macdSignalSeries = chart.addSeries(LineSeries, { color: '#5B8DEF', lineWidth: 1 }, 1);
 
     const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' } }, 2);
@@ -60,12 +62,15 @@ export default function StrategyChart({
       chartRef.current = null;
       seriesRef.current = {};
     };
+    // Se recrea al cambiar de theme (claro/oscuro) para tomar los nuevos
+    // colores de layout/series — lightweight-charts los fija al crearse.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [theme]);
 
   useEffect(() => {
     const s = seriesRef.current;
     if (!s.candleSeries || !candles || !candles.length) return;
+    const C = resolveColors();
 
     s.candleSeries.setData(candles.map(c => ({ time: toTime(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
 
@@ -78,7 +83,7 @@ export default function StrategyChart({
       return {
         time: toTime(candles[m.index].time),
         position: upShape ? 'belowBar' : 'aboveBar',
-        color: m.kind === 'entry' ? (m.marker === 'buy' ? COLORS.bull : COLORS.bear) : COLORS.warning,
+        color: m.kind === 'entry' ? (m.marker === 'buy' ? C.bull : C.bear) : C.warning,
         shape: upShape ? 'arrowUp' : 'arrowDown',
         text: m.kind === 'entry' ? (m.marker === 'buy' ? 'LONG' : 'SHORT') : 'EXIT',
       };
@@ -89,7 +94,7 @@ export default function StrategyChart({
       s.macdHistSeries.setData(candles.map((c, i) => {
         if (macdLine[i] == null || macdSignal[i] == null) return null;
         const h = macdLine[i] - macdSignal[i];
-        return { time: toTime(c.time), value: h, color: h >= 0 ? COLORS.bull : COLORS.bear };
+        return { time: toTime(c.time), value: h, color: h >= 0 ? C.bull : C.bear };
       }).filter(Boolean));
       s.macdLineSeries.setData(candles.map((c, i) => macdLine[i] != null ? { time: toTime(c.time), value: macdLine[i] } : null).filter(Boolean));
       s.macdSignalSeries.setData(candles.map((c, i) => macdSignal[i] != null ? { time: toTime(c.time), value: macdSignal[i] } : null).filter(Boolean));
@@ -99,7 +104,7 @@ export default function StrategyChart({
       s.volumeSeries.setData(candles.map((c, i) => ({
         time: toTime(c.time),
         value: c.volume || 0,
-        color: (climax && climax[i]) ? COLORS.warning : (volumeDelta[i] >= 0 ? COLORS.bull : COLORS.bear),
+        color: (climax && climax[i]) ? C.warning : (volumeDelta[i] >= 0 ? C.bull : C.bear),
       })));
       const divMarkerData = (divergence || []).map((d, i) => {
         if (!d) return null;
@@ -107,7 +112,7 @@ export default function StrategyChart({
         return {
           time: toTime(candles[i].time),
           position: isBullish ? 'belowBar' : 'aboveBar',
-          color: isBullish ? COLORS.bull : COLORS.bear,
+          color: isBullish ? C.bull : C.bear,
           shape: isBullish ? 'arrowUp' : 'arrowDown',
           text: 'DIV',
         };
@@ -121,7 +126,7 @@ export default function StrategyChart({
     } else {
       chartRef.current.timeScale().fitContent();
     }
-  }, [candles, maLine, markers, macdLine, macdSignal, volumeDelta, climax, divergence]);
+  }, [candles, maLine, markers, macdLine, macdSignal, volumeDelta, climax, divergence, theme]);
 
   return <div ref={containerRef} style={{ width: '100%', height }} />;
 }
