@@ -89,6 +89,7 @@ export default function TradesPage() {
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/dashboard" style={{ ...btnStyle(), textDecoration: 'none' }}>← Dashboard</Link>
+          <Link href="/bitacora" style={{ ...btnStyle(), textDecoration: 'none' }}>Bitácora →</Link>
           <Link href="/backtest" style={{ ...btnStyle(), textDecoration: 'none' }}>Backtest →</Link>
           <button onClick={() => setShowForm(s => !s)} style={btnStyle(true)}>
             {showForm ? 'Cerrar' : '+ Nueva operación'}

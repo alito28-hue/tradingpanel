@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e8e6e0; }
+    .page * { box-sizing: border-box; }
+    a { color: oklch(0.5 0.1 200); }
+    a:hover { color: oklch(0.42 0.1 200); }
+  </style>
+  <script src="./doc-page.js"></script>
+</helmet>
+
+<doc-page size="letter">
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.85in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div style="width:52px; height:52px; border-radius:50%; background:oklch(0.55 0.1 200); display:flex; align-items:center; justify-content:center; color:#faf9f5; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:22px;">₿</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; color:#8a8578; text-align:right;">BTCUSDT.P &middot; BingX<br>DOCUMENTO PERSONAL &middot; NO ES ASESORÍA FINANCIERA</div>
+  </div>
+
+  <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; letter-spacing:0.15em; color:oklch(0.5 0.1 200); font-weight:600; margin-bottom:18px;">PLAYBOOK DE TRADING &middot; BITCOIN</div>
+    <h1 style="font-size:52px; line-height:1.05; margin:0 0 20px; font-weight:800; letter-spacing:-0.01em;">Reacción en Liquidez Diaria</h1>
+    <p style="font-size:19px; line-height:1.55; color:#4a473e; max-width:9.5in; margin:0;">Sistema de entrada y salida basado en niveles de liquidez diaria (PDH/PDL, Daily High/Low), confirmación multi-timeframe en 1H y 5M, y reglas estrictas de gestión de riesgo para proteger capital.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:0.5in;">
+    <div style="border-top:2px solid #1c1c1a; padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">FASE 1</div>
+      <div style="font-size:14px; font-weight:600; margin-top:4px;">Validación pre-entrada</div>
+    </div>
+    <div style="border-top:2px solid #1c1c1a; padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">FASE 2</div>
+      <div style="font-size:14px; font-weight:600; margin-top:4px;">Parámetros de orden</div>
+    </div>
+    <div style="border-top:2px solid #1c1c1a; padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">FASE 3</div>
+      <div style="font-size:14px; font-weight:600; margin-top:4px;">Gestión activa en vivo</div>
+    </div>
+    <div style="border-top:2px solid #1c1c1a; padding-top:10px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">ANEXO</div>
+      <div style="font-size:14px; font-weight:600; margin-top:4px;">Ejemplos, conceptos + gráficos</div>
+    </div>
+  </div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:26px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">SETUP</div>
+      <h2 style="font-size:28px; margin:4px 0 0; font-weight:800;">Configurar TradingView</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">01 / 20</div>
+  </div>
+  <p style="font-size:13.5px; line-height:1.5; color:#3a3730; margin:0 0 14px; max-width:9.4in;">Antes de operar el checklist, el gráfico debe mostrar los niveles diarios y semanales automáticamente todos los días — sin dibujarlos a mano. Hay dos alternativas de indicador:</p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8a8578; font-weight:600;">A &middot; SOLO NIVELES</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Marca máximo/mínimo semanal, del día y del día anterior. Hay que estar viendo el gráfico para detectar la reacción.</div>
+      <div style="font-size:11.5px; margin-top:6px;"><a href="https://www.tradingview.com/script/4XqHA2i2-Daily-Weekly-Levels-Sessions-Legend/" target="_blank" rel="noopener">Daily & Weekly Levels + Sessions + Legend</a></div>
+    </div>
+    <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">B &middot; NIVELES + SEÑALES + ALERTAS (recomendado)</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Además de los niveles, marca con flechas si busca long o short y desde cuándo mirar. Al setear alertas no hace falta estar mirando el gráfico hasta que se active.</div>
+      <div style="font-size:11.5px; margin-top:6px;"><a href="https://www.tradingview.com/script/lUkNHZK3-Key-Levels-Trading-Sessions-Dynamic-Long-Short-Signals/" target="_blank" rel="noopener">Key Levels + Sessions + Dynamic Long/Short Signals</a></div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:9px;">
+    <div style="display:flex; gap:14px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:10px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">1</div>
+      <div style="font-size:12.5px; color:#3a3730; line-height:1.4;">Abrir el gráfico de BTCUSDT.P en TradingView y hacer clic en <strong>Indicators</strong> en la barra superior.</div>
+    </div>
+    <div style="display:flex; gap:14px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:10px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">2</div>
+      <div style="font-size:12.5px; color:#3a3730; line-height:1.4;">Buscar el indicador elegido (A o B) por nombre, o abrir su enlace y usar "Add to chart".</div>
+    </div>
+    <div style="display:flex; gap:14px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:10px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">3</div>
+      <div style="font-size:12.5px; color:#3a3730; line-height:1.4;">Confirmar que trace <strong>Prev Day High/Low (PDH/PDL)</strong>, el día anterior al anterior y los <strong>niveles semanales</strong> — referencia de Soporte Clave y TP2/TP.</div>
+    </div>
+    <div style="display:flex; gap:14px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:10px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">4</div>
+      <div style="font-size:12.5px; color:#3a3730; line-height:1.4;">Agregar el indicador nativo <strong>MACD (12, 26, 9)</strong> desde Indicators → "MACD" — confirmación obligatoria en 1H (Fase 1).</div>
+    </div>
+    <div style="display:flex; gap:14px; align-items:flex-start; border:1px solid oklch(0.7 0.13 60); background:oklch(0.97 0.03 60); border-radius:4px; padding:10px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.45 0.13 60); flex-shrink:0;">5</div>
+      <div style="font-size:12px; color:#3a3730; line-height:1.4;">
+        <strong>Máximo/mínimo semanal en 5M:</strong> si el indicador los dibuja como línea propia, el gráfico en 5M se comprime y aplasta las velas. Solución: marcarlos manualmente con línea horizontal y desde la configuración del indicador deshabilitar su trazo automático hasta el próximo domingo.
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Configurar una sola vez &middot; queda guardado en la plantilla del gráfico</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:28px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">FASE 1</div>
+      <h2 style="font-size:30px; margin:4px 0 0; font-weight:800;">Validación pre-entrada</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">02 / 20</div>
+  </div>
+  <p style="font-size:15px; color:#4a473e; margin:0 0 26px; max-width:9.4in;">Confirmaciones obligatorias en 1H y 5M antes de ejecutar. Ninguna entrada se activa sin las cuatro casillas marcadas.</p>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div style="display:flex; gap:18px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">1H</div>
+      <div>
+        <div style="font-weight:700; font-size:16px;">Soporte clave</div>
+        <div style="font-size:14.5px; color:#4a473e; margin-top:4px; line-height:1.5;">El precio interactúa con el <strong>Prev Day Low (PDL)</strong> o el <strong>Daily Low (DL)</strong>. Estos niveles concentran liquidez acumulada de sesiones previas.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:18px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">1H</div>
+      <div>
+        <div style="font-weight:700; font-size:16px;">Absorción</div>
+        <div style="font-size:14.5px; color:#4a473e; margin-top:4px; line-height:1.5;">La vela de 1H <strong>no cierra por debajo del nivel</strong> — deja mecha o un soporte claro que evidencia rechazo de la zona.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:18px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">1H</div>
+      <div>
+        <div style="font-weight:700; font-size:16px;">Confirmación MACD</div>
+        <div style="font-size:14.5px; color:#4a473e; margin-top:4px; line-height:1.5;">Giro alcista confirmado: <strong>cruce de líneas</strong> o histograma pasando a verde.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:18px; align-items:flex-start; border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:700; color:oklch(0.5 0.1 200); flex-shrink:0;">5M</div>
+      <div>
+        <div style="font-weight:700; font-size:16px;">Gatillo de entrada</div>
+        <div style="font-size:14.5px; color:#4a473e; margin-top:4px; line-height:1.5;">Reacción clara sobre el nivel clave: <strong>doble suelo</strong> o patrón de velas en 5M.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:24px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">4 confirmaciones obligatorias &middot; sin las 4, no hay entrada</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:18px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 60); font-weight:600;">FASE 1 &middot; REGLA DE PACIENCIA</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Cuándo esperar antes de entrar</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">03 / 20</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1.05fr 1fr; gap:20px; flex:1; min-height:0;">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <p style="font-size:14px; line-height:1.6; color:#3a3730; margin:0;">La vela de 1H está testeando el soporte. <strong>Solo se puede tomar el trade si la vela no rompe hacia abajo con cuerpo completo.</strong></p>
+      <div style="border:1px solid oklch(0.7 0.13 60); background:oklch(0.97 0.03 60); border-radius:4px; padding:14px 16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 60); font-weight:600;">MIENTRAS LA VELA ESTÁ ABIERTA</div>
+        <div style="font-size:13.5px; color:#3a3730; margin-top:5px; line-height:1.5;">Esperar. No hay entrada válida hasta que la vela de 1H cierre.</div>
+      </div>
+      <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.96 0.03 145); border-radius:4px; padding:14px 16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">CIERRE VÁLIDO PARA LONG</div>
+        <div style="font-size:13.5px; color:#3a3730; margin-top:5px; line-height:1.5;">La vela termina con mecha hacia abajo y el <strong>cuerpo cierra por encima</strong> del nivel de soporte — confirma que el soporte aguantó y el precio va a buscar el extremo opuesto.</div>
+      </div>
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:14px 16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8a8578;">CIERRE INVÁLIDO</div>
+        <div style="font-size:13.5px; color:#3a3730; margin-top:5px; line-height:1.5;">Si la vela rompe el nivel con cuerpo completo, no hay absorción — el soporte falló. No se entra en largo.</div>
+      </div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff;">
+      <img src="uploads/espera-vela-1h.PNG" alt="Ejemplo de espera antes de entrar en long en 1H sobre Daily Low" style="width:100%; height:auto; display:block; object-fit:contain;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Testeo del Daily Low — se espera el cierre antes de buscar el long</div>
+    </div>
+  </div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:28px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">FASE 2</div>
+      <h2 style="font-size:30px; margin:4px 0 0; font-weight:800;">Parámetros de orden</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">04 / 20</div>
+  </div>
+  <p style="font-size:15px; color:#4a473e; margin:0 0 26px; max-width:9.4in;">Configuración inicial de gestión de riesgo, fijada en el momento de la ejecución.</p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">EJECUCIÓN</div>
+      <div style="font-size:16px; font-weight:700; margin-top:6px;">Entrada en 5M</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.5;">Tras la confirmación completa de la Fase 1.</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">STOP LOSS</div>
+      <div style="font-size:16px; font-weight:700; margin-top:6px; font-family:'IBM Plex Mono',monospace;">−150 a −200 USD</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.5;">Por debajo del mínimo de 1H.</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">TAKE PROFIT 1</div>
+      <div style="font-size:16px; font-weight:700; margin-top:6px; font-family:'IBM Plex Mono',monospace;">+200 a +300 USD</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.5;">Avance en la cotización desde la entrada.</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:20px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">TAKE PROFIT 2</div>
+      <div style="font-size:16px; font-weight:700; margin-top:6px;">PDH / DH</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.5;">Nivel clave de Prev Day High / Daily High.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:28px; background:oklch(0.96 0.015 200); border:1px solid oklch(0.85 0.04 200); border-radius:4px; padding:18px 20px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:oklch(0.4 0.1 200); font-weight:600;">R:R DE REFERENCIA</div>
+    <div style="font-size:14.5px; color:#3a3730; margin-top:6px; line-height:1.55;">Riesgo ≈150–200 USD contra TP1 de 200–300 USD ya ofrece un ratio cercano a 1:1.5, con TP2 en PDH/DH extendiendo el objetivo cuando la tendencia acompaña.</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:24px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Todos los niveles se fijan antes de gestionar la operación en vivo</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:24px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">FASE 3</div>
+      <h2 style="font-size:30px; margin:4px 0 0; font-weight:800;">Gestión activa en vivo</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">05 / 20</div>
+  </div>
+  <p style="font-size:15px; color:#4a473e; margin:0 0 22px; max-width:9.4in;">Reglas de protección de capital y control de codicia una vez la operación está abierta.</p>
+
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:16px 20px;">
+      <div style="font-weight:700; font-size:15.5px;">Protección a Break-Even</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:5px; line-height:1.5;">Tan pronto BTC avance <strong>+150 a +200 USD</strong> a favor, mover el SL a Break-Even (entrada + comisiones).</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:16px 20px;">
+      <div style="font-weight:700; font-size:15.5px;">Filtro de agotamiento (2–3 intentos fallidos)</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:5px; line-height:1.5;">Si el precio llega a la zona de +100 a +150 USD y es <strong>rechazado 3 veces</strong> en la misma estructura sin romper → cerrar manualmente al mercado o ajustar el SL a +50 USD.</div>
+    </div>
+    <div style="border:1px solid oklch(0.7 0.13 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:16px 20px;">
+      <div style="font-weight:700; font-size:15.5px; color:oklch(0.4 0.13 25);">Regla inviolable de salida</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:5px; line-height:1.5;">Si un trade alcanzó <strong>+150 USD</strong> de movimiento a favor, <strong>nunca puede terminar en pérdida</strong>. Peor escenario aceptable: $0 (Break-Even).</div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; padding:20px 22px; background:#1c1c1a; border-radius:4px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; color:oklch(0.72 0.1 200); font-weight:600;">REGLA DE MENTALIDAD</div>
+    <div style="font-size:14.5px; color:#f0efe9; margin-top:8px; line-height:1.6;">Si el mercado prueba 2–3 veces la misma resistencia en positivo y no logra romperla, la liquidez compradora se ha agotado. Aceptar la ganancia parcial o salir en Break-Even es buena gestión; esperar a que se dé vuelta hasta el SL es un error operativo.</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:20px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Peor caso aceptable tras +150 USD a favor: Break-Even, nunca pérdida</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:18px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.13 145); font-weight:600;">ANEXO &middot; EJEMPLO OPERADO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">🟢 Estrategia LONG — Reacción en soporte diario</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">06 / 20</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1.15fr; gap:20px; align-items:start;">
+    <div style="display:flex; flex-direction:column; gap:9px;">
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">1. CONTEXTO MACRO (1H)</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Captura de liquidez:</strong> el precio cae hasta la zona de mínimos anteriores (Prev Day Low 64,143.4 y Daily Low 64,130.2). <strong>Absorción:</strong> las velas dejan mecha por debajo del nivel — el mercado busca los Stop Losses (sell-side liquidity) antes de impulsar al alza. <strong>MACD</strong> hace cruce alcista con histograma positivo justo cuando el precio rechaza los mínimos.</div>
+      </div>
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">2. CONFIRMACIÓN MICRO (5M)</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Doble manipulación:</strong> dos toques claros al Daily Low; el segundo rompe el nivel unos instantes para barrer compradores impacientes y activar stops. <strong>Reclaim:</strong> entra volumen comprador y la vela cierra sobre la línea azul, confirmando el falso rompimiento (fakeout).</div>
+      </div>
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">3. PLAN DE EJECUCIÓN</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Entrada:</strong> compra tras la confirmación del rechazo en el Daily Low. <strong>SL:</strong> 200 puntos bajo el soporte (bajo la mecha de manipulación). <strong>TP:</strong> liquidez opuesta del rango (Prev Day High).</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="border:1px solid #ddd8ca; border-radius:4px; padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">OBJETIVO</div>
+          <div style="font-size:12.5px; color:#3a3730; margin-top:3px; font-family:'IBM Plex Mono',monospace;">738.4 pts (+1.15%)</div>
+        </div>
+        <div style="border:1px solid oklch(0.85 0.04 200); background:oklch(0.96 0.015 200); border-radius:4px; padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:oklch(0.4 0.1 200); font-weight:600;">R:R DEL EJEMPLO</div>
+          <div style="font-size:12.5px; color:#2a2820; margin-top:3px; font-family:'IBM Plex Mono',monospace;">≈ 1 : 2.75</div>
+        </div>
+      </div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff;">
+      <img src="uploads/long-5m-entrada.PNG" alt="Ejemplo de entrada long en 5M con SL/TP" style="width:100%; height:auto; display:block; object-fit:contain;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">5M &middot; Entrada real sobre Daily Low, SL/TP y R:R marcados</div>
+    </div>
+  </div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:18px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 25); font-weight:600;">ANEXO &middot; EJEMPLO OPERADO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">🔴 Estrategia SHORT — Reacción en resistencia diaria</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">07 / 20</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1.15fr; gap:20px; align-items:start;">
+    <div style="display:flex; flex-direction:column; gap:9px;">
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">1. CONTEXTO MACRO (1H)</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Captura de liquidez:</strong> el precio sube con fuerza a buscar los máximos anteriores (Daily High 65,350.0 y Prev Day High 64,972.9). <strong>Absorción/rechazo:</strong> la vela de 1H penetra la zona de máximos pero pierde fuerza, deja mecha superior prominente y cierra por debajo del nivel — confirma falta de demanda institucional sobre la resistencia. <strong>MACD</strong> inicia cruce bajista con el histograma perdiendo volumen alcista justo en el pico.</div>
+      </div>
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">2. CONFIRMACIÓN MICRO (5M)</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Manipulación en máximos:</strong> el precio busca activar Buy Stops por encima del Day High (65,365). <strong>Fakeout:</strong> incapaz de sostener la estructura sobre el máximo diario, pierde el nivel de forma agresiva y retorna al rango. <strong>MACD 5M</strong> genera cruce bajista claro en la fase de rechazo.</div>
+      </div>
+      <div style="border:1px solid #ddd8ca; border-radius:4px; padding:11px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">3. PLAN DE EJECUCIÓN</div>
+        <div style="font-size:12.5px; color:#3a3730; margin-top:4px; line-height:1.48;"><strong>Entrada:</strong> venta tras la pérdida y confirmación de rechazo del Daily High. <strong>SL:</strong> ~200–280 puntos sobre el máximo alcanzado (resistencia local). <strong>TP:</strong> zona de liquidez compradora del suelo del rango (Daily Low / Prev Day Low).</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="border:1px solid #ddd8ca; border-radius:4px; padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8a8578;">RIESGO / OBJETIVO</div>
+          <div style="font-size:12.5px; color:#3a3730; margin-top:3px; font-family:'IBM Plex Mono',monospace;">SL 278.9 (0.427%)<br>TP 826.2 (+1.266%)</div>
+        </div>
+        <div style="border:1px solid oklch(0.8 0.06 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:10px 12px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:oklch(0.45 0.13 25); font-weight:600;">R:R DEL EJEMPLO</div>
+          <div style="font-size:12.5px; color:#2a2820; margin-top:3px; font-family:'IBM Plex Mono',monospace;">≈ 1 : 2.96</div>
+        </div>
+      </div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff;">
+      <img src="uploads/short-5m-entrada.PNG" alt="Ejemplo de entrada short en 5M con SL/TP" style="width:100%; height:auto; display:block; object-fit:contain;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">5M &middot; Entrada real sobre Daily High, SL/TP y R:R marcados</div>
+    </div>
+  </div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:24px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">ANEXO &middot; CONCEPTOS</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Por qué funcionan estos niveles</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">08 / 20</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:26px; flex:1;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); margin-bottom:8px;">PDH / PDL — LIQUIDEZ DIARIA</div>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0 0 12px;">El Prev Day High/Low marca los extremos de la sesión anterior y concentra órdenes de stop y de ruptura de muchos participantes: es donde suele acumularse liquidez.</p>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0 0 12px;">El precio previo del día alto y bajo actúa como puntos de referencia porque resaltan zonas donde previamente hubo fuerte presión compradora o vendedora, y como muchos traders los vigilan, pueden atraer mayor actividad al ser revisitados.</p>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0 0 12px;">Por eso la estrategia busca la reacción justo <em>sobre</em> el PDL/DL (fase de absorción en 1H) en vez de operar la ruptura: se opera el rechazo de esa liquidez, no la continuación hacia ella.</p>
+      <div style="border:1px solid oklch(0.85 0.04 200); background:oklch(0.96 0.015 200); border-radius:4px; padding:10px 12px;">
+        <div style="font-size:12.5px; line-height:1.4;">Indicador para trazar estos niveles automáticamente: ver página "Configurar TradingView" (01/13).</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); margin-bottom:8px;">MACD — FILTRO DE CONFIRMACIÓN</div>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0 0 12px;">El MACD combina dos medias móviles exponenciales (línea MACD y línea de señal) más un histograma que mide la distancia entre ambas.</p>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0 0 12px;">Un cruce alcista de la línea MACD sobre la línea de señal, o el histograma pasando de rojo a verde, indica que el momentum bajista se está agotando y el impulso empieza a girar a favor de los compradores.</p>
+      <p style="font-size:13.5px; line-height:1.65; color:#3a3730; margin:0;">Exigirlo en 1H antes de gatillar en 5M evita entrar solo por "toque de nivel": el precio debe estar en la zona correcta <strong>y</strong> mostrar momentum girando a favor.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:20px; padding-top:16px; border-top:1px solid #ddd8ca; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578;">Fuentes completas en la última página</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.75in 0.9in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:26px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">ANEXO &middot; GESTIÓN DE RIESGO</div>
+      <h2 style="font-size:28px; margin:4px 0 0; font-weight:800;">Tamaño de posición y R:R</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">09 / 20</div>
+  </div>
+
+  <p style="font-size:14.5px; line-height:1.6; color:#3a3730; margin:0 0 20px; max-width:9.4in;">Las reglas de esta estrategia fijan el riesgo en dólares por operación (150–200 USD de SL). Para que ese riesgo sea sostenible frente al capital total, se combina con dos principios estándar de gestión:</p>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:22px;">
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-weight:700; font-size:15.5px;">Regla del 1–2% por operación</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.55;">No arriesgar más del 1–2% del capital total en un solo trade. El tamaño de posición se deriva de: (capital × % riesgo) ÷ distancia al stop.</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:18px 20px;">
+      <div style="font-weight:700; font-size:15.5px;">Ratio riesgo:beneficio mínimo</div>
+      <div style="font-size:14px; color:#4a473e; margin-top:6px; line-height:1.55;">Un mínimo de 1:2 es el estándar recomendado para day trading; entre 1:1.5 y 1:3 es habitual en operativa intradía por lo comprimido de los movimientos.</div>
+    </div>
+  </div>
+
+  <div style="background:oklch(0.96 0.015 200); border:1px solid oklch(0.85 0.04 200); border-radius:4px; padding:20px 22px; margin-bottom:20px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:oklch(0.4 0.1 200); font-weight:600; margin-bottom:8px;">EJEMPLO DE CÁLCULO</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; line-height:1.9; color:#2a2820;">Capital: 10,000 USD &middot; Riesgo: 1.5% → 150 USD<br>SL: 175 USD por debajo de entrada<br>Tamaño de posición ≈ 150 ÷ 175 ≈ 0.86 BTC nominal (ajustar a apalancamiento/margen del bróker)</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.6; color:#4a473e; margin:0;">Estos dos principios no reemplazan el checklist de entrada: solo aseguran que, incluso si el SL de 150–200 USD se ejecuta varias veces seguidas, ninguna racha de pérdidas comprometa el capital total de la cuenta.</p>
+
+  <div style="margin-top:auto; padding-top:20px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">El % de riesgo y el capital son parámetros personales — ajustar antes de operar</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.13 145); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Ejemplo real: short y long en el mismo día</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">10 / 20</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.55; color:#3a3730; margin:0 0 14px; max-width:9.4in;">El indicador B marcó "Buscar Long" al tocar el Daily Low y "Buscar Shorts" al tocar el Daily High — la señal para empezar a mirar el gráfico y validar el checklist, sin tener que estar pegado a la pantalla mientras el precio recorre el rango.</p>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-bottom:14px;">
+    <img src="uploads/ejemplo-real-long-short.PNG" alt="Ejemplo real de rotación short a long y long a short con señales del indicador B" style="width:100%; height:auto; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Rotación del día: Daily Low → "Buscar Long" → Daily High → "Buscar Shorts"</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">EN EL DAILY LOW</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">"Buscar Long" apenas toca el nivel azul. El precio reacciona, cierra las velas por encima del soporte y rota al alza hasta el Daily High.</div>
+    </div>
+    <div style="border:1px solid oklch(0.65 0.15 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 25); font-weight:600;">EN EL DAILY HIGH</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">"Buscar Shorts" al llegar a la línea roja. Ahí se aplica el mismo checklist de la Fase 1 (1H) y Fase 1 (5M) para el lado corto.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">La flecha es el aviso para empezar a mirar — no es la entrada; el checklist de la Fase 1 sigue siendo obligatorio</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.13 145); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Caso perfecto — sesión de Asia</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">11 / 20</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.55; color:#3a3730; margin:0 0 14px; max-width:9.4in;">Ejemplo clarísimo del ciclo completo en la sesión de Asia: el precio toca el Daily Low, el indicador marca "Buscar Long", rota todo el rango hasta el Daily High y ahí marca "Buscar Shorts" — justo donde se agota el impulso comprador.</p>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-bottom:14px;">
+    <img src="uploads/ejemplo-asia.PNG" alt="Caso perfecto de rotación Daily Low a Daily High en sesión de Asia con señales Buscar Long y Buscar Shorts" style="width:100%; height:auto; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Sesión de Asia: Daily Low (64,696.2) → "Buscar Long" → Daily High (65,441.0) → "Buscar Shorts"</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">BUSCAR LONG</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Señal justo sobre el Daily Low. El precio respeta el nivel y rota al alza atravesando todo el rango diario.</div>
+    </div>
+    <div style="border:1px solid oklch(0.65 0.15 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 25); font-weight:600;">BUSCAR SHORTS</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Señal al llegar al Daily High. Ahí se valida el checklist bajista de la Fase 1 antes de considerar la entrada en corto.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">La sesión de Asia suele mostrar rangos limpios entre Daily Low y Daily High — ideal para observar el ciclo completo</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.13 145); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Confirmación por agotamiento de MACD (1H + 5M)</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">12 / 20</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.55; color:#3a3730; margin:0 0 14px; max-width:9.4in;">Long desde el Daily Low. Tras el toque del nivel, en vez de gatillar solo por el rechazo de precio, se espera a que el histograma del MACD muestre <strong>agotamiento en ambos timeframes</strong> — 1H y 5M —: barras cada vez más cortas acercándose a cero, señal de que el impulso vendedor se está quedando sin fuerza antes del giro.</p>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-bottom:14px;">
+    <img src="uploads/macd-agotamiento-long.PNG" alt="Agotamiento del histograma MACD en 1H y 5M confirmando swing long desde el Daily Low" style="width:100%; height:auto; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H + 5M &middot; Daily Low (64,696.2) &middot; histograma MACD agotando en ambos timeframes antes del giro alcista</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">1H — CONTEXTO</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">El precio toca el Daily Low y las barras rojas del histograma se acortan sesión tras sesión — la presión vendedora se está agotando sobre el nivel.</div>
+    </div>
+    <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">5M — CONFIRMACIÓN</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Mismo agotamiento visible en el timeframe menor, en simultáneo con el de 1H — doble confirmación antes de gatillar el long.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Agotamiento simultáneo del histograma en 1H y 5M — confirmación adicional de cambio de dirección en el nivel</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 25); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Confirmación por agotamiento de MACD (1H + 5M) &middot; short</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">13 / 20</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.55; color:#3a3730; margin:0 0 14px; max-width:9.4in;">Espejo bajista del caso anterior: short desde el Daily High. Al tocar el nivel, en vez de gatillar solo por el rechazo de precio, se espera a que el histograma del MACD muestre <strong>agotamiento en ambos timeframes</strong> — 1H y 5M —: barras verdes cada vez más cortas acercándose a cero, señal de que el impulso comprador se está quedando sin fuerza antes del giro.</p>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-bottom:14px;">
+    <img src="uploads/macd-agotamiento-short.PNG" alt="Agotamiento del histograma MACD en 1H y 5M confirmando swing short desde el Daily High" style="width:100%; height:auto; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H + 5M &middot; Daily High &middot; histograma MACD agotando en ambos timeframes antes del giro bajista</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="border:1px solid oklch(0.65 0.15 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 25); font-weight:600;">1H — CONTEXTO</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">El precio toca el Daily High y las barras verdes del histograma se acortan sesión tras sesión — la presión compradora se está agotando sobre el nivel.</div>
+    </div>
+    <div style="border:1px solid oklch(0.65 0.15 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 25); font-weight:600;">5M — CONFIRMACIÓN</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">Mismo agotamiento visible en el timeframe menor, en simultáneo con el de 1H — doble confirmación antes de gatillar el short.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Agotamiento simultáneo del histograma en 1H y 5M — mismo principio del long, aplicado en resistencia</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 60); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Caso donde hay que esperar: "Buscar" no es "Entrar"</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">14 / 20</div>
+  </div>
+
+  <p style="font-size:13.5px; line-height:1.55; color:#3a3730; margin:0 0 14px; max-width:9.4in;">La vela de 1H acaba de cruzar el Daily Low — por eso el indicador marca "Buscar Long" y no "Entrar". Hay que esperar a que esa vela termine de desarrollarse y, en 5M, el precio cierre con fuerza al menos <strong>una vela completa con cuerpo por encima del límite</strong>. Si no lo logra, el long se invalida y el plan pasa a buscar un trade hacia el límite low semanal.</p>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; flex:1; min-height:0;">
+    <img src="uploads/espera-cruce-daily-low-1h.PNG" alt="Vela de 1H cruzando el Daily Low, indicador marca Buscar Long sin confirmar entrada" style="width:100%; flex:1; min-height:0; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Cruce del Daily Low (64,696.2) &middot; "Buscar Long" en desarrollo, aún sin cierre válido</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">"Buscar" es la señal para empezar a mirar — la entrada exige el cierre de vela con cuerpo confirmado</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 60); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">"Buscar" no es "Entrar": confirmación en 5M</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">15 / 20</div>
+  </div>
+
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-bottom:14px; max-height:3.7in;">
+    <img src="uploads/espera-cruce-daily-low-5m.PNG" alt="Velas de 5M bajo el Daily Low sin cerrar con cuerpo por encima del nivel, rechazo fuerte hacia abajo" style="width:100%; height:auto; max-height:calc(3.7in - 34px); display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Ninguna vela cierra aún con cuerpo por encima del Daily Low — rechazo fuerte, el long sigue sin confirmarse</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="border:1px solid oklch(0.7 0.13 60); background:oklch(0.97 0.03 60); border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 60); font-weight:600;">CONDICIÓN PARA VALIDAR EL LONG</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">En 5M, al menos una vela completa debe cerrar con el <strong>cuerpo por encima</strong> del Daily Low — recláim real del nivel, no solo mecha.</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; padding:12px 14px;">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8a8578; font-weight:600;">SI NO SE CONFIRMA</div>
+      <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.42;">El long queda invalidado — el plan pasa a buscar la reacción en el límite low <strong>semanal</strong>, la siguiente zona de liquidez relevante.</div>
+    </div>
+  </div>
+
+  <div style="border:1px solid oklch(0.65 0.15 25); background:oklch(0.97 0.02 25); border-radius:4px; padding:12px 14px; margin-top:12px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.45 0.13 25); font-weight:600;">SIGUIENTE PASO SI EL LONG QUEDA INVALIDADO</div>
+    <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.48;">Con el long invalidado, hay tres caminos: esperar a que el precio llegue hasta el <strong>límite semanal bajo (62,300 en este momento)</strong>; esperar una <strong>nueva reversión</strong> antes de ese nivel; o buscar cambios de precio <strong>mañana</strong>, usando los límites de hoy como parámetros de referencia.</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">"Buscar" es la señal para empezar a mirar — la entrada exige el cierre de vela con cuerpo confirmado</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 60); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Resolución del caso: rechazo y regla de 3 intentos</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">16 / 20</div>
+  </div>
+
+  <div style="border:1px solid oklch(0.55 0.13 145); background:oklch(0.97 0.025 145); border-radius:4px; padding:12px 14px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.35 0.1 145); font-weight:600;">RESOLUCIÓN EN VIVO</div>
+    <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.48;">El long no confirmó — el precio no cerró con cuerpo por encima del Daily Low. Al caer y rebotar, el precio volvió a testear el <strong>Prev Day Low (64,700), ahora convertido en resistencia</strong>, y fue rechazado <strong>3 veces consecutivas</strong>. Se entró rápido en <strong>corto en 64,700</strong> y se salió rápido en <strong>64,821</strong>, aplicando la regla de 3 intentos fallidos (Fase 3) en vez de esperar una reversión más amplia. El long original puede volver a plantearse si, en la caída en curso, el precio toca el soporte del Daily Low y rebota de nuevo hacia arriba.</div>
+  </div>
+  <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column; background:#fff; margin-top:12px;">
+    <img src="uploads/resolucion-cierre-3-intentos.PNG" alt="Cierre rápido del trade corto tras 3 rechazos contra el Prev Day Low convertido en resistencia" style="width:100%; height:auto; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">5M · Corto 64,700 → cierre 64,821 tras 3 rechazos en el Prev Day Low (resistencia) — salida rápida por regla de 3 intentos</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">"Buscar" es la señal para empezar a mirar — la entrada exige el cierre de vela con cuerpo confirmado</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.55 0.15 60); font-weight:600;">SETUP &middot; INDICADOR B EN VIVO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Por qué era "muy rápido o nada"</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">17 / 20</div>
+  </div>
+
+  <div style="border:1px solid oklch(0.6 0.16 25); background:oklch(0.97 0.025 25); border-radius:4px; overflow:hidden; display:flex; flex-direction:column; margin-top:12px; flex:1; min-height:0;">
+    <img src="uploads/rechazo-fuerte-tendencia-incompleta.PNG" alt="Rechazo fuerte en 1H sobre la zona de Buscar Shorts, con velas rojas de gran cuerpo y MACD cayendo con fuerza mientras la tendencia aún no completaba el cambio" style="width:100%; flex:1; min-height:0; display:block; object-fit:contain;">
+    <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.4 0.13 25); font-weight:600; border-top:1px solid oklch(0.7 0.12 25);">1H · Rechazo fuerte sobre "Buscar Shorts" — MACD acelerando a la baja (−87.7 → −112.9) sin cruce previo confirmado</div>
+  </div>
+  <div style="border:1px solid #ddd8ca; border-radius:4px; padding:12px 14px; margin-top:12px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:oklch(0.5 0.13 25); font-weight:600;">POR QUÉ ERA "MUY RÁPIDO O NADA"</div>
+    <div style="font-size:12.5px; color:#3a3730; margin-top:5px; line-height:1.48;">El rechazo llegó con velas rojas de cuerpo grande y el histograma del MACD acelerando a la baja de golpe — pero la señal "Buscar Shorts" apareció <strong>antes</strong> de que la tendencia en 1H terminara de girar: no hubo un cruce de MA ni un cierre de vela que confirmara el cambio de estructura. Entrar exigía reaccionar en el mismo impulso del rechazo, con stop ajustado y salida inmediata al primer signo de pausa — si esa ventana se pierde, no hay entrada válida: perseguir el nivel después, sin confirmación de tendencia, es operar contra la estructura todavía vigente.</div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:12px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">"Buscar" es la señal para empezar a mirar — la entrada exige el cierre de vela con cuerpo confirmado</div>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.7in 0.85in; display:flex; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #1c1c1a; padding-bottom:12px; margin-bottom:18px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:oklch(0.5 0.1 200); font-weight:600;">ANEXO &middot; GRÁFICOS DE EJEMPLO</div>
+      <h2 style="font-size:26px; margin:4px 0 0; font-weight:800;">Galería de reacciones anotadas</h2>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">18 / 20</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:14px; flex:1; min-height:0;">
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column;">
+      <img src="uploads/long1h-9fb3b855.PNG" alt="Reacción alcista en 1H sobre Daily Low" style="width:100%; height:0; flex:1; object-fit:cover; object-position:top;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Reacción y giro de MACD sobre PDL/DL (setup largo)</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column;">
+      <img src="uploads/long5m-3ea5d4c8.PNG" alt="Gatillo de entrada en 5M sobre soporte" style="width:100%; height:0; flex:1; object-fit:cover; object-position:top;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">5M &middot; Doble suelo / gatillo de entrada sobre el nivel (setup largo)</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column;">
+      <img src="uploads/short1h-d0f599e9.PNG" alt="Rechazo en 1H sobre Daily High" style="width:100%; height:0; flex:1; object-fit:cover; object-position:top;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">1H &middot; Espejo bajista: rechazo sobre PDH/DH (setup corto)</div>
+    </div>
+    <div style="border:1px solid #ddd8ca; border-radius:4px; overflow:hidden; display:flex; flex-direction:column;">
+      <img src="uploads/short5m-37e8d58c.PNG" alt="Gatillo de entrada en 5M bajo resistencia" style="width:100%; height:0; flex:1; object-fit:cover; object-position:top;">
+      <div style="padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#4a473e; border-top:1px solid #ddd8ca;">5M &middot; Gatillo de entrada bajo resistencia (setup corto)</div>
+    </div>
+  </div>
+  <p style="font-size:11.5px; color:#8a8578; margin:12px 0 0; font-family:'IBM Plex Mono',monospace;">La estructura del checklist está escrita para el lado largo (soporte); el mismo patrón se refleja en corto sobre PDH/DH.</p>
+</section>
+
+<section class="page" style="font-family:'Inter',sans-serif; background:#faf9f5; color:#1c1c1a; padding:0.85in 0.9in; display:flex; flex-direction:column;">
+  <div style="border-bottom:2px solid #1c1c1a; padding-bottom:14px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:baseline;">
+    <h2 style="font-size:26px; margin:0; font-weight:800;">Fuentes y disclaimer</h2>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#8a8578;">20 / 20</div>
+  </div>
+
+  <div style="margin-bottom:28px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:oklch(0.5 0.1 200); margin-bottom:10px;">REFERENCIAS CONSULTADAS</div>
+    <ul style="font-size:13px; line-height:2; color:#3a3730; padding-left:20px; margin:0;">
+      <li>TradingView — <a href="https://www.tradingview.com/script/4XqHA2i2-Daily-Weekly-Levels-Sessions-Legend/" target="_blank" rel="noopener">Daily & Weekly Levels + Sessions + Legend</a> (indicador A: solo traza niveles semanal/diario/día anterior)</li>
+      <li>TradingView — <a href="https://www.tradingview.com/script/lUkNHZK3-Key-Levels-Trading-Sessions-Dynamic-Long-Short-Signals/" target="_blank" rel="noopener">Key Levels + Sessions + Dynamic Long/Short Signals</a> (indicador B: mismos niveles + flechas de long/short y punto desde cuándo mirar, pensado para setear alertas)</li>
+      <li>Capital.com — <a href="https://capital.com/en-int/analysis/day-traders-toolbox-previous-days-high-and-low-pdh-pdl" target="_blank" rel="noopener">Day trading: previous day's high (PDH) and low (PDL) explained</a></li>
+      <li>TradingView (CryptoMojo_TA) — <a href="https://www.tradingview.com/chart/BTCUSD/mCVXfrZO-Using-Previous-Day-s-High-and-Low-to-Decide-Intraday-Trend/" target="_blank" rel="noopener">Using Previous Day's High and Low to Decide Intraday Trend</a></li>
+      <li>TradingView (script) — <a href="https://my.tradingview.com/script/5gZy5lVb-Previous-Daily-High-Low" target="_blank" rel="noopener">Previous Daily High/Low</a></li>
+      <li>FXOpen — <a href="https://fxopen.com/blog/en/what-is-the-risk-reward-ratio-and-how-can-you-use-it-in-crypto-trading/" target="_blank" rel="noopener">Risk/Reward Ratio Rules in Crypto Trading</a></li>
+      <li>TradeAlgo — <a href="https://www.tradealgo.com/trading-guides/day-trading/risk-reward-calculator" target="_blank" rel="noopener">Risk-Reward Calculator: Plan Every Trade</a></li>
+      <li>CryptoSignalApp — <a href="https://cryptosignalapp.com/tools/position-size-calculator" target="_blank" rel="noopener">Free Crypto Position Size Calculator</a></li>
+      <li>For Traders — <a href="https://fortraders.com/blog/7-risk-management-strategies-for-day-trading-success" target="_blank" rel="noopener">7 Risk Management Strategies for Day Trading Success</a></li>
+    </ul>
+  </div>
+
+  <div style="background:#1c1c1a; border-radius:4px; padding:22px 24px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; color:oklch(0.72 0.1 200); font-weight:600; margin-bottom:8px;">DISCLAIMER</div>
+    <div style="font-size:13.5px; color:#f0efe9; line-height:1.65;">Este documento es únicamente de carácter informativo y educativo: resume reglas de trading personales para BTC junto con conceptos de mercado de dominio público (PDH/PDL, MACD, gestión de riesgo). No constituye asesoría financiera, de inversión ni de ningún otro tipo, y no debe interpretarse como una recomendación de compra o venta. Operar con criptomonedas y con apalancamiento conlleva un riesgo real y significativo de pérdida de capital — incluida la pérdida total del dinero invertido. Cada persona es responsable de sus propias decisiones de trading.</div>
+  </div>
+
+  <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#3a3730; text-align:right;">Alex Smith<br><span style="color:#8a8578;">2026</span></div>
+  </div>
+
+  <div style="margin-top:auto; padding-top:20px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8a8578; border-top:1px solid #ddd8ca;">Estrategia Reacción en Liquidez Diaria — BTC &middot; documento de uso personal</div>
+</section>
+
+</doc-page>
+
+</x-dc>
+</body>
+</html>

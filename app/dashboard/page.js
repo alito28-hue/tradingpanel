@@ -281,6 +281,12 @@ export default function DashboardPage() {
           <Link href="/trades" style={{ ...btnStyle(), textDecoration: 'none' }}>
             Operaciones →
           </Link>
+          <Link href="/bitacora" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Bitácora →
+          </Link>
+          <Link href="/playbook" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Playbook →
+          </Link>
           <Link href="/bot" style={{ ...btnStyle('outline'), textDecoration: 'none' }}>
             Bot →
           </Link>
