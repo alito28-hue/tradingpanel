@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
-import { COLORS, Field, Panel, inputStyle, btnStyle } from '../components/ui';
+import { COLORS, Field, Panel, Stat, inputStyle, btnStyle } from '../components/ui';
 import LogoutLink from '../components/LogoutLink';
 
 const emptyForm = {
@@ -110,6 +110,27 @@ function computeMonthlyStats(entries) {
   });
 }
 
+function computeYTDStats(entries) {
+  const year = String(new Date().getFullYear());
+  const yearEntries = entries.filter(e => e.fecha?.slice(0, 4) === year);
+
+  const results = yearEntries.map(e => e.resultado).filter(r => r != null).map(Number);
+  const resultado = results.reduce((a, b) => a + b, 0);
+  const wins = results.filter(r => r > 0);
+  const losses = results.filter(r => r < 0);
+  const mejor = wins.length ? Math.max(...wins) : 0;
+  const peor = losses.length ? Math.min(...losses) : 0;
+
+  const durations = yearEntries.map(tradeDurationMinutes).filter(d => d != null);
+  const duracionPromedio = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null;
+
+  const montos = yearEntries.map(e => e.monto).filter(m => m != null).map(Number);
+  const montoTotal = montos.reduce((a, b) => a + b, 0);
+  const pctRentabilidad = montoTotal ? (resultado / montoTotal) * 100 : null;
+
+  return { year, resultado, mejor, peor, duracionPromedio, pctRentabilidad, totalTrades: yearEntries.length };
+}
+
 // Agrupa por mes (más reciente primero) y ordena cada mes de forma
 // cronológica ascendente para poder calcular un acumulado corrido tipo
 // planilla ("Acumulado (mes)"), fila a fila, como una hoja de cálculo.
@@ -167,6 +188,7 @@ export default function BitacoraPage() {
   }, [lightboxUrl]);
 
   const monthlyStats = useMemo(() => computeMonthlyStats(entries || []), [entries]);
+  const ytdStats = useMemo(() => computeYTDStats(entries || []), [entries]);
   const historialGroups = useMemo(() => computeHistorialGroups(entries || []), [entries]);
 
   const load = useCallback(async (f, t) => {
@@ -500,8 +522,20 @@ export default function BitacoraPage() {
         })}
         </>)}
 
-        {tab === 'estadisticas' && (
-          <Panel title="Estadísticas por mes" subtitle={monthlyStats.length ? `${monthlyStats.length} mes${monthlyStats.length === 1 ? '' : 'es'}` : ''}>
+        {tab === 'estadisticas' && (<>
+        {monthlyStats.length > 0 && (
+          <Panel title={`Año en curso (YTD ${ytdStats.year})`} subtitle={`${ytdStats.totalTrades} operaci${ytdStats.totalTrades === 1 ? 'ón' : 'ones'}`}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              <Stat label="Resultado YTD" value={money(ytdStats.resultado)} color={ytdStats.resultado >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="% Rentabilidad YTD" value={formatPct(ytdStats.pctRentabilidad)}
+                color={ytdStats.pctRentabilidad == null ? COLORS.muted : ytdStats.pctRentabilidad >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Mejor operación YTD" value={money(ytdStats.mejor)} color={COLORS.bull} />
+              <Stat label="Peor operación YTD" value={money(ytdStats.peor)} color={COLORS.bear} />
+              <Stat label="Duración prom. YTD" value={formatDuration(ytdStats.duracionPromedio != null ? Math.round(ytdStats.duracionPromedio) : null)} />
+            </div>
+          </Panel>
+        )}
+        <Panel title="Estadísticas por mes" subtitle={monthlyStats.length ? `${monthlyStats.length} mes${monthlyStats.length === 1 ? '' : 'es'}` : ''}>
             {!entries ? (
               <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
             ) : monthlyStats.length === 0 ? (
@@ -548,7 +582,7 @@ export default function BitacoraPage() {
               "Prom. operac./día" = total de operaciones del mes ÷ días en que operaste (no ÷ 30). "Duración prom." = duración promedio de una operación individual. "% Rentabilidad" = resultado total del mes ÷ monto invertido total del mes (solo cuenta operaciones con monto cargado; queda en "—" si ninguna operación del mes tiene monto). Un mes queda "Cerrado" cuando ya terminó el mes calendario; el mes actual figura "En curso".
             </div>
           </Panel>
-        )}
+        </>)}
       </div>
 
       {lightboxUrl && (
