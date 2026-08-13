@@ -22,6 +22,9 @@ export default function PlaybookPage() {
           <a href="/playbook/estrategia-btc-playbook.html" target="_blank" rel="noreferrer" style={{ ...btnStyle(), textDecoration: 'none' }}>
             Ver documento
           </a>
+          <a href="/playbook/playbook_btc_smith.pdf" target="_blank" rel="noreferrer" style={{ ...btnStyle(), textDecoration: 'none' }}>
+            Descargar PDF
+          </a>
           <a href="/api/playbook/export-pdf" style={{ ...btnStyle(true), textDecoration: 'none' }}>
             Exportar PDF
           </a>

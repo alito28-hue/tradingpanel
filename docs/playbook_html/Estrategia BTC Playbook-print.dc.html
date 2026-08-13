@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="omelette-print-source" content="Estrategia BTC Playbook.dc.html">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
@@ -26,6 +27,10 @@
     .page * { box-sizing: border-box; }
     a { color: oklch(0.5 0.1 200); }
     a:hover { color: oklch(0.42 0.1 200); }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { animation-delay: -99s !important; animation-duration: .001s !important;
+        animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+        transition-duration: 0s !important; }
     /* Keep the component's own letter box and let flex children shrink
        into it, instead of min-content height growing the sheet past the
        printable area. */
