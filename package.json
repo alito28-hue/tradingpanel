@@ -8,7 +8,8 @@
     "start": "next start",
     "backtest": "node app/scripts/run_backtest.js",
     "export-results": "node app/scripts/export_results_to_csv.js",
-    "worker": "node worker/index.js"
+    "worker": "node worker/index.js",
+    "sync-playbook": "bash app/scripts/sync_playbook.sh"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",

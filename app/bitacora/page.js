@@ -179,6 +179,10 @@ export default function BitacoraPage() {
   const [tab, setTab] = useState('historial');
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [capitalTotal, setCapitalTotal] = useState(null);
+  const [editingCapital, setEditingCapital] = useState(false);
+  const [capitalInput, setCapitalInput] = useState('');
+  const [savingCapital, setSavingCapital] = useState(false);
 
   useEffect(() => {
     if (!lightboxUrl) return;
@@ -190,6 +194,47 @@ export default function BitacoraPage() {
   const monthlyStats = useMemo(() => computeMonthlyStats(entries || []), [entries]);
   const ytdStats = useMemo(() => computeYTDStats(entries || []), [entries]);
   const historialGroups = useMemo(() => computeHistorialGroups(entries || []), [entries]);
+
+  const resultadoTotalHistorico = useMemo(() => (entries || [])
+    .map(e => e.resultado).filter(r => r != null).map(Number)
+    .reduce((a, b) => a + b, 0), [entries]);
+  const capitalActual = capitalTotal != null ? capitalTotal + resultadoTotalHistorico : null;
+  const pctRendimientoCapital = capitalTotal ? (resultadoTotalHistorico / capitalTotal) * 100 : null;
+
+  useEffect(() => {
+    fetch('/api/bitacora/settings', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        const v = data.settings?.capital_total;
+        if (v != null) setCapitalTotal(Number(v));
+      })
+      .catch(() => {});
+  }, []);
+
+  function startEditCapital() {
+    setCapitalInput(capitalTotal != null ? String(capitalTotal) : '');
+    setEditingCapital(true);
+  }
+
+  async function saveCapitalTotal(e) {
+    e.preventDefault();
+    setSavingCapital(true);
+    try {
+      const res = await fetch('/api/bitacora/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capitalTotal: capitalInput }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error || `Error ${res.status}`); return; }
+      setCapitalTotal(Number(capitalInput));
+      setEditingCapital(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingCapital(false);
+    }
+  }
 
   const load = useCallback(async (f, t) => {
     try {
@@ -523,6 +568,29 @@ export default function BitacoraPage() {
         </>)}
 
         {tab === 'estadisticas' && (<>
+        <Panel title="Capital"
+          subtitle={!editingCapital && <button onClick={startEditCapital} style={linkBtnStyle}>{capitalTotal != null ? 'Editar' : 'Cargar capital total'}</button>}>
+          {editingCapital ? (
+            <form onSubmit={saveCapitalTotal} style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <Field label="Capital total ($)">
+                <input type="number" step="any" value={capitalInput} onChange={e => setCapitalInput(e.target.value)}
+                  style={{ ...inputStyle(), width: 140 }} autoFocus required />
+              </Field>
+              <button type="submit" disabled={savingCapital} style={btnStyle(true)}>{savingCapital ? 'Guardando…' : 'Guardar'}</button>
+              <button type="button" onClick={() => setEditingCapital(false)} style={btnStyle()}>Cancelar</button>
+            </form>
+          ) : capitalTotal == null ? (
+            <div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no cargaste el capital total de la cuenta. Cargalo para ver el rendimiento % sobre el capital.</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              <Stat label="Capital total" value={`$${capitalTotal.toFixed(2)}`} />
+              <Stat label="Capital actual" value={`$${capitalActual.toFixed(2)}`} color={resultadoTotalHistorico >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Resultado acumulado" value={money(resultadoTotalHistorico)} color={resultadoTotalHistorico >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Rendimiento del capital" value={formatPct(pctRendimientoCapital)}
+                color={pctRendimientoCapital == null ? COLORS.muted : pctRendimientoCapital >= 0 ? COLORS.bull : COLORS.bear} />
+            </div>
+          )}
+        </Panel>
         {monthlyStats.length > 0 && (
           <Panel title={`Año en curso (YTD ${ytdStats.year})`} subtitle={`${ytdStats.totalTrades} operaci${ytdStats.totalTrades === 1 ? 'ón' : 'ones'}`}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
