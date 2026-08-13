@@ -179,6 +179,7 @@ export default function BitacoraPage() {
   const [tab, setTab] = useState('historial');
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [monthOverrides, setMonthOverrides] = useState({});
   const [capitalTotal, setCapitalTotal] = useState(null);
   const [editingCapital, setEditingCapital] = useState(false);
   const [capitalInput, setCapitalInput] = useState('');
@@ -190,6 +191,17 @@ export default function BitacoraPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxUrl]);
+
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  function isMonthExpanded(monthKey) {
+    return monthOverrides[monthKey] != null ? monthOverrides[monthKey] : monthKey === currentMonthKey;
+  }
+  function toggleMonth(monthKey) {
+    setMonthOverrides(prev => ({ ...prev, [monthKey]: !isMonthExpanded(monthKey) }));
+  }
 
   const monthlyStats = useMemo(() => computeMonthlyStats(entries || []), [entries]);
   const ytdStats = useMemo(() => computeYTDStats(entries || []), [entries]);
@@ -457,8 +469,22 @@ export default function BitacoraPage() {
           <Panel title="Historial"><div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no hay entradas en este rango.</div></Panel>
         ) : historialGroups.map(g => {
           const stats = monthlyStats.find(s => s.monthKey === g.monthKey);
+          const expanded = isMonthExpanded(g.monthKey);
+          const opsLabel = `${g.rows.length} operaci${g.rows.length === 1 ? 'ón' : 'ones'}`;
           return (
-            <Panel key={g.monthKey} title={g.label} subtitle={`${g.rows.length} operaci${g.rows.length === 1 ? 'ón' : 'ones'}`}>
+            <Panel key={g.monthKey}
+              title={
+                <button onClick={() => toggleMonth(g.monthKey)} style={{
+                  background: 'transparent', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
+                  font: 'inherit', fontWeight: 600, fontSize: 13, color: COLORS.text,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ fontSize: 10, color: COLORS.muted }}>{expanded ? '▾' : '▸'}</span>
+                  {g.label}
+                </button>
+              }
+              subtitle={expanded ? opsLabel : `${opsLabel} · ${money(stats.resultado)}`}>
+              {expanded && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
@@ -562,6 +588,7 @@ export default function BitacoraPage() {
                   </tfoot>
                 </table>
               </div>
+              )}
             </Panel>
           );
         })}
