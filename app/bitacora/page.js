@@ -207,11 +207,10 @@ export default function BitacoraPage() {
   const ytdStats = useMemo(() => computeYTDStats(entries || []), [entries]);
   const historialGroups = useMemo(() => computeHistorialGroups(entries || []), [entries]);
 
-  const resultadoTotalHistorico = useMemo(() => (entries || [])
-    .map(e => e.resultado).filter(r => r != null).map(Number)
-    .reduce((a, b) => a + b, 0), [entries]);
-  const capitalActual = capitalTotal != null ? capitalTotal + resultadoTotalHistorico : null;
-  const pctRendimientoCapital = capitalTotal ? (resultadoTotalHistorico / capitalTotal) * 100 : null;
+  // Resultado acumulado = capital invertido + resultado YTD (suma de todos los
+  // meses). Rendimiento % = ese resultado sobre el capital invertido inicial.
+  const resultadoAcumulado = capitalTotal != null ? capitalTotal + ytdStats.resultado : null;
+  const pctRendimientoCapital = capitalTotal ? (ytdStats.resultado / capitalTotal) * 100 : null;
 
   useEffect(() => {
     fetch('/api/bitacora/settings', { cache: 'no-store' })
@@ -610,9 +609,9 @@ export default function BitacoraPage() {
             <div style={{ color: COLORS.muted, fontSize: 13 }}>Todavía no cargaste el capital total de la cuenta. Cargalo para ver el rendimiento % sobre el capital.</div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-              <Stat label="Capital total" value={`$${capitalTotal.toFixed(2)}`} />
-              <Stat label="Capital actual" value={`$${capitalActual.toFixed(2)}`} color={resultadoTotalHistorico >= 0 ? COLORS.bull : COLORS.bear} />
-              <Stat label="Resultado acumulado" value={money(resultadoTotalHistorico)} color={resultadoTotalHistorico >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Capital invertido" value={`$${capitalTotal.toFixed(2)}`} />
+              <Stat label="Resultado YTD" value={money(ytdStats.resultado)} color={ytdStats.resultado >= 0 ? COLORS.bull : COLORS.bear} />
+              <Stat label="Resultado acumulado" value={`$${resultadoAcumulado.toFixed(2)}`} color={ytdStats.resultado >= 0 ? COLORS.bull : COLORS.bear} />
               <Stat label="Rendimiento del capital" value={formatPct(pctRendimientoCapital)}
                 color={pctRendimientoCapital == null ? COLORS.muted : pctRendimientoCapital >= 0 ? COLORS.bull : COLORS.bear} />
             </div>
