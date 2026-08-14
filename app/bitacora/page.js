@@ -124,11 +124,7 @@ function computeYTDStats(entries) {
   const durations = yearEntries.map(tradeDurationMinutes).filter(d => d != null);
   const duracionPromedio = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null;
 
-  const montos = yearEntries.map(e => e.monto).filter(m => m != null).map(Number);
-  const montoTotal = montos.reduce((a, b) => a + b, 0);
-  const pctRentabilidad = montoTotal ? (resultado / montoTotal) * 100 : null;
-
-  return { year, resultado, mejor, peor, duracionPromedio, pctRentabilidad, totalTrades: yearEntries.length };
+  return { year, resultado, mejor, peor, duracionPromedio, totalTrades: yearEntries.length };
 }
 
 // Agrupa por mes (más reciente primero) y ordena cada mes de forma
@@ -621,8 +617,6 @@ export default function BitacoraPage() {
           <Panel title={`Año en curso (YTD ${ytdStats.year})`} subtitle={`${ytdStats.totalTrades} operaci${ytdStats.totalTrades === 1 ? 'ón' : 'ones'}`}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
               <Stat label="Resultado YTD" value={money(ytdStats.resultado)} color={ytdStats.resultado >= 0 ? COLORS.bull : COLORS.bear} />
-              <Stat label="% Rentabilidad YTD" value={formatPct(ytdStats.pctRentabilidad)}
-                color={ytdStats.pctRentabilidad == null ? COLORS.muted : ytdStats.pctRentabilidad >= 0 ? COLORS.bull : COLORS.bear} />
               <Stat label="Mejor operación YTD" value={money(ytdStats.mejor)} color={COLORS.bull} />
               <Stat label="Peor operación YTD" value={money(ytdStats.peor)} color={COLORS.bear} />
               <Stat label="Duración prom. YTD" value={formatDuration(ytdStats.duracionPromedio != null ? Math.round(ytdStats.duracionPromedio) : null)} />
