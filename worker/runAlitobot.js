@@ -68,8 +68,14 @@ function fmtUsd(n) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
 }
 
+// "Day" for the once-a-day recarga check (and the daily digest, which
+// reuses this same key — see tick()) rolls over at 12:00 (noon) Argentina
+// time, not UTC midnight. Argentina is UTC-3 with no DST, so noon ART =
+// 15:00 UTC — shifting the clock back 15h before reading the date makes the
+// ISO date string itself flip exactly at that real-world moment.
+const RECARGA_DAY_OFFSET_MS = 15 * 60 * 60 * 1000;
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date(Date.now() - RECARGA_DAY_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 // getPositionRoiPct() reads BingX's REAL position, which in DRY_RUN never
