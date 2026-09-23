@@ -6,12 +6,12 @@
 //
 //   STRATEGY_MODE=signal (default, unchanged from before this file existed)
 //     -> worker/runSignal.js — candle-signal strategy with stop-loss.
-//   STRATEGY_MODE=saylor
-//     -> worker/runSaylor.js — BTC-only long martingale/grid strategy.
+//   STRATEGY_MODE=alitobot
+//     -> worker/runAlitobot.js — BTC-only long martingale/grid strategy.
 const STRATEGY_MODE = process.env.STRATEGY_MODE || 'signal';
 
-if (STRATEGY_MODE === 'saylor') {
-  require('./runSaylor');
+if (STRATEGY_MODE === 'alitobot') {
+  require('./runAlitobot');
 } else {
   require('./runSignal');
 }

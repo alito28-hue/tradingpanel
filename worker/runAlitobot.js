@@ -1,49 +1,55 @@
-// "Saylor" strategy loop — BTC-only, long-only martingale/grid (see
-// lib/saylorRules.js for the rule table and its source). Selected by
-// worker/index.js when STRATEGY_MODE=saylor; worker/runSignal.js is the
+// "AlitoBot" strategy loop — BTC-only, long-only martingale/grid (see
+// lib/alitobotRules.js for the rule table and its source). Selected by
+// worker/index.js when STRATEGY_MODE=alitobot; worker/runSignal.js is the
 // other, unrelated candle-signal strategy — a bug here structurally cannot
 // reach that file's state, they don't share anything except lib/bingx.js
 // and lib/workerRuntime.js.
 //
 // Shape is fundamentally different from runSignal.js: this doesn't analyze
 // candles at all. It polls the position's LIVE floating ROI% from BingX
-// every tick and reacts to which ROI band that falls in. BingX itself is
-// the source of truth for quantity/avg price/PnL — this file's own
-// persisted state (saylor_state.json) only tracks what runSignal.js's
-// dailyLossTracker/checkStopDistance CAN'T give us: which cargador/bala
-// tranches we've already committed and which bands have already fired.
+// every tick, but reacts to it on two different cadences:
+//   - EVERY tick: take-profit / circuit-breaker / early-warning — these are
+//     risk-reducing, so they must never wait.
+//   - At most ONCE PER CALENDAR DAY: the actual bala tranches (regular
+//     bands + crítica + terminal) — checking every 20s reacted to normal
+//     price noise (e.g. a -0.15% wobble) as if it were a real drawdown; the
+//     rule table is meant to be read once a day, not continuously.
+//
+// This file's own persisted state (alitobot_state.json) only tracks what
+// BingX itself has no concept of: which cargador/bala tranches we've
+// already committed and which calendar day the last daily check ran.
 //
 // By explicit design (and explicit user instruction) this strategy has NO
 // stop-loss and does NOT use lib/dailyLossTracker.js at all — daily-realized
 // loss limits are a rule of the OTHER strategy and don't apply here. The
-// only guardrails are the bala/cargador caps inside lib/saylorRules.js and
-// the circuit breaker below (SAYLOR_CIRCUIT_BREAKER_PCT) — not part of the
+// only guardrails are the bala/cargador caps inside lib/alitobotRules.js and
+// the circuit breaker below (ALITOBOT_CIRCUIT_BREAKER_PCT) — not part of the
 // original "Reglas Michael Saylor" rule sheet, added here as a defensive
 // floor since the original rules never stop adding to a losing position.
 //
 // Every order this file places is a LIMIT order priced close to the current
-// mark price (see lib/saylorRules.js's computeLimitPrice) — never MARKET,
+// mark price (see lib/alitobotRules.js's computeLimitPrice) — never MARKET,
 // by explicit instruction, even for the take-profit/circuit-breaker exits.
 const path = require('path');
 const http = require('http');
 const bingx = require('../lib/bingx');
 const { sendMessage } = require('../lib/telegram');
-const rules = require('../lib/saylorRules');
-const { SaylorStateStore } = require('../lib/saylorStateStore');
+const rules = require('../lib/alitobotRules');
+const { AlitobotStateStore } = require('../lib/alitobotStateStore');
 const { ModeStore } = require('../lib/modeStore');
 const { resolveDataDir, roundQty, makeDryRunGate } = require('../lib/workerRuntime');
 
-const SYMBOL = process.env.SAYLOR_SYMBOL || 'BTC-USDT';
+const SYMBOL = process.env.ALITOBOT_SYMBOL || 'BTC-USDT';
 const POSITION_SIDE = 'LONG'; // long-only, by rule — never SHORT
-const POLL_MS = Number(process.env.SAYLOR_POLL_MS || process.env.BOT_POLL_MS || 20000);
+const POLL_MS = Number(process.env.ALITOBOT_POLL_MS || process.env.BOT_POLL_MS || 20000);
 const cfg = rules.getConfig();
 
 const DATA_DIR = resolveDataDir(__dirname);
 // Deliberately its own file, separate from runSignal.js's mode_state.json —
-// these are two independent bots; Saylor's live/dry-run toggle must not
+// these are two independent bots; AlitoBot's live/dry-run toggle must not
 // inherit whatever the other strategy was last set to.
-const stateStore = new SaylorStateStore(path.join(DATA_DIR, 'saylor_state.json'));
-const modeStore = new ModeStore(path.join(DATA_DIR, 'saylor_mode_state.json'));
+const stateStore = new AlitobotStateStore(path.join(DATA_DIR, 'alitobot_state.json'));
+const modeStore = new ModeStore(path.join(DATA_DIR, 'alitobot_mode_state.json'));
 const applyEffectiveDryRun = makeDryRunGate(modeStore);
 
 const HEARTBEAT_MS = 5 * 60 * 1000;
@@ -52,6 +58,10 @@ let lastDigestDay = null; // 'YYYY-MM-DD' — one Telegram summary per calendar 
 
 function fmtUsd(n) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // getPositionRoiPct() reads BingX's REAL position, which in DRY_RUN never
@@ -77,7 +87,7 @@ function simulatedRoi(state, markPrice, cfg) {
 async function getEffectiveRoi(state) {
   if (bingx.isDryRun()) {
     const priceData = await bingx.getPrice(SYMBOL);
-    return simulatedRoi(state, Number(priceData.data.price), cfg);
+    return simulatedRoi(state, Number(priceData.data.price), cfg); // getPrice() returns BingX's raw {code,msg,data:{price,...}} envelope
   }
   return bingx.getPositionRoiPct({ symbol: SYMBOL, positionSide: POSITION_SIDE });
 }
@@ -89,6 +99,34 @@ function recordFill(state, price, quantity) {
   const newQty = (state.totalQuantity || 0) + quantity;
   const newAvg = ((state.avgEntryPrice || price) * (state.totalQuantity || 0) + price * quantity) / newQty;
   stateStore.update({ avgEntryPrice: newAvg, totalQuantity: newQty });
+}
+
+// One Telegram summary per calendar day while a cycle is open — separate
+// from the per-action alerts (each tranche add/exit already notifies on its
+// own). liquidationPrice comes straight from BingX in LIVE (authoritative);
+// in DRY_RUN there's no real position to read it from, so it's estimated
+// (see lib/alitobotRules.js's estimateLiquidationPrice) and labeled as such.
+async function sendDailyDigest(state, roi) {
+  const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
+  const liq = roi.liquidationPrice != null
+    ? { value: roi.liquidationPrice, estimated: false }
+    : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
+
+  const cs = rules.cargadorStatus(state, cfg);
+  const balasLine = cs.reservaAbierta
+    ? `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador ${cs.cargadorActivo}, de reserva)`
+    : `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador 1)${cs.reservaDisponible ? ' · cargador 2 de emergencia todavía sin abrir' : ''}`;
+
+  const msg = [
+    '📊 [AlitoBot] Resumen diario',
+    `Posición total: ${Math.abs(roi.positionAmt)} ${SYMBOL} (~$${notionalUsd.toFixed(2)} nocional, $${roi.marginUsd.toFixed(2)} margen)`,
+    `PnL flotante: ${fmtUsd(roi.unrealizedProfitUsd)} USD (ROI ${fmtUsd(roi.roiPct)}%)`,
+    `Precio actual: ${roi.markPrice.toFixed(1)}`,
+    `Precio de liquidación${liq.estimated ? ' (estimado)' : ''}: ${liq.value != null ? liq.value.toFixed(1) : '—'}`,
+    balasLine,
+  ].join('\n');
+  console.log(msg.replace(/\n/g, ' · '));
+  await sendMessage(msg);
 }
 
 // Runs once at startup, real trading only (mirrors runSignal.js's
@@ -104,25 +142,25 @@ async function recoverState() {
 
   const roi = await bingx.getPositionRoiPct({ symbol: SYMBOL, positionSide: POSITION_SIDE });
   const state = stateStore.get();
-  const localThinksOpen = state.phase === 'in_position' || state.phase === 'awaiting_entry_fill';
+  const localThinksOpen = state.phase === 'in_position';
 
   if (roi && !localThinksOpen) {
-    const msg = `⚠️ [Saylor] Reinicio: BingX tiene una posición LONG ${SYMBOL} abierta (ROI ${fmtUsd(roi.roiPct)}%) que este proceso no tiene registrada (fase local: ${state.phase}). NO la voy a tocar automáticamente — revisá BingX y, si es del bot, arrancá el estado a mano antes de dejarlo operar solo.`;
+    const msg = `⚠️ [AlitoBot] Reinicio: BingX tiene una posición LONG ${SYMBOL} abierta (ROI ${fmtUsd(roi.roiPct)}%) que este proceso no tiene registrada (fase local: ${state.phase}). NO la voy a tocar automáticamente — revisá BingX y, si es del bot, arrancá el estado a mano antes de dejarlo operar solo.`;
     console.log(msg);
     await sendMessage(msg);
     return;
   }
   if (!roi && localThinksOpen) {
-    const msg = `⚠️ [Saylor] Reinicio: el estado local decía que había una posición en curso, pero BingX no tiene ninguna LONG ${SYMBOL} abierta — se cerró (o se tocó) fuera de este proceso. Vuelvo a idle.`;
+    const msg = `⚠️ [AlitoBot] Reinicio: el estado local decía que había una posición en curso, pero BingX no tiene ninguna LONG ${SYMBOL} abierta — se cerró (o se tocó) fuera de este proceso. Vuelvo a idle.`;
     console.log(msg);
     await sendMessage(msg);
     stateStore.reset();
     return;
   }
   if (roi && localThinksOpen) {
-    console.log(`[Saylor recover] posición confirmada: ROI ${fmtUsd(roi.roiPct)}%, ${state.cargadores.length} cargador(es), ${rules.totalBalasUsed(state)} balas usadas.`);
+    console.log(`[AlitoBot recover] posición confirmada: ROI ${fmtUsd(roi.roiPct)}%, ${state.cargadores.length} cargador(es), ${rules.totalBalasUsed(state)} balas usadas.`);
   } else {
-    console.log('[Saylor recover] sin posición abierta — idle, esperando /saylor/start.');
+    console.log('[AlitoBot recover] sin posición abierta — idle, esperando /alitobot/start.');
   }
 }
 
@@ -138,7 +176,7 @@ async function applyAction(action, markPrice) {
     const quantity = roundQty(action.notionalUsd / price);
     await bingx.placeLimitEntry({ symbol: SYMBOL, side: 'BUY', positionSide: POSITION_SIDE, quantity, price });
     recordFill(state, price, quantity);
-    const msg = `🔫 [Saylor] Recarga a POSICIÓN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional · ROI ${fmtUsd(action.roiPct)}% · limit @ ${price.toFixed(1)}${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible (2 cargadores).' : ''}`;
+    const msg = `🔫 [AlitoBot] Recarga a POSICIÓN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional · ROI ${fmtUsd(action.roiPct)}% · limit @ ${price.toFixed(1)}${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible (2 cargadores).' : ''}`;
     console.log(msg);
     await sendMessage(msg);
     return;
@@ -146,21 +184,21 @@ async function applyAction(action, markPrice) {
 
   if (action.type === 'add_margin') {
     await bingx.addIsolatedMargin({ symbol: SYMBOL, positionSide: POSITION_SIDE, amount: action.marginUsd });
-    const msg = `🛡️ [Saylor] Recarga a MARGEN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} agregados como margen aislado (no suma tamaño) · ROI ${fmtUsd(action.roiPct)}%${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible.' : ''}`;
+    const msg = `🛡️ [AlitoBot] Recarga a MARGEN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} agregados como margen aislado (no suma tamaño) · ROI ${fmtUsd(action.roiPct)}%${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible.' : ''}`;
     console.log(msg);
     await sendMessage(msg);
     return;
   }
 
   if (action.type === 'insufficient_capital') {
-    const msg = `⚠️ [Saylor] La banda "${action.band}" (ROI ${fmtUsd(action.roiPct)}%) pedía ${action.balasRequested} bala(s), pero ya no queda capital disponible (2 cargadores agotados). No se agregó nada.`;
+    const msg = `⚠️ [AlitoBot] La banda "${action.band}" (ROI ${fmtUsd(action.roiPct)}%) pedía ${action.balasRequested} bala(s), pero ya no queda capital disponible (2 cargadores agotados). No se agregó nada.`;
     console.log(msg);
     await sendMessage(msg);
     return;
   }
 
   if (action.type === 'early_warning') {
-    const msg = `🟠 [Saylor] Aviso temprano: ROI en ${fmtUsd(action.roiPct)}% (circuit breaker en ${cfg.circuitBreakerPct}%). Revisar.`;
+    const msg = `🟠 [AlitoBot] Aviso temprano: ROI en ${fmtUsd(action.roiPct)}% (circuit breaker en ${cfg.circuitBreakerPct}%). Revisar.`;
     console.log(msg);
     await sendMessage(msg);
     return;
@@ -169,7 +207,7 @@ async function applyAction(action, markPrice) {
   if (action.type === 'take_profit' || action.type === 'circuit_breaker') {
     const roi = await getEffectiveRoi(state);
     if (!roi) {
-      console.log(`[Saylor] ${action.type}: no hay posición para cerrar (¿ya se cerró?). Reseteando a idle.`);
+      console.log(`[AlitoBot] ${action.type}: no hay posición para cerrar (¿ya se cerró?). Reseteando a idle.`);
       stateStore.closeCycle({ reason: action.type, note: 'no position found at close time', roiPct: action.roiPct });
       return;
     }
@@ -179,8 +217,8 @@ async function applyAction(action, markPrice) {
 
     const isTP = action.type === 'take_profit';
     const msg = isTP
-      ? `✅ [Saylor] TAKE PROFIT: cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD.`
-      : `🛑 [Saylor] CIRCUIT BREAKER (${cfg.circuitBreakerPct}%): cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD. Requiere reset manual (POST /saylor/reset-circuit-breaker) antes de volver a operar.`;
+      ? `✅ [AlitoBot] TAKE PROFIT: cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD.`
+      : `🛑 [AlitoBot] CIRCUIT BREAKER (${cfg.circuitBreakerPct}%): cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD. Requiere reset manual (POST /alitobot/reset-circuit-breaker) antes de volver a operar.`;
     console.log(msg);
     await sendMessage(msg);
 
@@ -197,70 +235,51 @@ async function applyAction(action, markPrice) {
   }
 }
 
-// One Telegram summary per calendar day while a cycle is open — separate
-// from the per-action alerts (each tranche add/exit already notifies on its
-// own). liquidationPrice comes straight from BingX in LIVE (authoritative);
-// in DRY_RUN there's no real position to read it from, so it's estimated
-// (see lib/saylorRules.js's estimateLiquidationPrice) and labeled as such.
-async function sendDailyDigest(state, roi) {
-  const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
-  const liq = roi.liquidationPrice != null
-    ? { value: roi.liquidationPrice, estimated: false }
-    : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
-
-  const cs = rules.cargadorStatus(state, cfg);
-  const balasLine = cs.reservaAbierta
-    ? `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador ${cs.cargadorActivo}, de reserva)`
-    : `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador 1)${cs.reservaDisponible ? ' · cargador 2 de emergencia todavía sin abrir' : ''}`;
-
-  const msg = [
-    '📊 [Saylor] Resumen diario',
-    `Posición total: ${Math.abs(roi.positionAmt)} ${SYMBOL} (~$${notionalUsd.toFixed(2)} nocional, $${roi.marginUsd.toFixed(2)} margen)`,
-    `PnL flotante: ${fmtUsd(roi.unrealizedProfitUsd)} USD (ROI ${fmtUsd(roi.roiPct)}%)`,
-    `Precio actual: ${roi.markPrice.toFixed(1)}`,
-    `Precio de liquidación${liq.estimated ? ' (estimado)' : ''}: ${liq.value != null ? liq.value.toFixed(1) : '—'}`,
-    balasLine,
-  ].join('\n');
-  console.log(msg.replace(/\n/g, ' · '));
-  await sendMessage(msg);
-}
-
 async function tick() {
   applyEffectiveDryRun();
   const state = stateStore.get();
 
-  if (state.phase === 'halted_circuit_breaker') return; // needs POST /saylor/reset-circuit-breaker
-  if (state.phase === 'idle') return; // needs POST /saylor/start — no auto re-entry, by design
+  if (state.phase === 'halted_circuit_breaker') return; // needs POST /alitobot/reset-circuit-breaker
+  if (state.phase === 'idle') return; // needs POST /alitobot/start — no auto re-entry, by design
 
   const roi = await getEffectiveRoi(state);
   if (!roi) {
-    // In DRY_RUN this just means /saylor/start hasn't run yet in this
+    // In DRY_RUN this just means /alitobot/start hasn't run yet in this
     // process's lifetime (totalQuantity still 0) — nothing to alert about,
     // the phase itself already guards against that (only reached when
-    // phase is in_position, which /saylor/start always sets together with
+    // phase is in_position, which /alitobot/start always sets together with
     // totalQuantity). In LIVE this is a real desync: BingX shows no
     // position while local state thinks one's open.
     if (bingx.isDryRun()) return;
-    const msg = `⚠️ [Saylor] Fase local "in_position" pero BingX no reporta ninguna posición LONG ${SYMBOL} abierta — se cerró fuera de este proceso. Volviendo a idle sin registrar ciclo (no hay datos de cierre reales para guardar).`;
+    const msg = `⚠️ [AlitoBot] Fase local "in_position" pero BingX no reporta ninguna posición LONG ${SYMBOL} abierta — se cerró fuera de este proceso. Volviendo a idle sin registrar ciclo (no hay datos de cierre reales para guardar).`;
     console.log(msg);
     await sendMessage(msg);
     stateStore.reset();
     return;
   }
 
-  // computeNextAction mutates a plain working copy of the persisted state
-  // (band-fired flags, cargadores) — commit it back only after a successful
-  // tick, same "decide, then persist" split as lib/strategy.js's
-  // simulateTrades/worker's own state var.
-  const working = JSON.parse(JSON.stringify(state));
-  const { actions } = rules.computeNextAction(working, roi.roiPct, cfg);
-  stateStore.update(working);
-
-  for (const action of actions) {
+  // Continuous, every tick: exits + early warning. Never throttled.
+  const { actions: exitActions } = rules.checkExitConditions(state, roi.roiPct, cfg);
+  stateStore.update(state); // persists earlyWarningFired flips from checkExitConditions
+  for (const action of exitActions) {
     await applyAction(action, roi.markPrice);
   }
+  if (exitActions.some(a => a.type === 'take_profit' || a.type === 'circuit_breaker')) {
+    return; // cycle just closed — nothing left to do this tick
+  }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // At most once per calendar day: the actual bala tranches.
+  const today = todayKey();
+  if (today !== state.lastRecargaDay) {
+    const working = JSON.parse(JSON.stringify(stateStore.get()));
+    const { actions: recargaActions } = rules.computeDailyRecarga(working, roi.roiPct, cfg);
+    working.lastRecargaDay = today;
+    stateStore.update(working);
+    for (const action of recargaActions) {
+      await applyAction(action, roi.markPrice);
+    }
+  }
+
   if (today !== lastDigestDay && stateStore.get().phase === 'in_position') {
     lastDigestDay = today;
     // Re-read ROI fresh rather than reusing the pre-actions `roi` above — a
@@ -271,14 +290,14 @@ async function tick() {
 
   if (Date.now() - lastHeartbeat >= HEARTBEAT_MS) {
     lastHeartbeat = Date.now();
-    console.log(`[Saylor heartbeat] alive · phase=${stateStore.get().phase} · ROI ${fmtUsd(roi.roiPct)}% · balas ${rules.totalBalasUsed(stateStore.get())}`);
+    console.log(`[AlitoBot heartbeat] alive · phase=${stateStore.get().phase} · ROI ${fmtUsd(roi.roiPct)}% · balas ${rules.totalBalasUsed(stateStore.get())}`);
   }
 }
 
 function startServer() {
   const port = process.env.PORT;
   if (!port) {
-    console.log('[Saylor server] PORT not set — skipping HTTP server.');
+    console.log('[AlitoBot server] PORT not set — skipping HTTP server.');
     return;
   }
   const secret = process.env.WORKER_API_SECRET;
@@ -289,16 +308,43 @@ function startServer() {
     }
 
     if (req.method === 'GET' && req.url === '/history') {
-      const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
-      const state = stateStore.get();
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
-        mode: effectiveMode, position: state, cycles: stateStore.getHistory(),
-      }));
+      (async () => {
+        const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
+        const state = stateStore.get();
+        // Live snapshot (ROI/price/liquidation) — same source split as
+        // tick()/sendDailyDigest: simulated in DRY_RUN, real BingX in LIVE.
+        // Only meaningful once a cycle is open; the dashboard shows this
+        // instead of the raw persisted state alone so it doesn't need its
+        // own copy of getEffectiveRoi's logic.
+        let live = null;
+        if (state.phase === 'in_position') {
+          try {
+            const roi = await getEffectiveRoi(state);
+            if (roi) {
+              const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
+              const liq = roi.liquidationPrice != null
+                ? { value: roi.liquidationPrice, estimated: false }
+                : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
+              live = {
+                roiPct: roi.roiPct, unrealizedProfitUsd: roi.unrealizedProfitUsd, markPrice: roi.markPrice,
+                marginUsd: roi.marginUsd, notionalUsd, positionAmt: roi.positionAmt,
+                liquidationPrice: liq.value, liquidationEstimated: liq.estimated,
+                cargador: rules.cargadorStatus(state, cfg),
+              };
+            }
+          } catch (err) {
+            console.error('[AlitoBot /history] no se pudo leer ROI en vivo:', err.message);
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+          mode: effectiveMode, position: state, live, cycles: stateStore.getHistory(),
+        }));
+      })();
       return;
     }
 
     if (req.method === 'GET' && req.url === '/trades') {
-      // "Trades" here = closed Saylor cycles (open→take-profit/circuit-breaker),
+      // "Trades" here = closed AlitoBot cycles (open→take-profit/circuit-breaker),
       // not individual tranche adds — kept for rough shape-compatibility with
       // the signal strategy's /trades, but the dashboard's Trade History table
       // (built for that other shape) needs its own updates to render this well.
@@ -324,8 +370,8 @@ function startServer() {
         const effectiveMode = applyEffectiveDryRun() ? 'dry_run' : 'live';
         const floorBlocked = requestedMode === 'live' && effectiveMode === 'dry_run';
         const msg = floorBlocked
-          ? '⚠️ [Saylor] Se pidió LIVE pero Railway sigue con DRY_RUN=true — sigue en TEST.'
-          : (effectiveMode === 'live' ? '🔓 [Saylor] Modo cambiado a LIVE (dinero real).' : '🔒 [Saylor] Modo cambiado a TEST (DRY_RUN).');
+          ? '⚠️ [AlitoBot] Se pidió LIVE pero Railway sigue con DRY_RUN=true — sigue en TEST.'
+          : (effectiveMode === 'live' ? '🔓 [AlitoBot] Modo cambiado a LIVE (dinero real).' : '🔒 [AlitoBot] Modo cambiado a TEST (DRY_RUN).');
         console.log(msg);
         await sendMessage(msg);
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, mode: effectiveMode, floorBlocked }));
@@ -333,7 +379,7 @@ function startServer() {
       return;
     }
 
-    if (req.method === 'POST' && req.url === '/saylor/start') {
+    if (req.method === 'POST' && req.url === '/alitobot/start') {
       (async () => {
         const state = stateStore.get();
         if (state.phase !== 'idle') {
@@ -342,7 +388,7 @@ function startServer() {
         }
         try {
           await bingx.setMarginMode({ symbol: SYMBOL, marginType: 'ISOLATED' }).catch(err =>
-            console.log('[Saylor] setMarginMode falló (probablemente ya estaba en ISOLATED):', err.message));
+            console.log('[AlitoBot] setMarginMode falló (probablemente ya estaba en ISOLATED):', err.message));
           const priceData = await bingx.getPrice(SYMBOL);
           const markPrice = Number(priceData.data.price); // getPrice() returns BingX's raw {code,msg,data:{price,...}} envelope
           const initial = rules.initialState(cfg);
@@ -352,7 +398,7 @@ function startServer() {
           await bingx.placeLimitEntry({ symbol: SYMBOL, side: 'BUY', positionSide: POSITION_SIDE, quantity, price });
           stateStore.update({ ...initial, avgEntryPrice: price, totalQuantity: quantity, openedAt: Date.now() });
 
-          const msg = `🚀 [Saylor] Ciclo iniciado: Inicio ${cfg.inicioBalas} balas · $${notionalUsd.toFixed(2)} nocional · limit @ ${price.toFixed(1)}.`;
+          const msg = `🚀 [AlitoBot] Ciclo iniciado: Inicio ${cfg.inicioBalas} balas · $${notionalUsd.toFixed(2)} nocional · limit @ ${price.toFixed(1)}.`;
           console.log(msg);
           await sendMessage(msg);
           res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, state: stateStore.get() }));
@@ -363,7 +409,7 @@ function startServer() {
       return;
     }
 
-    if (req.method === 'POST' && req.url === '/saylor/reset-circuit-breaker') {
+    if (req.method === 'POST' && req.url === '/alitobot/reset-circuit-breaker') {
       (async () => {
         const state = stateStore.get();
         if (state.phase !== 'halted_circuit_breaker') {
@@ -371,7 +417,7 @@ function startServer() {
           return;
         }
         stateStore.reset();
-        const msg = '🔧 [Saylor] Circuit breaker reseteado a mano — vuelve a esperar /saylor/start.';
+        const msg = '🔧 [AlitoBot] Circuit breaker reseteado a mano — vuelve a esperar /alitobot/start.';
         console.log(msg);
         await sendMessage(msg);
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
@@ -381,30 +427,30 @@ function startServer() {
 
     if (req.method === 'POST' && req.url === '/admin/clear-history') {
       stateStore.clearAll();
-      console.log('[Saylor admin] historial de ciclos borrado via /admin/clear-history');
+      console.log('[AlitoBot admin] historial de ciclos borrado via /admin/clear-history');
       res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
       return;
     }
 
     res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[Saylor server] listening on ${port} (/history, /trades, /mode, /saylor/start, /saylor/reset-circuit-breaker, /admin/clear-history — requires X-Worker-Secret)`));
+  server.listen(port, () => console.log(`[AlitoBot server] listening on ${port} (/history, /trades, /mode, /alitobot/start, /alitobot/reset-circuit-breaker, /admin/clear-history — requires X-Worker-Secret)`));
 }
 
 async function main() {
   const startedDryRun = applyEffectiveDryRun();
-  console.log(`Saylor worker starting for ${SYMBOL} (poll ${POLL_MS}ms, leverage ${cfg.leverage}x, capital $${cfg.capitalUsd}, bala $${rules.balaMarginUsd(cfg).toFixed(2)} margen / $${rules.balaNotionalUsd(cfg).toFixed(2)} nocional, TP ${cfg.takeProfitPct}%, circuit breaker ${cfg.circuitBreakerPct}%, DRY_RUN=${bingx.isDryRun()})`);
+  console.log(`AlitoBot worker starting for ${SYMBOL} (poll ${POLL_MS}ms, leverage ${cfg.leverage}x, capital $${cfg.capitalUsd}, bala $${rules.balaMarginUsd(cfg).toFixed(2)} margen / $${rules.balaNotionalUsd(cfg).toFixed(2)} nocional, TP ${cfg.takeProfitPct}%, circuit breaker ${cfg.circuitBreakerPct}%, recargas: 1x/día, DRY_RUN=${bingx.isDryRun()})`);
   await sendMessage(startedDryRun
-    ? '🔒 [Saylor] Worker arrancó en modo TEST (DRY_RUN). Esperando POST /saylor/start para abrir un ciclo.'
-    : '🔓 [Saylor] Worker arrancó en modo LIVE (dinero real). Esperando POST /saylor/start para abrir un ciclo.');
+    ? '🔒 [AlitoBot] Worker arrancó en modo TEST (DRY_RUN). Esperando POST /alitobot/start para abrir un ciclo.'
+    : '🔓 [AlitoBot] Worker arrancó en modo LIVE (dinero real). Esperando POST /alitobot/start para abrir un ciclo.');
 
   try {
     await bingx.setLeverage(SYMBOL, POSITION_SIDE, cfg.leverage);
     await recoverState();
   } catch (err) {
-    console.error('[Saylor] startup failed:', err.message);
+    console.error('[AlitoBot] startup failed:', err.message);
     stateStore.update({ phase: 'halted_circuit_breaker', circuitBreakerTripped: true }); // safest halted state: refuses to auto-resume, needs manual reset
-    await sendMessage(`🛑 [Saylor] Error crítico al arrancar: ${err.message}. Revisá BingX a mano antes de resetear (POST /saylor/reset-circuit-breaker).`);
+    await sendMessage(`🛑 [AlitoBot] Error crítico al arrancar: ${err.message}. Revisá BingX a mano antes de resetear (POST /alitobot/reset-circuit-breaker).`);
   }
 
   startServer();
@@ -412,8 +458,8 @@ async function main() {
     try {
       await tick();
     } catch (err) {
-      console.error('[Saylor] tick failed:', err.message);
-      await sendMessage(`⚠️ [Saylor] Error en el bot: ${err.message}`);
+      console.error('[AlitoBot] tick failed:', err.message);
+      await sendMessage(`⚠️ [AlitoBot] Error en el bot: ${err.message}`);
     }
     await new Promise(r => setTimeout(r, POLL_MS));
   }

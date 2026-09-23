@@ -3,7 +3,7 @@
 // process's state (open positions) or run continuously.
 //
 // This is the candle-signal strategy specifically (entry point selected by
-// worker/index.js's STRATEGY_MODE dispatcher — see also worker/runSaylor.js,
+// worker/index.js's STRATEGY_MODE dispatcher — see also worker/runAlitobot.js,
 // the martingale/grid strategy). Reuses the exact same
 // buildAnalysis/gateEntries/simulateTrades already validated in the
 // dashboard/backtest, so live decisions match what's on screen. DRY_RUN=true

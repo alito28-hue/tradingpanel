@@ -299,6 +299,9 @@ export default function DashboardPage() {
           <Link href="/bot" style={{ ...btnStyle('outline'), textDecoration: 'none' }}>
             Bot →
           </Link>
+          <Link href="/alitobot" style={{ ...btnStyle('outline'), textDecoration: 'none' }}>
+            AlitoBot →
+          </Link>
           <LogoutLink />
         </div>
       </div>
