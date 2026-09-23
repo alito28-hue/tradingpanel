@@ -121,7 +121,7 @@ export default function AlitobotPage() {
                   <Stat label="Cargador activo" value={cargador.cargadorActivo} />
                   <Stat label="Balas restantes" value={`${cargador.restantesActivo} de 30`} />
                   <Stat label="Reserva (cargador 2)" value={cargador.reservaAbierta ? 'Abierta' : cargador.reservaDisponible ? 'Disponible' : 'Agotada'} />
-                  <Stat label="Posición total" value={`${live.positionAmt} BTC (~$${live.notionalUsd.toFixed(2)})`} />
+                  <Stat label="Posición total" value={`$${live.notionalUsd.toFixed(2)} USDT (${live.positionAmt} BTC)`} />
                 </div>
               )}
 
@@ -134,6 +134,15 @@ export default function AlitobotPage() {
                 {phase === 'halted_circuit_breaker' && (
                   <button onClick={() => runAction('/api/alitobot/reset-circuit-breaker')} disabled={actionLoading} style={{ ...btnStyle(true), opacity: actionLoading ? 0.6 : 1 }}>
                     {actionLoading ? 'Reseteando…' : '🔧 Resetear circuit breaker'}
+                  </button>
+                )}
+                {phase === 'in_position' && (
+                  <button
+                    onClick={() => { if (confirm('¿Cerrar la posición completa ahora mismo?')) runAction('/api/alitobot/close'); }}
+                    disabled={actionLoading}
+                    style={{ ...btnStyle(), borderColor: COLORS.bear, color: COLORS.bear, opacity: actionLoading ? 0.6 : 1 }}
+                  >
+                    {actionLoading ? 'Cerrando…' : '✋ Cerrar posición'}
                   </button>
                 )}
 

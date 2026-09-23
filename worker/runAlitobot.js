@@ -119,7 +119,7 @@ async function sendDailyDigest(state, roi) {
 
   const msg = [
     '📊 [AlitoBot] Resumen diario',
-    `Posición total: ${Math.abs(roi.positionAmt)} ${SYMBOL} (~$${notionalUsd.toFixed(2)} nocional, $${roi.marginUsd.toFixed(2)} margen)`,
+    `Posición total: $${notionalUsd.toFixed(2)} USDT nocional (${Math.abs(roi.positionAmt)} BTC) · $${roi.marginUsd.toFixed(2)} margen`,
     `PnL flotante: ${fmtUsd(roi.unrealizedProfitUsd)} USD (ROI ${fmtUsd(roi.roiPct)}%)`,
     `Precio actual: ${roi.markPrice.toFixed(1)}`,
     `Precio de liquidación${liq.estimated ? ' (estimado)' : ''}: ${liq.value != null ? liq.value.toFixed(1) : '—'}`,
@@ -204,7 +204,7 @@ async function applyAction(action, markPrice) {
     return;
   }
 
-  if (action.type === 'take_profit' || action.type === 'circuit_breaker') {
+  if (action.type === 'take_profit' || action.type === 'circuit_breaker' || action.type === 'manual_close') {
     const roi = await getEffectiveRoi(state);
     if (!roi) {
       console.log(`[AlitoBot] ${action.type}: no hay posición para cerrar (¿ya se cerró?). Reseteando a idle.`);
@@ -212,22 +212,22 @@ async function applyAction(action, markPrice) {
       return;
     }
     const quantity = Math.abs(roi.positionAmt);
+    const notionalUsd = roi.avgPrice * quantity;
     const price = rules.computeLimitPrice(markPrice, 'sell', cfg);
     await bingx.placeLimitExit({ symbol: SYMBOL, side: 'SELL', positionSide: POSITION_SIDE, quantity, price });
 
-    const isTP = action.type === 'take_profit';
-    const msg = isTP
-      ? `✅ [AlitoBot] TAKE PROFIT: cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD.`
-      : `🛑 [AlitoBot] CIRCUIT BREAKER (${cfg.circuitBreakerPct}%): cerrando posición completa (${quantity} ${SYMBOL}) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD. Requiere reset manual (POST /alitobot/reset-circuit-breaker) antes de volver a operar.`;
-    console.log(msg);
-    await sendMessage(msg);
+    const label = { take_profit: '✅ TAKE PROFIT', circuit_breaker: `🛑 CIRCUIT BREAKER (${cfg.circuitBreakerPct}%)`, manual_close: '✋ CIERRE MANUAL' }[action.type];
+    const extra = action.type === 'circuit_breaker' ? ' Requiere reset manual (POST /alitobot/reset-circuit-breaker) antes de volver a operar.' : '';
+    const msg = `${label}: cerrando posición completa (~$${notionalUsd.toFixed(2)} USDT · ${quantity} BTC) @ ~${price.toFixed(1)} · ROI ${fmtUsd(roi.roiPct)}% · PnL flotante ${fmtUsd(roi.unrealizedProfitUsd)} USD.${extra}`;
+    console.log(`[AlitoBot] ${msg}`);
+    await sendMessage(`[AlitoBot] ${msg}`);
 
     stateStore.closeCycle({
       reason: action.type, roiPct: roi.roiPct, unrealizedProfitUsd: roi.unrealizedProfitUsd,
-      avgEntryPrice: roi.avgPrice, exitPriceApprox: price, quantity,
+      avgEntryPrice: roi.avgPrice, exitPriceApprox: price, quantity, notionalUsd,
       cargadores: state.cargadores, balasUsed: rules.totalBalasUsed(state),
     });
-    if (!isTP) {
+    if (action.type === 'circuit_breaker') {
       // closeCycle() already reset to idle — force the halted flag back on
       // top so tick() refuses to auto-resume; only the admin endpoint clears it.
       stateStore.update({ phase: 'halted_circuit_breaker', circuitBreakerTripped: true });
@@ -260,13 +260,20 @@ async function tick() {
 
   // Continuous, every tick: exits + early warning. Never throttled.
   const { actions: exitActions } = rules.checkExitConditions(state, roi.roiPct, cfg);
-  stateStore.update(state); // persists earlyWarningFired flips from checkExitConditions
+  // Only the one field checkExitConditions can flip — NOT the whole `state`
+  // object, which was captured before the `await` above. A concurrent
+  // request (e.g. POST /alitobot/close arriving mid-await) can close the
+  // cycle in between; spreading this stale full object back in would
+  // resurrect the just-closed in_position phase (`update()` merges its
+  // `partial` argument on top of whatever's current).
+  stateStore.update({ earlyWarningFired: state.earlyWarningFired });
   for (const action of exitActions) {
     await applyAction(action, roi.markPrice);
   }
   if (exitActions.some(a => a.type === 'take_profit' || a.type === 'circuit_breaker')) {
     return; // cycle just closed — nothing left to do this tick
   }
+  if (stateStore.get().phase !== 'in_position') return; // closed concurrently (e.g. manual /alitobot/close) during the awaits above
 
   // At most once per calendar day: the actual bala tranches.
   const today = todayKey();
@@ -396,11 +403,38 @@ function startServer() {
           const price = rules.computeLimitPrice(markPrice, 'buy', cfg);
           const quantity = roundQty(notionalUsd / price);
           await bingx.placeLimitEntry({ symbol: SYMBOL, side: 'BUY', positionSide: POSITION_SIDE, quantity, price });
-          stateStore.update({ ...initial, avgEntryPrice: price, totalQuantity: quantity, openedAt: Date.now() });
+          // lastRecargaDay = hoy: el día que arranca el ciclo cuenta como ya
+          // revisado — Inicio es la única acción de hoy, la primera recarga
+          // real recién corre mañana. Sin esto, el chequeo diario (gateado
+          // por "today !== lastRecargaDay", que arranca en null) se dispara
+          // en el mismo tick que Inicio, sumando una recarga el mismo día.
+          stateStore.update({ ...initial, avgEntryPrice: price, totalQuantity: quantity, openedAt: Date.now(), lastRecargaDay: todayKey() });
 
           const msg = `🚀 [AlitoBot] Ciclo iniciado: Inicio ${cfg.inicioBalas} balas · $${notionalUsd.toFixed(2)} nocional · limit @ ${price.toFixed(1)}.`;
           console.log(msg);
           await sendMessage(msg);
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, state: stateStore.get() }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
+        }
+      })();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/alitobot/close') {
+      (async () => {
+        const state = stateStore.get();
+        if (state.phase !== 'in_position') {
+          res.writeHead(409, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: `No hay posición para cerrar (fase: ${state.phase}).` }));
+          return;
+        }
+        try {
+          const roi = await getEffectiveRoi(state);
+          if (!roi) {
+            res.writeHead(409, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'No se pudo leer el ROI actual de la posición.' }));
+            return;
+          }
+          await applyAction({ type: 'manual_close', roiPct: roi.roiPct }, roi.markPrice);
           res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, state: stateStore.get() }));
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
@@ -434,7 +468,7 @@ function startServer() {
 
     res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[AlitoBot server] listening on ${port} (/history, /trades, /mode, /alitobot/start, /alitobot/reset-circuit-breaker, /admin/clear-history — requires X-Worker-Secret)`));
+  server.listen(port, () => console.log(`[AlitoBot server] listening on ${port} (/history, /trades, /mode, /alitobot/start, /alitobot/close, /alitobot/reset-circuit-breaker, /admin/clear-history — requires X-Worker-Secret)`));
 }
 
 async function main() {
