@@ -48,6 +48,7 @@ const applyEffectiveDryRun = makeDryRunGate(modeStore);
 
 const HEARTBEAT_MS = 5 * 60 * 1000;
 let lastHeartbeat = 0;
+let lastDigestDay = null; // 'YYYY-MM-DD' — one Telegram summary per calendar day, not per tick
 
 function fmtUsd(n) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
@@ -196,6 +197,34 @@ async function applyAction(action, markPrice) {
   }
 }
 
+// One Telegram summary per calendar day while a cycle is open — separate
+// from the per-action alerts (each tranche add/exit already notifies on its
+// own). liquidationPrice comes straight from BingX in LIVE (authoritative);
+// in DRY_RUN there's no real position to read it from, so it's estimated
+// (see lib/saylorRules.js's estimateLiquidationPrice) and labeled as such.
+async function sendDailyDigest(state, roi) {
+  const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
+  const liq = roi.liquidationPrice != null
+    ? { value: roi.liquidationPrice, estimated: false }
+    : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
+
+  const cs = rules.cargadorStatus(state, cfg);
+  const balasLine = cs.reservaAbierta
+    ? `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador ${cs.cargadorActivo}, de reserva)`
+    : `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador 1)${cs.reservaDisponible ? ' · cargador 2 de emergencia todavía sin abrir' : ''}`;
+
+  const msg = [
+    '📊 [Saylor] Resumen diario',
+    `Posición total: ${Math.abs(roi.positionAmt)} ${SYMBOL} (~$${notionalUsd.toFixed(2)} nocional, $${roi.marginUsd.toFixed(2)} margen)`,
+    `PnL flotante: ${fmtUsd(roi.unrealizedProfitUsd)} USD (ROI ${fmtUsd(roi.roiPct)}%)`,
+    `Precio actual: ${roi.markPrice.toFixed(1)}`,
+    `Precio de liquidación${liq.estimated ? ' (estimado)' : ''}: ${liq.value != null ? liq.value.toFixed(1) : '—'}`,
+    balasLine,
+  ].join('\n');
+  console.log(msg.replace(/\n/g, ' · '));
+  await sendMessage(msg);
+}
+
 async function tick() {
   applyEffectiveDryRun();
   const state = stateStore.get();
@@ -229,6 +258,15 @@ async function tick() {
 
   for (const action of actions) {
     await applyAction(action, roi.markPrice);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== lastDigestDay && stateStore.get().phase === 'in_position') {
+    lastDigestDay = today;
+    // Re-read ROI fresh rather than reusing the pre-actions `roi` above — a
+    // take-profit/add this same tick would make that snapshot stale.
+    const freshRoi = await getEffectiveRoi(stateStore.get());
+    if (freshRoi) await sendDailyDigest(stateStore.get(), freshRoi);
   }
 
   if (Date.now() - lastHeartbeat >= HEARTBEAT_MS) {
