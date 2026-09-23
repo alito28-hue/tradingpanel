@@ -206,13 +206,20 @@ export default function DashboardPage() {
   // locally-simulated one used by the exploration charts below.
   const workerPosition = botStatus?.position;
   const workerPhase = workerPosition?.phase;
+  // /api/bot-history proxies whichever strategy is actually running
+  // (STRATEGY_MODE on the worker) — this banner only knows how to render the
+  // signal strategy's position shape (type/entryPrice/stopPrice). A position
+  // missing entryPrice means some OTHER strategy is active (e.g. the
+  // martingale one, which has its own status panel) — fall back to a
+  // generic "active" message instead of crashing on undefined.toFixed().
+  const isSignalShape = workerPosition && workerPosition.entryPrice != null;
   const workerSignalStyle = {
     long: { background: 'rgba(204,255,0,0.15)', border: `1px solid ${COLORS.bull}`, color: COLORS.bull },
     short: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
     pending: { background: COLORS.panelAlt, border: `1px solid ${COLORS.accent}`, color: COLORS.accent },
     halted: { background: 'rgba(255,77,77,0.15)', border: `1px solid ${COLORS.bear}`, color: COLORS.bear },
     idle: { background: COLORS.panelAlt, border: `1px solid ${COLORS.border}`, color: COLORS.muted },
-  }[workerPhase === 'in_position' ? workerPosition.type : workerPhase === 'awaiting_entry_fill' ? 'pending' : workerPhase === 'halted' ? 'halted' : 'idle'];
+  }[workerPhase === 'in_position' ? (isSignalShape ? workerPosition.type : 'pending') : workerPhase === 'awaiting_entry_fill' ? 'pending' : workerPhase === 'halted' ? 'halted' : 'idle'];
 
   // Every branch below is explicit about which phase it handles (mirrors the
   // worker's own explicit tick() branching) — a phase this doesn't recognize
@@ -226,6 +233,8 @@ export default function DashboardPage() {
     ? '🛑 Bot detenido (halted) — requiere revisión manual'
     : !workerPosition || workerPhase === 'idle'
     ? '⚪ Sin posición'
+    : !isSignalShape
+    ? `⚪ Corriendo otra estrategia (fase: ${workerPhase}) — ver su propio panel`
     : workerPhase === 'awaiting_entry_fill'
     ? `🟡 Orden LIMIT pendiente ${workerPosition.type === 'long' ? 'LONG' : 'SHORT'} @ ${workerPosition.entryPrice.toFixed(1)}`
     : workerPhase === 'in_position'
@@ -457,6 +466,12 @@ export default function DashboardPage() {
           </div>
         ) : !tradeLog ? (
           <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
+        ) : tradeLog.length > 0 && tradeLog[0].entryPrice == null ? (
+          // /api/bot-trades proxies whichever estrategia está corriendo —
+          // esta tabla solo sabe leer trades cerrados con la forma de la
+          // estrategia de señales (entryPrice/exitPrice/netPnlPct). Otra
+          // estrategia activa tiene su propio historial en su propio panel.
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>El worker está corriendo otra estrategia ahora mismo — ver su propio panel.</div>
         ) : (() => {
           const metrics = computeMetrics(tradeLog);
           return metrics ? (
@@ -470,7 +485,7 @@ export default function DashboardPage() {
         })()}
         {tradeLog && tradeLog.length === 0 ? (
           <div style={{ color: COLORS.muted, fontSize: 13 }}>Ningún trade se cerró todavía.</div>
-        ) : tradeLog && tradeLog.length > 0 && (() => {
+        ) : tradeLog && tradeLog.length > 0 && tradeLog[0].entryPrice != null && (() => {
           const reversed = tradeLog; // getRecentTrades() on the worker already sorts newest-first
           const totalPages = Math.max(1, Math.ceil(reversed.length / TRADES_PER_PAGE));
           const page = Math.min(tradeLogPage, totalPages - 1);

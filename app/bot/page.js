@@ -244,6 +244,12 @@ export default function BotConfigPage() {
           </div>
         ) : !botHistory ? (
           <div style={{ color: COLORS.muted, fontSize: 13 }}>Cargando…</div>
+        ) : !botHistory.today ? (
+          // /api/bot-history proxies whichever estrategia está corriendo
+          // (STRATEGY_MODE en el worker) — esta tabla solo sabe leer la
+          // forma de la estrategia de señales (today/history). Otra
+          // estrategia activa tiene su propio panel.
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>El worker está corriendo otra estrategia ahora mismo — ver su propio panel.</div>
         ) : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 14 }}>
