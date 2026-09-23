@@ -21,6 +21,7 @@ export default function AlitobotPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [liveConfirmText, setLiveConfirmText] = useState('');
+  const [leverageInput, setLeverageInput] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +65,13 @@ export default function AlitobotPage() {
   const phase = data?.position?.phase;
   const live = data?.live;
   const cargador = live?.cargador;
+  const defaultLeverage = data?.config?.leverage;
+  const effectiveLeverageInput = leverageInput !== '' ? leverageInput : (defaultLeverage ?? '');
+
+  async function startCycle() {
+    const n = Number(effectiveLeverageInput);
+    await runAction('/api/alitobot/start', { leverage: Number.isFinite(n) && n > 0 ? n : undefined });
+  }
 
   return (
     <div style={{ background: COLORS.bg, color: COLORS.text, minHeight: '100%' }}>
@@ -135,9 +143,21 @@ export default function AlitobotPage() {
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
                 {phase === 'idle' && (
-                  <button onClick={() => runAction('/api/alitobot/start')} disabled={actionLoading} style={{ ...btnStyle(true), opacity: actionLoading ? 0.6 : 1 }}>
-                    {actionLoading ? 'Arrancando…' : '🚀 Arrancar ciclo'}
-                  </button>
+                  <>
+                    <label style={{ fontSize: 12, color: COLORS.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Leverage
+                      <input
+                        type="number" min="1" step="1"
+                        value={effectiveLeverageInput}
+                        onChange={e => setLeverageInput(e.target.value)}
+                        style={{ ...inputStyle(), width: 60 }}
+                      />
+                      x
+                    </label>
+                    <button onClick={startCycle} disabled={actionLoading} style={{ ...btnStyle(true), opacity: actionLoading ? 0.6 : 1 }}>
+                      {actionLoading ? 'Arrancando…' : '🚀 Arrancar ciclo'}
+                    </button>
+                  </>
                 )}
                 {phase === 'halted_circuit_breaker' && (
                   <button onClick={() => runAction('/api/alitobot/reset-circuit-breaker')} disabled={actionLoading} style={{ ...btnStyle(true), opacity: actionLoading ? 0.6 : 1 }}>

@@ -42,7 +42,15 @@ const { resolveDataDir, roundQty, makeDryRunGate } = require('../lib/workerRunti
 const SYMBOL = process.env.ALITOBOT_SYMBOL || 'BTC-USDT';
 const POSITION_SIDE = 'LONG'; // long-only, by rule — never SHORT
 const POLL_MS = Number(process.env.ALITOBOT_POLL_MS || process.env.BOT_POLL_MS || 20000);
-const cfg = rules.getConfig();
+// Mutable (not const): leverage can be overridden per cycle from the panel's
+// "Arrancar ciclo" confirmation (see POST /alitobot/start below) — every
+// other function in this file reads `cfg` through closure, so reassigning
+// it here before opening a cycle is enough for the whole process to pick up
+// the new leverage (bala size math, logging, etc.) without threading a
+// per-call parameter through everything. Safe because only one cycle can be
+// open at a time — there's no "two leverages active at once" case to get
+// wrong.
+let cfg = rules.getConfig();
 
 const DATA_DIR = resolveDataDir(__dirname);
 // Deliberately its own file, separate from runSignal.js's mode_state.json —
@@ -382,6 +390,7 @@ function startServer() {
         }
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
           mode: effectiveMode, position: state, live, cycles: stateStore.getHistory(),
+          config: { leverage: cfg.leverage, capitalUsd: cfg.capitalUsd },
         }));
       })();
       return;
@@ -424,13 +433,30 @@ function startServer() {
     }
 
     if (req.method === 'POST' && req.url === '/alitobot/start') {
-      (async () => {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => (async () => {
         const state = stateStore.get();
         if (state.phase !== 'idle') {
           res.writeHead(409, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: `Ya hay un ciclo en curso (fase: ${state.phase}).` }));
           return;
         }
+        // Leverage is fixed for the whole cycle (can't change it once a
+        // position is open), so this is the only moment it can be chosen —
+        // confirmed here, not editable mid-cycle. Omitted/invalid falls
+        // back to the deployed default (ALITOBOT_LEVERAGE).
+        let requestedLeverage;
+        try { requestedLeverage = JSON.parse(body || '{}').leverage; } catch { /* falls through to default */ }
+        if (requestedLeverage != null) {
+          const n = Number(requestedLeverage);
+          if (!Number.isFinite(n) || n <= 0) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'leverage debe ser un número mayor a 0' }));
+            return;
+          }
+          cfg = rules.getConfig({ ...process.env, ALITOBOT_LEVERAGE: String(n) });
+        }
         try {
+          await bingx.setLeverage(SYMBOL, POSITION_SIDE, cfg.leverage);
           await bingx.setMarginMode({ symbol: SYMBOL, marginType: 'ISOLATED' }).catch(err =>
             console.log('[AlitoBot] setMarginMode falló (probablemente ya estaba en ISOLATED):', err.message));
           const priceData = await bingx.getPrice(SYMBOL);
@@ -447,14 +473,14 @@ function startServer() {
           // en el mismo tick que Inicio, sumando una recarga el mismo día.
           stateStore.update({ ...initial, avgEntryPrice: price, totalQuantity: quantity, openedAt: Date.now(), lastRecargaDay: todayKey() });
 
-          const msg = `🚀 [AlitoBot] Ciclo iniciado: Inicio ${cfg.inicioBalas} balas · $${notionalUsd.toFixed(2)} nocional · limit @ ${price.toFixed(1)}.`;
+          const msg = `🚀 [AlitoBot] Ciclo iniciado: Inicio ${cfg.inicioBalas} balas · $${notionalUsd.toFixed(2)} nocional · limit @ ${price.toFixed(1)} · leverage ${cfg.leverage}x.`;
           console.log(msg);
           await sendMessage(msg);
           res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, state: stateStore.get() }));
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
         }
-      })();
+      })());
       return;
     }
 
