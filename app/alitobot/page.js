@@ -109,19 +109,27 @@ export default function AlitobotPage() {
                 } color={phase === 'halted_circuit_breaker' ? COLORS.bear : phase === 'in_position' ? COLORS.bull : COLORS.muted} />
                 {live && (
                   <>
+                    <Stat label="Posición" value={`$${live.notionalUsd.toFixed(2)} USDT (${live.positionAmt} BTC)`} />
+                    <Stat label="Precio de entrada" value={live.avgEntryPrice.toFixed(1)} />
+                    <Stat label="Precio de marca" value={live.markPrice.toFixed(1)} />
                     <Stat label="ROI" value={`${fmtUsd(live.roiPct)}%`} color={live.roiPct >= 0 ? COLORS.bull : COLORS.bear} />
-                    <Stat label="PnL flotante" value={`${fmtUsd(live.unrealizedProfitUsd)} USD`} color={live.unrealizedProfitUsd >= 0 ? COLORS.bull : COLORS.bear} />
-                    <Stat label="Precio actual" value={live.markPrice.toFixed(1)} />
-                    <Stat label={`Liquidación${live.liquidationEstimated ? ' (est.)' : ''}`} value={live.liquidationPrice != null ? live.liquidationPrice.toFixed(1) : '—'} color={COLORS.bear} />
                   </>
                 )}
               </div>
+              {live && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 16 }}>
+                  <Stat label="PnL no realizado" value={`${fmtUsd(live.unrealizedProfitUsd)} USD`} color={live.unrealizedProfitUsd >= 0 ? COLORS.bull : COLORS.bear} />
+                  <Stat label="Comisiones pagadas" value={live.commissionUsd != null ? `$${live.commissionUsd.toFixed(2)}` : '— (sin fills, TEST)'} color={COLORS.muted} />
+                  <Stat label="PNL NETO" value={`${fmtUsd(live.pnlNetoUsd)} USD`} color={live.pnlNetoUsd >= 0 ? COLORS.bull : COLORS.bear} />
+                  <Stat label={`Precio de equilibrio${live.breakevenEstimated ? ' (est.)' : ''}`} value={live.breakevenPrice != null ? live.breakevenPrice.toFixed(1) : '—'} />
+                  <Stat label={`Liquidación${live.liquidationEstimated ? ' (est.)' : ''}`} value={live.liquidationPrice != null ? live.liquidationPrice.toFixed(1) : '—'} color={COLORS.bear} />
+                </div>
+              )}
               {cargador && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginBottom: 16 }}>
                   <Stat label="Cargador activo" value={cargador.cargadorActivo} />
                   <Stat label="Balas restantes" value={`${cargador.restantesActivo} de 30`} />
                   <Stat label="Reserva (cargador 2)" value={cargador.reservaAbierta ? 'Abierta' : cargador.reservaDisponible ? 'Disponible' : 'Agotada'} />
-                  <Stat label="Posición total" value={`$${live.notionalUsd.toFixed(2)} USDT (${live.positionAmt} BTC)`} />
                 </div>
               )}
 

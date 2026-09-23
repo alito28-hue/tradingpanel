@@ -101,28 +101,76 @@ function recordFill(state, price, quantity) {
   stateStore.update({ avgEntryPrice: newAvg, totalQuantity: newQty });
 }
 
-// One Telegram summary per calendar day while a cycle is open — separate
-// from the per-action alerts (each tranche add/exit already notifies on its
-// own). liquidationPrice comes straight from BingX in LIVE (authoritative);
-// in DRY_RUN there's no real position to read it from, so it's estimated
-// (see lib/alitobotRules.js's estimateLiquidationPrice) and labeled as such.
-async function sendDailyDigest(state, roi) {
+// Real trading costs since the cycle opened — only available once real
+// orders have actually filled (LIVE, with a real BingX income history).
+// DRY_RUN never has real fills, so there's nothing to fetch: commission/
+// realized stay null, and buildSnapshot() below falls back to
+// lib/alitobotRules.js's fee-rate estimate for the breakeven price.
+async function getCosts(state) {
+  if (bingx.isDryRun() || !state.openedAt) return { commissionUsd: null, realizedUsd: null };
+  try {
+    const income = await bingx.getIncomeHistory({ symbol: SYMBOL, startTime: state.openedAt });
+    const rows = income || [];
+    const commissionUsd = rows.filter(r => r.incomeType === 'COMMISSION').reduce((s, r) => s + Math.abs(Number(r.income || 0)), 0);
+    // Everything BingX charged/paid since open (commission + funding + any
+    // realized PnL) — signed, as BingX reports it (a cost is negative).
+    const realizedUsd = rows.reduce((s, r) => s + Number(r.income || 0), 0);
+    return { commissionUsd, realizedUsd };
+  } catch (err) {
+    console.error('[AlitoBot] no se pudo leer comisiones/income:', err.message);
+    return { commissionUsd: null, realizedUsd: null };
+  }
+}
+
+// Everything the panel/digest need to show about the open position in one
+// place, so the two call sites (sendDailyDigest, GET /history) can't drift.
+// liquidationPrice/breakevenPrice come straight from BingX/its real fee
+// history in LIVE (authoritative); in DRY_RUN there's nothing real to read,
+// so both fall back to estimates (see lib/alitobotRules.js) and are labeled
+// as such.
+async function buildSnapshot(state, roi) {
   const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
   const liq = roi.liquidationPrice != null
     ? { value: roi.liquidationPrice, estimated: false }
     : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
 
-  const cs = rules.cargadorStatus(state, cfg);
+  const { commissionUsd, realizedUsd } = await getCosts(state);
+  // realizedUsd is signed (a cost comes through negative) — breakeven is the
+  // price at which unrealized gain exactly offsets that cost.
+  const breakeven = realizedUsd != null
+    ? { value: roi.avgPrice - realizedUsd / Math.abs(roi.positionAmt), estimated: false }
+    : { value: rules.estimateBreakevenPrice(roi.avgPrice, cfg), estimated: true };
+  const pnlNetoUsd = roi.unrealizedProfitUsd + (realizedUsd || 0);
+
+  return {
+    roiPct: roi.roiPct, unrealizedProfitUsd: roi.unrealizedProfitUsd, markPrice: roi.markPrice,
+    marginUsd: roi.marginUsd, notionalUsd, positionAmt: roi.positionAmt, avgEntryPrice: roi.avgPrice,
+    liquidationPrice: liq.value, liquidationEstimated: liq.estimated,
+    breakevenPrice: breakeven.value, breakevenEstimated: breakeven.estimated,
+    commissionUsd, realizedUsd, pnlNetoUsd,
+    cargador: rules.cargadorStatus(state, cfg),
+  };
+}
+
+// One Telegram summary per calendar day while a cycle is open — separate
+// from the per-action alerts (each tranche add/exit already notifies on its
+// own).
+async function sendDailyDigest(state, roi) {
+  const snap = await buildSnapshot(state, roi);
+  const cs = snap.cargador;
   const balasLine = cs.reservaAbierta
     ? `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador ${cs.cargadorActivo}, de reserva)`
     : `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador 1)${cs.reservaDisponible ? ' · cargador 2 de emergencia todavía sin abrir' : ''}`;
 
   const msg = [
     '📊 [AlitoBot] Resumen diario',
-    `Posición total: $${notionalUsd.toFixed(2)} USDT nocional (${Math.abs(roi.positionAmt)} BTC) · $${roi.marginUsd.toFixed(2)} margen`,
-    `PnL flotante: ${fmtUsd(roi.unrealizedProfitUsd)} USD (ROI ${fmtUsd(roi.roiPct)}%)`,
-    `Precio actual: ${roi.markPrice.toFixed(1)}`,
-    `Precio de liquidación${liq.estimated ? ' (estimado)' : ''}: ${liq.value != null ? liq.value.toFixed(1) : '—'}`,
+    `Posición total: $${snap.notionalUsd.toFixed(2)} USDT nocional (${Math.abs(snap.positionAmt)} BTC) · $${snap.marginUsd.toFixed(2)} margen`,
+    `Entrada prom.: ${snap.avgEntryPrice.toFixed(1)} · Precio de equilibrio${snap.breakevenEstimated ? ' (estimado)' : ''}: ${snap.breakevenPrice != null ? snap.breakevenPrice.toFixed(1) : '—'}`,
+    `PnL flotante: ${fmtUsd(snap.unrealizedProfitUsd)} USD (ROI ${fmtUsd(snap.roiPct)}%)`,
+    `Comisiones pagadas: ${snap.commissionUsd != null ? `$${snap.commissionUsd.toFixed(2)}` : '— (sin fills reales, DRY_RUN)'}`,
+    `PNL NETO: ${fmtUsd(snap.pnlNetoUsd)} USD`,
+    `Precio actual: ${snap.markPrice.toFixed(1)}`,
+    `Precio de liquidación${snap.liquidationEstimated ? ' (estimado)' : ''}: ${snap.liquidationPrice != null ? snap.liquidationPrice.toFixed(1) : '—'}`,
     balasLine,
   ].join('\n');
   console.log(msg.replace(/\n/g, ' · '));
@@ -327,18 +375,7 @@ function startServer() {
         if (state.phase === 'in_position') {
           try {
             const roi = await getEffectiveRoi(state);
-            if (roi) {
-              const notionalUsd = roi.avgPrice * Math.abs(roi.positionAmt);
-              const liq = roi.liquidationPrice != null
-                ? { value: roi.liquidationPrice, estimated: false }
-                : { value: rules.estimateLiquidationPrice(roi.avgPrice, roi.marginUsd, notionalUsd), estimated: true };
-              live = {
-                roiPct: roi.roiPct, unrealizedProfitUsd: roi.unrealizedProfitUsd, markPrice: roi.markPrice,
-                marginUsd: roi.marginUsd, notionalUsd, positionAmt: roi.positionAmt,
-                liquidationPrice: liq.value, liquidationEstimated: liq.estimated,
-                cargador: rules.cargadorStatus(state, cfg),
-              };
-            }
+            if (roi) live = await buildSnapshot(state, roi);
           } catch (err) {
             console.error('[AlitoBot /history] no se pudo leer ROI en vivo:', err.message);
           }
