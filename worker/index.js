@@ -187,9 +187,20 @@ function startServer() {
       return;
     }
 
+    if (req.method === 'POST' && req.url === '/admin/clear-history') {
+      // One-off: wipes today's state AND all archived days (unlike /mode's
+      // untouched dailyLoss, and unlike DailyLossTracker.reset(), which only
+      // starts today over). Used once before switching strategies, not part
+      // of normal operation.
+      dailyLoss.clearAll();
+      console.log('[admin] bot trade history cleared via /admin/clear-history');
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     res.writeHead(404).end();
   });
-  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /trades, /mode — requires X-Worker-Secret; /tv-webhook/<secret> — TradingView alerts, notify-only)`));
+  server.listen(port, () => console.log(`[server] listening on ${port} (/history, /trades, /mode, /admin/clear-history — requires X-Worker-Secret; /tv-webhook/<secret> — TradingView alerts, notify-only)`));
 }
 
 // Runs once at startup (real trading only — DRY_RUN has no real BingX state
