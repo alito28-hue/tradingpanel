@@ -243,27 +243,30 @@ async function applyAction(action, markPrice) {
     const quantity = roundQty(action.notionalUsd / price);
     await bingx.placeLimitEntry({ symbol: SYMBOL, side: 'BUY', positionSide: POSITION_SIDE, quantity, price });
     recordFill(state, price, quantity);
+    // Telegram HTML (see lib/telegram.js's parseMode) — only numbers and our
+    // own fixed strings are interpolated, nothing that needs escaping.
     const msg = [
-      `🔫 [AlitoBot] Recarga a POSICIÓN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · $${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional · limit @ $${price.toFixed(1)}`,
+      `🔫 [AlitoBot] Recarga a POSICIÓN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · <b>$${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional</b>`,
+      `Compra limit: <b>$${price.toFixed(1)}</b>`,
       `📖 Regla aplicada: ${rules.describeBand(action.band, cfg)}`,
       `📉 ROI al momento de la recarga: ${fmtUsd(action.roiPct)}%`,
       action.insufficient ? '⚠️ Pedido parcial: se agotó el capital disponible (2 cargadores).' : null,
     ].filter(Boolean).join('\n');
-    console.log(msg);
-    await sendMessage(msg);
+    console.log(msg.replace(/<\/?b>/g, ''));
+    await sendMessage(msg, 'HTML');
     return;
   }
 
   if (action.type === 'add_margin') {
     await bingx.addIsolatedMargin({ symbol: SYMBOL, positionSide: POSITION_SIDE, amount: action.marginUsd });
     const msg = [
-      `🛡️ [AlitoBot] Recarga a MARGEN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · $${action.marginUsd.toFixed(2)} agregados como margen aislado (no suma tamaño)`,
+      `🛡️ [AlitoBot] Recarga a MARGEN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · <b>$${action.marginUsd.toFixed(2)}</b> agregados como margen aislado (no suma tamaño)`,
       `📖 Regla aplicada: ${rules.describeBand(action.band, cfg)}`,
       `📉 ROI al momento de la recarga: ${fmtUsd(action.roiPct)}%`,
       action.insufficient ? '⚠️ Pedido parcial: se agotó el capital disponible.' : null,
     ].filter(Boolean).join('\n');
-    console.log(msg);
-    await sendMessage(msg);
+    console.log(msg.replace(/<\/?b>/g, ''));
+    await sendMessage(msg, 'HTML');
     return;
   }
 
