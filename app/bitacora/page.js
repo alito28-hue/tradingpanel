@@ -7,7 +7,7 @@ import LogoutLink from '../components/LogoutLink';
 
 const emptyForm = {
   fecha: '', horaEntrada: '', horaSalida: '', symbol: 'BTCUSDT', direccion: 'long',
-  precioEntrada: '', precioSalida: '', monto: '', resultado: '', notas: '',
+  precioEntrada: '', precioSalida: '', monto: '', resultado: '', comision: '', notas: '',
 };
 
 function money(v) {
@@ -277,7 +277,8 @@ export default function BitacoraPage() {
       precioEntrada: entry.precio_entrada ?? '',
       precioSalida: entry.precio_salida ?? '',
       monto: entry.monto ?? '',
-      resultado: entry.resultado ?? '',
+      resultado: entry.resultado_bruto ?? entry.resultado ?? '',
+      comision: entry.comision ?? '',
       notas: entry.notas || '',
     });
     setEditingId(entry.id);
@@ -438,8 +439,16 @@ export default function BitacoraPage() {
               <Field label="Monto invertido">
                 <input type="number" step="any" value={form.monto} onChange={e => setForm({ ...form, monto: e.target.value })} style={{ ...inputStyle(), width: 110 }} />
               </Field>
-              <Field label="Resultado $">
+              <Field label="Resultado $ (antes de comisión)">
                 <input type="number" step="any" value={form.resultado} onChange={e => setForm({ ...form, resultado: e.target.value })} style={{ ...inputStyle(), width: 100 }} />
+              </Field>
+              <Field label="Comisión $">
+                <input type="number" step="any" min="0" value={form.comision} onChange={e => setForm({ ...form, comision: e.target.value })} style={{ ...inputStyle(), width: 90 }} />
+              </Field>
+              <Field label="Resultado neto">
+                <div style={{ ...inputStyle(), width: 100, display: 'flex', alignItems: 'center', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}>
+                  {form.resultado === '' ? '—' : money(Number(form.resultado) - Number(form.comision || 0))}
+                </div>
               </Field>
               <Field label="Imágenes">
                 <input type="file" accept="image/*" multiple onChange={e => setPendingFiles(Array.from(e.target.files))} style={{ fontSize: 12 }} />
@@ -518,6 +527,9 @@ export default function BitacoraPage() {
                             </td>
                             <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: entry.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
                               {money(entry.resultado)}
+                              {entry.comision != null && Number(entry.comision) !== 0 && (
+                                <div style={{ fontSize: 10, fontWeight: 400, color: COLORS.muted }}>com. ${Number(entry.comision).toFixed(2)}</div>
+                              )}
                             </td>
                             <td style={{ padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', color: entry.monto == null ? COLORS.muted : entry.resultado >= 0 ? COLORS.bull : COLORS.bear }}>
                               {formatPct(pctReturn(entry.resultado, entry.monto))}
@@ -635,7 +647,7 @@ export default function BitacoraPage() {
                     <tr style={{ color: COLORS.muted, textAlign: 'left' }}>
                       <th style={{ padding: '4px 8px' }}>Mes</th>
                       <th style={{ padding: '4px 8px' }}>Estado</th>
-                      <th style={{ padding: '4px 8px' }}>Resultado</th>
+                      <th style={{ padding: '4px 8px' }}>Resultado neto</th>
                       <th style={{ padding: '4px 8px' }}>% Rentabilidad</th>
                       <th style={{ padding: '4px 8px' }}>Operaciones</th>
                       <th style={{ padding: '4px 8px' }}>Días operados</th>

@@ -15,7 +15,11 @@ async function loadEntry(id) {
       GROUP BY e.id`,
     [id]
   );
-  return rows[0] || null;
+  const row = rows[0];
+  if (!row) return null;
+  // Misma forma que el listado: `resultado` es el neto (cargado - comisión).
+  const bruto = row.resultado;
+  return { ...row, resultado_bruto: bruto, resultado: bruto == null ? null : Number(bruto) - Number(row.comision || 0) };
 }
 
 export async function GET(_req, { params }) {
@@ -32,8 +36,8 @@ export async function PUT(req, { params }) {
     const { rows } = await query(
       `UPDATE bitacora_entries SET
         fecha = $1, hora_entrada = $2, hora_salida = $3, symbol = $4, direccion = $5,
-        precio_entrada = $6, precio_salida = $7, monto = $8, resultado = $9, notas = $10, updated_at = now()
-       WHERE id = $11
+        precio_entrada = $6, precio_salida = $7, monto = $8, resultado = $9, notas = $10, comision = $11, updated_at = now()
+       WHERE id = $12
        RETURNING id`,
       [
         body.fecha,
@@ -46,6 +50,7 @@ export async function PUT(req, { params }) {
         body.monto != null && body.monto !== '' ? Number(body.monto) : null,
         body.resultado != null && body.resultado !== '' ? Number(body.resultado) : null,
         body.notas || '',
+        body.comision != null && body.comision !== '' ? Number(body.comision) : null,
         id,
       ]
     );
