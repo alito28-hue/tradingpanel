@@ -68,14 +68,13 @@ function fmtUsd(n) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
 }
 
-// "Day" for the once-a-day recarga check (and the daily digest, which
-// reuses this same key — see tick()) rolls over at 12:00 (noon) Argentina
-// time, not UTC midnight. Argentina is UTC-3 with no DST, so noon ART =
-// 15:00 UTC — shifting the clock back 15h before reading the date makes the
-// ISO date string itself flip exactly at that real-world moment.
-const RECARGA_DAY_OFFSET_MS = 15 * 60 * 60 * 1000;
+// Signed money with the $ before the digits: -$30.43 / +$12.00.
+function fmtMoney(n) {
+  return `${n >= 0 ? '+' : '-'}$${Math.abs(n).toFixed(2)}`;
+}
+
 function todayKey() {
-  return new Date(Date.now() - RECARGA_DAY_OFFSET_MS).toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 }
 
 // getPositionRoiPct() reads BingX's REAL position, which in DRY_RUN never
@@ -184,13 +183,13 @@ async function sendDailyDigest(state, roi) {
     '📊 <b>[AlitoBot] Resumen diario</b>',
     `Posición total: <b>$${snap.notionalUsd.toFixed(2)} USDT</b> nocional (${Math.abs(snap.positionAmt)} BTC)`,
     `Margen: <b>$${snap.marginUsd.toFixed(2)}</b>`,
-    `Entrada prom.: <b>${snap.avgEntryPrice.toFixed(1)}</b>`,
-    `Precio de equilibrio${snap.breakevenEstimated ? ' (estimado)' : ''}: <b>${snap.breakevenPrice != null ? snap.breakevenPrice.toFixed(1) : '—'}</b>`,
-    `PnL flotante: ${fmtUsd(snap.unrealizedProfitUsd)} USD (ROI ${fmtUsd(snap.roiPct)}%)`,
+    `Entrada prom.: <b>$${snap.avgEntryPrice.toFixed(1)}</b>`,
+    `Precio de equilibrio${snap.breakevenEstimated ? ' (estimado)' : ''}: <b>${snap.breakevenPrice != null ? `$${snap.breakevenPrice.toFixed(1)}` : '—'}</b>`,
+    `PnL flotante: ${fmtMoney(snap.unrealizedProfitUsd)} (ROI ${fmtUsd(snap.roiPct)}%)`,
     `Comisiones pagadas: ${snap.commissionUsd != null ? `$${snap.commissionUsd.toFixed(2)}` : '— (sin fills reales, DRY_RUN)'}`,
-    `PNL NETO: ${fmtUsd(snap.pnlNetoUsd)} USD`,
-    `Precio actual: <b>${snap.markPrice.toFixed(1)}</b>`,
-    `Precio de liquidación${snap.liquidationEstimated ? ' (estimado)' : ''}: <b>${snap.liquidationPrice != null ? snap.liquidationPrice.toFixed(1) : '—'}</b>`,
+    `PNL NETO: ${fmtMoney(snap.pnlNetoUsd)}`,
+    `Precio actual: <b>$${snap.markPrice.toFixed(1)}</b>`,
+    `Precio de liquidación${snap.liquidationEstimated ? ' (estimado)' : ''}: <b>${snap.liquidationPrice != null ? `$${snap.liquidationPrice.toFixed(1)}` : '—'}</b>`,
     balasLine,
   ].join('\n');
   console.log(msg.replace(/<\/?b>/g, '').replace(/\n/g, ' · '));
