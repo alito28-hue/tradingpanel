@@ -243,7 +243,12 @@ async function applyAction(action, markPrice) {
     const quantity = roundQty(action.notionalUsd / price);
     await bingx.placeLimitEntry({ symbol: SYMBOL, side: 'BUY', positionSide: POSITION_SIDE, quantity, price });
     recordFill(state, price, quantity);
-    const msg = `🔫 [AlitoBot] Recarga a POSICIÓN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional · ROI ${fmtUsd(action.roiPct)}% · limit @ ${price.toFixed(1)}${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible (2 cargadores).' : ''}`;
+    const msg = [
+      `🔫 [AlitoBot] Recarga a POSICIÓN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · $${action.marginUsd.toFixed(2)} margen / $${action.notionalUsd.toFixed(2)} nocional · limit @ $${price.toFixed(1)}`,
+      `📖 Regla aplicada: ${rules.describeBand(action.band, cfg)}`,
+      `📉 ROI al momento de la recarga: ${fmtUsd(action.roiPct)}%`,
+      action.insufficient ? '⚠️ Pedido parcial: se agotó el capital disponible (2 cargadores).' : null,
+    ].filter(Boolean).join('\n');
     console.log(msg);
     await sendMessage(msg);
     return;
@@ -251,7 +256,12 @@ async function applyAction(action, markPrice) {
 
   if (action.type === 'add_margin') {
     await bingx.addIsolatedMargin({ symbol: SYMBOL, positionSide: POSITION_SIDE, amount: action.marginUsd });
-    const msg = `🛡️ [AlitoBot] Recarga a MARGEN: +${action.balas} bala(s) (${action.band}) · $${action.marginUsd.toFixed(2)} agregados como margen aislado (no suma tamaño) · ROI ${fmtUsd(action.roiPct)}%${action.insufficient ? ' ⚠️ pedido parcial: se agotó el capital disponible.' : ''}`;
+    const msg = [
+      `🛡️ [AlitoBot] Recarga a MARGEN: +${action.balas} ${action.balas === 1 ? 'bala' : 'balas'} · $${action.marginUsd.toFixed(2)} agregados como margen aislado (no suma tamaño)`,
+      `📖 Regla aplicada: ${rules.describeBand(action.band, cfg)}`,
+      `📉 ROI al momento de la recarga: ${fmtUsd(action.roiPct)}%`,
+      action.insufficient ? '⚠️ Pedido parcial: se agotó el capital disponible.' : null,
+    ].filter(Boolean).join('\n');
     console.log(msg);
     await sendMessage(msg);
     return;
