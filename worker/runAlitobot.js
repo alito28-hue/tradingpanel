@@ -176,19 +176,25 @@ async function sendDailyDigest(state, roi) {
     ? `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador ${cs.cargadorActivo}, de reserva)`
     : `Balas restantes: ${cs.restantesActivo} de ${cfg.balasPerCargador} (cargador 1)${cs.reservaDisponible ? ' · cargador 2 de emergencia todavía sin abrir' : ''}`;
 
+  // Built as Telegram HTML (see lib/telegram.js's parseMode) — one datum per
+  // line, position/prices/margin in bold. Every interpolated value here is
+  // a number or one of our own fixed strings, never free text, so there's
+  // nothing that needs HTML-escaping.
   const msg = [
-    '📊 [AlitoBot] Resumen diario',
-    `Posición total: $${snap.notionalUsd.toFixed(2)} USDT nocional (${Math.abs(snap.positionAmt)} BTC) · $${snap.marginUsd.toFixed(2)} margen`,
-    `Entrada prom.: ${snap.avgEntryPrice.toFixed(1)} · Precio de equilibrio${snap.breakevenEstimated ? ' (estimado)' : ''}: ${snap.breakevenPrice != null ? snap.breakevenPrice.toFixed(1) : '—'}`,
+    '📊 <b>[AlitoBot] Resumen diario</b>',
+    `Posición total: <b>$${snap.notionalUsd.toFixed(2)} USDT</b> nocional (${Math.abs(snap.positionAmt)} BTC)`,
+    `Margen: <b>$${snap.marginUsd.toFixed(2)}</b>`,
+    `Entrada prom.: <b>${snap.avgEntryPrice.toFixed(1)}</b>`,
+    `Precio de equilibrio${snap.breakevenEstimated ? ' (estimado)' : ''}: <b>${snap.breakevenPrice != null ? snap.breakevenPrice.toFixed(1) : '—'}</b>`,
     `PnL flotante: ${fmtUsd(snap.unrealizedProfitUsd)} USD (ROI ${fmtUsd(snap.roiPct)}%)`,
     `Comisiones pagadas: ${snap.commissionUsd != null ? `$${snap.commissionUsd.toFixed(2)}` : '— (sin fills reales, DRY_RUN)'}`,
     `PNL NETO: ${fmtUsd(snap.pnlNetoUsd)} USD`,
-    `Precio actual: ${snap.markPrice.toFixed(1)}`,
-    `Precio de liquidación${snap.liquidationEstimated ? ' (estimado)' : ''}: ${snap.liquidationPrice != null ? snap.liquidationPrice.toFixed(1) : '—'}`,
+    `Precio actual: <b>${snap.markPrice.toFixed(1)}</b>`,
+    `Precio de liquidación${snap.liquidationEstimated ? ' (estimado)' : ''}: <b>${snap.liquidationPrice != null ? snap.liquidationPrice.toFixed(1) : '—'}</b>`,
     balasLine,
   ].join('\n');
-  console.log(msg.replace(/\n/g, ' · '));
-  await sendMessage(msg);
+  console.log(msg.replace(/<\/?b>/g, '').replace(/\n/g, ' · '));
+  await sendMessage(msg, 'HTML');
 }
 
 // Runs once at startup, real trading only (mirrors runSignal.js's
